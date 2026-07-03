@@ -73,8 +73,9 @@ multi-quote benchmarks (every PN is unique); fuzzy name matching yields **9–17
 real clusters depending on threshold — genuinely usable medians. A good starting
 point is threshold ≈ 0.65, token weight ≈ 0.6, same-make on.
 
-Click any benchmark row to expand the **grouped variants** — the individual
-part names, numbers, suppliers, prices and dates that were merged.
+Click any benchmark part — on the **Benchmark**, **Dashboard** or **Analytics**
+tabs — to expand the **individual quotes** behind it: the part names, numbers,
+suppliers, prices and dates that were merged into the cluster.
 
 ---
 
@@ -101,13 +102,17 @@ grows.
 
 ## 5. Tabs & how to use them
 
-- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. Empty on first run; click **Load demo (18 bills)** or go to Ingest.
-- **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); demo loader; **Export .xlsx**; clear; activity log.
+- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any listed part to expand the individual quotes** behind its benchmark.
+- **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
 - **Parts Ledger** — every enriched line; search + filter by make / line-type.
-- **Benchmark** — the matching configuration (§3) + the clustered median table.
-- **Analytics** — the 8 methods (§4).
+- **Benchmark** — the matching configuration (§3) + the clustered median table; click a row to reveal its quotes.
+- **Analytics** — the 8 methods (§4); the median-benchmark view is also click-to-expand.
 - **Coverage** — make & category coverage vs the success criteria.
 - **Method Notes** — short reference for each analytic + the matching rationale.
+
+> **Persistence behaviour.** First visit seeds the demo. Uploaded data persists
+> and is shown on return. An explicit **Clear dataset** stays cleared across
+> reloads (it will not re-seed the demo).
 
 ---
 
@@ -166,6 +171,12 @@ Analytics tab.
 **Step 7 — Deployable scaffold.** Packaged as a ready-to-push Vite project with a
 serverless OCR proxy (`api/ocr.js`), GitHub Pages CI workflow, `localStorage`
 persistence, and this documentation.
+
+**Step 8 — Auto-load + quote drill-down.** The demo dataset now loads
+automatically on first visit (respecting saved uploads and an explicit clear),
+and clicking any benchmark part on the Dashboard, Benchmark and Analytics tabs
+expands the individual quotes behind it. Fixed the earlier unicode-escape
+rendering issue and added a dashboard preview screenshot.
 
 ---
 

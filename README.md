@@ -19,8 +19,9 @@ bills** (174 part lines) so you can explore it immediately.
 - **Auto-enrich** — normalises part numbers, infers make/model, assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
 - **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab.
+- **Quote drill-down** — click any benchmark part (on the Dashboard, Benchmark or Analytics tabs) to expand the individual quotes behind it (part number · supplier · price · date).
 - **Coverage report** — by make and category, against the project's success criteria.
-- **Persistence + export** — saves to the browser and reloads next session; export the enriched DB + benchmark to `.xlsx`.
+- **Loads on open + persists** — the 18-bill demo dataset loads automatically on first visit; uploads persist to the browser and reload next session; export the enriched DB + benchmark to `.xlsx`.
 
 ### Why fuzzy matching?
 
@@ -41,7 +42,8 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Open the app, click **Load demo (18 bills)**, and explore. `npm run build`
+Open the app — the **18-bill demo dataset loads automatically** on first run, so
+the dashboard, benchmark and analytics are populated immediately. `npm run build`
 produces a static site in `dist/`.
 
 > **Live OCR note.** The Excel-upload path, enrichment, benchmark, analytics and
@@ -91,13 +93,17 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 
 | Tab | What it does |
 |---|---|
-| **Dashboard** | KPI tiles, make-coverage bars, top fuzzy-matched benchmarks |
-| **Ingest** | Excel upload, live OCR, demo loader, export, clear, activity log |
+| **Dashboard** | KPI tiles, make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
+| **Ingest** | Excel upload, live OCR, reload-demo, export, clear, activity log |
 | **Parts Ledger** | Every enriched line; search + filter by make / line-type |
-| **Benchmark** | The matching configuration + fuzzy-clustered median table (click a row to see grouped variants) |
-| **Analytics** | All 8 methods, selectable |
+| **Benchmark** | The matching configuration + fuzzy-clustered median table (click a row to see the grouped quotes) |
+| **Analytics** | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
 | **Coverage** | Make & category coverage vs the success criteria |
 | **Method Notes** | What each analytic computes and why |
+
+The **18-bill demo loads automatically** on first visit. Uploaded data persists
+and is shown on return; an explicit **Clear dataset** stays cleared across
+reloads (it won't re-seed the demo).
 
 ### Ingesting the real invoices
 
@@ -159,6 +165,8 @@ partsindex/
 │  └─ ocr.js                      ← serverless OCR proxy (keeps API key server-side)
 ├─ .github/workflows/
 │  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
+├─ public/
+│  └─ screenshot.png             ← dashboard preview used in this README
 └─ src/
    ├─ main.jsx
    ├─ index.css
