@@ -9,7 +9,7 @@ deployment see [`README.md`](./README.md); for OCR-ing invoices see
 
 1. [Why this exists](#1-why-this-exists)
 2. [The pipeline](#2-the-pipeline)
-3. [Configurable fuzzy matching](#3-configurable-fuzzy-matching)
+3. [Matching (hybrid, part-number-first)](#3-matching-hybrid-part-number-first)
 4. [The eight analytics](#4-the-eight-analytics)
 5. [Tabs & how to use them](#5-tabs--how-to-use-them)
 6. [OCR-ing the 200 invoices](#6-ocr-ing-the-200-invoices)
@@ -54,28 +54,32 @@ kept but excluded from cost aggregation.
 
 ---
 
-## 3. Configurable fuzzy matching
+## 3. Matching (hybrid, part-number-first)
 
 The benchmark groups parts into clusters, then reports median / average / range /
 quote count / suppliers per cluster. Grouping is **configurable on the Benchmark
 tab**:
 
 - **Mode**
-  - **Fuzzy part name** *(default)* — clusters parts whose names are similar enough. This is what actually produces multi-quote benchmarks on real data.
-  - **Category + make** — coarser grouping by canonical category.
-  - **Exact part no** — strict; reproduces the old behaviour (few or no multi-quote clusters on small sets).
-- **Similarity threshold** *(0.40–0.95)* — higher = stricter, tighter clusters.
-- **Token vs spelling weight** *(0–1)* — the similarity score blends token overlap (Jaccard on words) with edit-distance similarity (normalised Levenshtein). Lean on **tokens** for word-order variants (`HEAD LAMP` vs `HEADLAMP ASSY`); lean on **spelling** for typos/abbreviations.
-- **Only match within same make** — prevents a Toyota headlamp clustering with a Mercedes one.
+  - **Hybrid** *(default, recommended)* — group by exact normalised **part number** first (definitely the same part), then optionally *bridge* different part numbers by fuzzy name (see below). This keeps the part number — the key supplier bills carry that PeerIndex/eSource lack — as the primary basis.
+  - **Exact part no only** — strict PN grouping, no bridging.
+  - **Fuzzy part name only** — name similarity alone (can over-merge; use with care).
+  - **Category + make** — coarse grouping by canonical category.
+- **Bridge by name across part numbers** *(off by default)* — in hybrid mode, also merge PN-groups whose names are fuzzy-similar within the same make/model. Off = most defensible (identical PN only); on = more coverage on small datasets. Bridged benchmarks are flagged **≈** in the **Basis** column; single-PN benchmarks show **PN**.
+- **Similarity threshold** *(0.40–0.95)* and **token vs spelling weight** *(0–1)* — control the fuzzy score used for bridging (token overlap for word-order variants like `HEAD LAMP` vs `HEADLAMP ASSY`; spelling for typos).
+- **Same make / Same model** — keep parts apart across makes and, crucially, across models — so a Camry headlamp never merges with a Hilux one even under bridging.
 
-**Why fuzzy, not exact PN?** On the 18-bill demo, exact part numbers yield **0**
-multi-quote benchmarks (every PN is unique); fuzzy name matching yields **9–17**
-real clusters depending on threshold — genuinely usable medians. A good starting
-point is threshold ≈ 0.65, token weight ≈ 0.6, same-make on.
+**Why hybrid rather than name-only?** Name-only matching over-merges — two
+genuinely different Mercedes distance sensors (LH/RH) share the name "DISTANCE
+SENSOR", and cross-model it could merge a Camry and Hilux headlamp at very
+different prices. Part-number-first keeps the defensible identity primary; the
+**Basis** flag makes clear when a benchmark relied on a looser name bridge. On the
+18-bill demo, strict PN yields few multi-quote medians (every PN is nearly
+unique); turning bridging on surfaces ~9 clusters. As real volume accumulates,
+identical part numbers recur and bridging matters less.
 
 Click any benchmark part — on the **Benchmark**, **Dashboard** or **Analytics**
-tabs — to expand the **individual quotes** behind it: the part names, numbers,
-suppliers, prices and dates that were merged into the cluster.
+tabs — to expand the **individual quotes** behind it.
 
 ---
 
@@ -102,10 +106,11 @@ grows.
 
 ## 5. Tabs & how to use them
 
-- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any listed part to expand the individual quotes** behind its benchmark.
+- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
 - **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
 - **Parts Ledger** — every enriched line; search + filter by make / line-type.
-- **Benchmark** — the matching configuration (§3) + the clustered median table; click a row to reveal its quotes.
+- **Benchmark** — the matching configuration (§3) + the clustered median table with a Basis column; click a row to reveal its quotes.
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line); each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the threshold flagged. The inverse of building the reference — putting it to work on a live claim.
 - **Analytics** — the 8 methods (§4); the median-benchmark view is also click-to-expand.
 - **Coverage** — make & category coverage vs the success criteria.
 - **Method Notes** — short reference for each analytic + the matching rationale.
@@ -172,18 +177,30 @@ Analytics tab.
 serverless OCR proxy (`api/ocr.js`), GitHub Pages CI workflow, `localStorage`
 persistence, and this documentation.
 
-**Step 8 — Auto-load + quote drill-down.** The demo dataset now loads
-automatically on first visit (respecting saved uploads and an explicit clear),
-and clicking any benchmark part on the Dashboard, Benchmark and Analytics tabs
-expands the individual quotes behind it. Fixed the earlier unicode-escape
-rendering issue and added a dashboard preview screenshot.
+**Step 8 — Auto-load, quote & KPI drill-down.** The demo dataset now loads
+automatically on first visit (respecting saved uploads and an explicit clear).
+Clicking any benchmark part on the Dashboard, Benchmark and Analytics tabs expands
+the individual quotes behind it, and every dashboard KPI tile is clickable to
+reveal an inline breakdown (invoice list, line-type split, categories, cluster
+sizes, per-make coverage, benchmark-ready parts). Fixed the earlier
+unicode-escape rendering issue, added the Merimen favicon/header logo, and added a
+dashboard preview screenshot.
+
+**Step 9 — Hybrid matching + Assess a Claim.** Reworked the benchmark to group by
+exact part number first, with optional name **bridging** (off by default) and
+same-model separation, plus a **Basis** (PN / ≈) flag so a reader can see whether
+a benchmark rests on an identical part number or a looser name match. Added the
+**Assess a Claim** tab: paste a repairer estimate and get a line-by-line variance
+against the benchmark with a total potential over-claim — the inverse workflow
+that turns the reference into a daily adjuster tool.
 
 ---
 
 ## 9. Limitations & next steps
 
-- **Sample size.** Benchmarks firm up only as the same part recurs across bills; the 18-bill demo is illustrative, the incoming **200** invoices are what make it real.
-- **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The app ships the framework; feed it matched claim data for hard numbers.
-- **Make/model** is often absent from the bill; inferred from chassis/part-prefix. Joining full claim metadata via chassis tightens this.
+- **Sample size.** Benchmarks firm up only as the same part recurs across bills; the 18-bill demo is illustrative, the incoming **200** invoices are what make it real. With strict (PN-only) matching most demo parts are single-quote — turn on bridging to see medians form.
+- **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The Assess tab compares an estimate to the benchmark; feeding it real final-offer data closes the loop.
+- **Make/model** is often absent from the bill; inferred from chassis/part-prefix. Joining full claim metadata via chassis tightens this and makes same-model separation exact.
+- **Price comparability.** Bills span multiple years and mixed GST treatment; medians currently treat all prices as directly comparable. Normalising to ex-GST and weighting by recency is a worthwhile next step.
 - **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking (token limits).
-- **Fuzzy matching** is a heuristic. Very generic names ("BRACKET", "COVER") can over-merge at low thresholds — keep same-make on and start around 0.65, then tune per the data.
+- **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.

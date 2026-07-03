@@ -108,22 +108,61 @@ function levSim(a, b) {
 function similarity(a, b, tokenWeight = 0.6) {
   return tokenWeight * jaccard(a, b) + (1 - tokenWeight) * levSim(a, b);
 }
+// A model key that keeps different variants apart (strip trailing bracket notes like "(W213)").
+function modelKey(p) { return String(p.model || "").replace(/\(.*?\)/g, "").trim().toLowerCase() || "—"; }
 
-/* Cluster usable parts by configurable rules.
-   cfg = { mode:'fuzzy-name'|'exact-pn'|'category', threshold, sameMake, tokenWeight } */
+/* Cluster usable parts.
+   cfg = { mode:'hybrid'|'fuzzy-name'|'exact-pn'|'category', threshold, sameMake, sameModel, tokenWeight, bridge }
+   HYBRID (default & recommended): group by exact normalised part number first (definitely the
+   same part), then optionally BRIDGE groups whose names are fuzzy-similar within the same make
+   (and model, if enabled) — so OEM/aftermarket variants merge, but a Camry headlamp never merges
+   with a Hilux headlamp. */
 function buildClusters(parts, cfg) {
   const usable = parts.filter((p) => p.ltype === "Supplier Part");
+
   if (cfg.mode === "exact-pn") {
-    const g = {};
-    usable.forEach((p) => { const k=p.npn||"?"; (g[k]=g[k]||[]).push(p); });
-    return Object.entries(g).map(([k, mem]) => makeCluster(mem, k));
+    const g = {}; usable.forEach((p) => { const k = p.npn || "?"; (g[k] = g[k] || []).push(p); });
+    return Object.values(g).map((mem) => makeCluster(mem)).sort((a, b) => b.n - a.n);
   }
   if (cfg.mode === "category") {
-    const g = {};
-    usable.forEach((p) => { const k=(cfg.sameMake?p.make+" · ":"")+p.cat; (g[k]=g[k]||[]).push(p); });
-    return Object.entries(g).map(([k, mem]) => makeCluster(mem, k));
+    const g = {}; usable.forEach((p) => { const k = (cfg.sameMake ? p.make + " · " : "") + p.cat; (g[k] = g[k] || []).push(p); });
+    return Object.values(g).map((mem) => makeCluster(mem)).sort((a, b) => b.n - a.n);
   }
-  // fuzzy-name greedy agglomeration
+  if (cfg.mode === "fuzzy-name") {
+    return fuzzyAgglomerate(usable, cfg).sort((a, b) => b.n - a.n);
+  }
+
+  // ---- hybrid (default) ----
+  // 1) seed groups by exact normalised part number
+  const byPN = {};
+  usable.forEach((p) => { const k = p.npn || ("~" + p.id); (byPN[k] = byPN[k] || []).push(p); });
+  let groups = Object.entries(byPN).map(([pn, mem]) => ({ pn, mem }));
+
+  // 2) optionally bridge PN-groups by fuzzy name within make (+ model)
+  if (cfg.bridge) {
+    const used = new Array(groups.length).fill(false);
+    const merged = [];
+    for (let i = 0; i < groups.length; i++) {
+      if (used[i]) continue; used[i] = true;
+      const acc = [...groups[i].mem];
+      const a = groups[i].mem[0];
+      for (let j = i + 1; j < groups.length; j++) {
+        if (used[j]) continue;
+        const b = groups[j].mem[0];
+        if (cfg.sameMake && a.make !== b.make) continue;
+        if (cfg.sameModel && modelKey(a) !== modelKey(b)) continue;
+        if (similarity(a.part_name, b.part_name, cfg.tokenWeight) >= cfg.threshold) {
+          acc.push(...groups[j].mem); used[j] = true;
+        }
+      }
+      merged.push(acc);
+    }
+    return merged.map((mem) => makeCluster(mem)).sort((a, b) => b.n - a.n);
+  }
+  return groups.map((g) => makeCluster(g.mem)).sort((a, b) => b.n - a.n);
+}
+
+function fuzzyAgglomerate(usable, cfg) {
   const used = new Array(usable.length).fill(false);
   const clusters = [];
   for (let i = 0; i < usable.length; i++) {
@@ -132,22 +171,28 @@ function buildClusters(parts, cfg) {
     for (let j = i + 1; j < usable.length; j++) {
       if (used[j]) continue;
       if (cfg.sameMake && usable[i].make !== usable[j].make) continue;
+      if (cfg.sameModel && modelKey(usable[i]) !== modelKey(usable[j])) continue;
       if (similarity(usable[i].part_name, usable[j].part_name, cfg.tokenWeight) >= cfg.threshold) {
         used[j] = true; mem.push(usable[j]);
       }
     }
-    clusters.push(makeCluster(mem, usable[i].part_name));
+    clusters.push(makeCluster(mem));
   }
-  return clusters.sort((a, b) => b.n - a.n);
+  return clusters;
 }
-function makeCluster(mem, label) {
+
+function makeCluster(mem) {
   const units = mem.map((m) => m.unit);
   const names = [...new Set(mem.map((m) => m.part_name))];
-  const pns = [...new Set(mem.map((m) => m.part_number).filter(Boolean))];
+  const pns = [...new Set(mem.map((m) => m.npn).filter(Boolean))];
+  const rawPns = [...new Set(mem.map((m) => m.part_number).filter(Boolean))];
   const sup = [...new Set(mem.map((m) => m.supplier))];
   const med = median(units), av = mean(units);
+  // A cluster spanning >1 distinct part number was name-bridged, not PN-identical → lower certainty.
+  const bridged = pns.length > 1;
   return {
-    key: label, label: names[0] || label, names, pns, members: mem,
+    key: (pns[0] || names[0] || "?") + "|" + mem[0].make, label: names[0] || rawPns[0] || "?",
+    names, pns, rawPns, members: mem, bridged,
     make: mem[0].make, model: mem[0].model, cat: mem[0].cat, suppliers: sup,
     n: mem.length, min: Math.min(...units), med: +med.toFixed(2), avg: +av.toFixed(2),
     max: Math.max(...units), spread: +(Math.max(...units) - Math.min(...units)).toFixed(2),
@@ -229,7 +274,7 @@ export default function App() {
   const [loading, setLoading] = useState(null);
   const [log, setLog] = useState([]);
   const [q, setQ] = useState(""), [fMake, setFMake] = useState("All"), [fType, setFType] = useState("All");
-  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, tokenWeight: 0.6 });
+  const [cfg, setCfg] = useState({ mode: "hybrid", threshold: 0.7, sameMake: true, sameModel: true, tokenWeight: 0.6, bridge: false });
   const [method, setMethod] = useState("benchmark");
   const [inflPct, setInflPct] = useState(30);
   const excelRef = useRef(), invRef = useRef();
@@ -304,7 +349,8 @@ export default function App() {
       </div>
       <div style={{ background: TEAL, padding: "0 18px", display: "flex", gap: 2, flexWrap: "wrap" }}>
         <Tab id="dashboard" label="Dashboard" /><Tab id="upload" label="Ingest" />
-        <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Benchmark" /><Tab id="analytics" label="Analytics" />
+        <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Benchmark" />
+        <Tab id="assess" label="Assess a Claim" /><Tab id="analytics" label="Analytics" />
         <Tab id="coverage" label="Coverage" /><Tab id="methods" label="Method Notes" />
       </div>
 
@@ -313,6 +359,7 @@ export default function App() {
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
+        {tab === "assess" && <Assess {...{ clusters, cfg, inflPct, setInflPct }} />}
         {tab === "analytics" && <Analytics {...{ parts, clusters, cfg, method, setMethod, inflPct, setInflPct }} />}
         {tab === "coverage" && <Coverage {...{ parts, clusters }} />}
         {tab === "methods" && <MethodNotes />}
@@ -342,15 +389,21 @@ function QuoteLines({ c }) {
 
 function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
   const [openTop, setOpenTop] = useState(null);
+  const [kpi, setKpi] = useState(null);
+  const clickable = parts.length > 0;
   return (<>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 22 }}>
-      {[["Invoices", kpis.invoices, TEAL_L], ["Part lines", kpis.lines, "#fff"], ["Usable supplier parts", kpis.usable, "#fff"],
-        ["Fuzzy clusters", kpis.clusters, "#fff"], ["Makes covered", kpis.makes, "#fff"], ["Benchmark-ready", kpis.ready, LIME]]
-        .map(([l, v, c]) => (
-        <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "16px 18px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
+      {[["invoices","Invoices", kpis.invoices, TEAL_L], ["lines","Part lines", kpis.lines, "#fff"], ["usable","Usable supplier parts", kpis.usable, "#fff"],
+        ["clusters","Fuzzy clusters", kpis.clusters, "#fff"], ["makes","Makes covered", kpis.makes, "#fff"], ["ready","Benchmark-ready", kpis.ready, LIME]]
+        .map(([id, l, v, c]) => { const active = kpi === id;
+        return (
+        <div key={id} onClick={() => clickable && setKpi(active ? null : id)}
+          style={{ background: active ? "#123E4D" : PANEL, border: `1px solid ${active ? LIME : LINE}`, borderRadius: 10, padding: "16px 18px", cursor: clickable ? "pointer" : "default", transition: "background .12s, border-color .12s" }}>
           <div style={{ fontSize: 30, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
-          <div style={{ fontSize: 11.5, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
+          <div style={{ fontSize: 11.5, color: active ? TEXT : MUTE, marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {l}{clickable && <span style={{ color: active ? LIME : "#4B6F80", fontSize: 10 }}>{active ? "▾" : "▸"}</span>}</div></div>); })}
     </div>
+    {kpi && clickable && <KpiDetail kpi={kpi} parts={parts} clusters={clusters} onClose={() => setKpi(null)} />}
     {parts.length === 0 ? (
       <div style={{ border: `1px dashed ${LINE}`, borderRadius: 12, padding: 44, textAlign: "center", background: PANEL }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "#fff" }}>No parts stored yet</div>
@@ -390,6 +443,108 @@ function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
   </>);
 }
 
+// Lists raw part lines behind a grouped KPI row.
+function PartLines({ items }) {
+  return (<>{items.map((m, k) => (
+    <div key={k} style={{ padding: "2px 0" }}>
+      <span style={{ color: TEXT }}>{m.part_name}</span> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{m.part_number || "—"}</span> · {m.make}{m.cat ? " · " + m.cat : ""} · {m.supplier} · <b style={{ color: LIME }}>S${(m.unit || 0).toFixed(2)}</b>{m.bill_no ? " · bill " + m.bill_no : ""}
+    </div>))}</>);
+}
+// Table whose rows expand to reveal their member part lines (or custom detail).
+function ExpandTable({ cols, rows, colSpan }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead><tr style={{ background: INK }}>{cols.map((c) => <th key={c.k} style={{ ...th, textAlign: c.a || "left" }}>{c.h}</th>)}</tr></thead>
+        <tbody>{rows.map((r, i) => { const isOpen = open === i; return (
+          <React.Fragment key={i}>
+            <tr onClick={() => setOpen(isOpen ? null : i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r._bg || "transparent" }}>
+              {cols.map((c, ci) => <td key={c.k} style={{ ...td, textAlign: c.a || "left", color: r["_c" + c.k] || (c.mut ? MUTE : TEXT), fontFamily: c.mono ? "ui-monospace,monospace" : "inherit", fontWeight: c.b ? 700 : 400 }}>
+                {ci === 0 && <span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>}{r[c.k]}</td>)}
+            </tr>
+            {isOpen && <tr style={{ background: INK }}><td colSpan={colSpan || cols.length} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>{r._detail}</td></tr>}
+          </React.Fragment>); })}</tbody></table></div>
+  );
+}
+
+function KpiDetail({ kpi, parts, clusters, onClose }) {
+  const [open, setOpen] = useState(null);
+  const usable = parts.filter((p) => p.ltype === "Supplier Part");
+  const TITLES = { invoices: "Invoices / bills in the dataset", lines: "Part lines by type",
+    usable: "Usable supplier parts by category", clusters: "Fuzzy cluster sizes",
+    makes: "Coverage by make", ready: "Benchmark-ready parts (≥2 quotes)" };
+  let body = null, note = null;
+
+  if (kpi === "invoices") {
+    const g = {};
+    parts.forEach((p) => { const k = p.bill_no || "(no number)";
+      (g[k] ||= { bill: k, supplier: p.supplier, date: p.bill_date || "—", make: p.make, doc: p.doc_type, items: [], total: 0 });
+      g[k].items.push(p); g[k].total += p.total || 0; });
+    const rows = Object.values(g).sort((a, b) => b.items.length - a.items.length).map((r) => ({
+      bill: r.bill, supplier: r.supplier, date: r.date, make: r.make, doc: r.doc, n: r.items.length, total: r.total.toFixed(2),
+      _detail: <PartLines items={r.items} /> }));
+    body = <ExpandTable cols={[{k:"bill",h:"Bill no"},{k:"supplier",h:"Supplier"},{k:"date",h:"Date"},{k:"make",h:"Make"},{k:"doc",h:"Type",mut:1},{k:"n",h:"Lines",a:"center"},{k:"total",h:"Total S$",a:"right",b:1}]} rows={rows} />;
+    note = `${rows.length} distinct bills. Click a bill to see its part lines.`;
+  } else if (kpi === "lines") {
+    const order = ["Supplier Part","Consumable / Fastener","Repair Estimate","Labour"];
+    const rows = order.map((t) => { const items = parts.filter((p) => p.ltype === t);
+      return items.length ? { type: t, n: items.length, pct: parts.length ? ((items.length / parts.length) * 100).toFixed(0) + "%" : "0%",
+        _ctype: t === "Supplier Part" ? LIME : TEXT, _detail: <PartLines items={items.slice(0, 200)} /> } : null; }).filter(Boolean);
+    body = <ExpandTable cols={[{k:"type",h:"Line type"},{k:"n",h:"Count",a:"center",b:1},{k:"pct",h:"Share",a:"right",mut:1}]} rows={rows} />;
+    note = "Only Supplier Part lines feed the cost benchmark. Click a type to see its lines.";
+  } else if (kpi === "usable") {
+    const g = {}; usable.forEach((p) => { (g[p.cat] ||= { cat: p.cat, items: [], pn: new Set() }); g[p.cat].items.push(p); g[p.cat].pn.add(p.npn); });
+    const rows = Object.values(g).sort((a, b) => b.items.length - a.items.length).map((r) => ({
+      cat: r.cat, n: r.items.length, pn: r.pn.size, _detail: <PartLines items={r.items} /> }));
+    body = <ExpandTable cols={[{k:"cat",h:"Category"},{k:"n",h:"Parts",a:"center",b:1},{k:"pn",h:"Distinct part nos",a:"center",mut:1}]} rows={rows} />;
+    note = `${usable.length} usable supplier parts across ${rows.length} categories. Click a category to see its parts.`;
+  } else if (kpi === "clusters") {
+    const bands = [["1 quote", (c) => c.n === 1], ["2 quotes", (c) => c.n === 2], ["3 quotes", (c) => c.n === 3], ["4+ quotes", (c) => c.n >= 4]];
+    const rows = bands.map(([size, f]) => { const cs = clusters.filter(f); return cs.length ? {
+      size, n: cs.length, _csize: size === "1 quote" ? MUTE : LIME,
+      _detail: cs.slice(0, 60).map((c, k) => <div key={k} style={{ padding: "2px 0" }}>
+        <span style={{ color: TEXT }}>{c.label}</span> · {c.make} · {c.cat} · <b style={{ color: LIME }}>median S${c.med}</b>{c.n > 1 ? ` · ${c.suppliers.length} suppliers · range S$${c.min}–${c.max}` : ""}</div>) } : null; }).filter(Boolean);
+    body = <ExpandTable cols={[{k:"size",h:"Cluster size"},{k:"n",h:"# clusters",a:"center",b:1}]} rows={rows} />;
+    note = `${clusters.length} clusters from ${usable.length} usable parts. ${clusters.filter((c) => c.n > 1).length} have ≥2 quotes. Click a band to list its clusters.`;
+  } else if (kpi === "makes") {
+    const mk = [...new Set(usable.map((p) => p.make))];
+    const rows = mk.map((m) => { const cs = clusters.filter((c) => c.make === m); const items = usable.filter((p) => p.make === m);
+      return { make: m, parts: items.length, clusters: cs.length, ready: cs.filter((c) => c.n > 1).length, _cready: LIME, _detail: <PartLines items={items} /> }; })
+      .sort((a, b) => b.parts - a.parts);
+    body = <ExpandTable cols={[{k:"make",h:"Make"},{k:"parts",h:"Usable parts",a:"center"},{k:"clusters",h:"Clusters",a:"center"},{k:"ready",h:"Benchmark-ready",a:"center",b:1}]} rows={rows} />;
+    note = `${mk.length} makes represented. Click a make to see its parts.`;
+  } else if (kpi === "ready") {
+    const ready = clusters.filter((c) => c.n > 1);
+    body = (
+      <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead><tr style={{ background: INK }}>{[["Benchmark part","left"],["Make","left"],["Quotes","center"],["Suppliers","center"],["Median S$","right"],["Range S$","right"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
+          <tbody>{ready.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
+            <React.Fragment key={id}>
+              <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: "rgba(195,215,0,.10)" }}>
+                <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
+                <td style={td}>{c.make}</td>
+                <td style={{ ...td, textAlign: "center", fontWeight: 800, color: LIME }}>{c.n}</td>
+                <td style={{ ...td, textAlign: "center", color: MUTE }}>{c.suppliers.length}</td>
+                <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}</td>
+                <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}–{c.max}</td></tr>
+              {isOpen && <tr style={{ background: INK }}><td colSpan={6} style={{ padding: "8px 14px", fontSize: 11.5, color: MUTE }}><QuoteLines c={c} /></td></tr>}
+            </React.Fragment>); })}</tbody></table></div>);
+    note = "Click a part to see the individual quotes behind its benchmark.";
+  }
+
+  return (
+    <div style={{ background: "#0C2E3A", border: `1px solid ${LIME}`, borderRadius: 12, padding: 18, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{TITLES[kpi]}</div>
+        <button onClick={onClose} style={{ background: "none", border: `1px solid ${LINE}`, color: MUTE, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 12 }}>Close ✕</button>
+      </div>
+      {body}
+      {note && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>{note}</p>}
+    </div>
+  );
+}
 function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log }) {
   return (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
     <Card title="Bulk upload · Claude-OCR'd Excel">
@@ -440,29 +595,39 @@ function Benchmark({ cfg, setCfg, clusters }) {
   const set = (k, v) => setCfg({ ...cfg, [k]: v });
   return (<>
     <Card title="Matching configuration">
-      <div style={{ display: "flex", gap: 26, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 22, flexWrap: "wrap", alignItems: "center" }}>
         <label style={{ fontSize: 12.5 }}>Mode&nbsp;
-          <select value={cfg.mode} onChange={(e) => set("mode", e.target.value)} style={inp(150)}>
-            <option value="fuzzy-name">Fuzzy part name</option><option value="category">Category + make</option><option value="exact-pn">Exact part no</option>
+          <select value={cfg.mode} onChange={(e) => set("mode", e.target.value)} style={inp(210)}>
+            <option value="hybrid">Hybrid (part no → name bridge)</option>
+            <option value="exact-pn">Exact part no only</option>
+            <option value="fuzzy-name">Fuzzy part name only</option>
+            <option value="category">Category + make</option>
           </select></label>
-        <label style={{ fontSize: 12.5, opacity: cfg.mode === "fuzzy-name" ? 1 : .4 }}>Similarity threshold: <b style={{ color: LIME }}>{cfg.threshold.toFixed(2)}</b><br />
-          <input type="range" min="0.4" max="0.95" step="0.05" value={cfg.threshold} disabled={cfg.mode !== "fuzzy-name"} onChange={(e) => set("threshold", +e.target.value)} style={{ width: 180 }} /></label>
-        <label style={{ fontSize: 12.5, opacity: cfg.mode === "fuzzy-name" ? 1 : .4 }}>Token vs spelling weight: <b style={{ color: LIME }}>{cfg.tokenWeight.toFixed(1)}</b><br />
-          <input type="range" min="0" max="1" step="0.1" value={cfg.tokenWeight} disabled={cfg.mode !== "fuzzy-name"} onChange={(e) => set("tokenWeight", +e.target.value)} style={{ width: 150 }} /></label>
+        {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <>
+          <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={cfg.mode === "fuzzy-name" ? true : cfg.bridge} disabled={cfg.mode === "fuzzy-name"} onChange={(e) => set("bridge", e.target.checked)} /> Bridge by name across part numbers</label>
+          <label style={{ fontSize: 12.5 }}>Similarity: <b style={{ color: LIME }}>{cfg.threshold.toFixed(2)}</b><br />
+            <input type="range" min="0.4" max="0.95" step="0.05" value={cfg.threshold} onChange={(e) => set("threshold", +e.target.value)} style={{ width: 150 }} /></label>
+          <label style={{ fontSize: 12.5 }}>Token/spelling: <b style={{ color: LIME }}>{cfg.tokenWeight.toFixed(1)}</b><br />
+            <input type="range" min="0" max="1" step="0.1" value={cfg.tokenWeight} onChange={(e) => set("tokenWeight", +e.target.value)} style={{ width: 130 }} /></label>
+        </>}
         <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" checked={cfg.sameMake} onChange={(e) => set("sameMake", e.target.checked)} /> Only match within same make</label>
+          <input type="checkbox" checked={cfg.sameMake} onChange={(e) => set("sameMake", e.target.checked)} /> Same make</label>
+        <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
+          <input type="checkbox" checked={cfg.sameModel} onChange={(e) => set("sameModel", e.target.checked)} /> Same model</label>
       </div>
-      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Higher threshold = stricter (fewer, tighter clusters). Token weight leans on shared words (good for "HEAD LAMP" vs "HEADLAMP ASSY"); spelling weight leans on character edits. Exact-PN reproduces the strict behaviour.</p>
+      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Hybrid</b> (recommended) groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack. With bridging <b>off</b> (the default), a benchmark only forms from identical part numbers, which is the most defensible basis but needs volume before medians appear. Turn <b>bridging on</b> to also merge different part numbers whose names are similar within the same make/model (e.g. OEM vs aftermarket) — useful on small datasets, but looser: those rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column. Keeping <b>Same model</b> on prevents a Camry headlamp merging with a Hilux one.</p>
     </Card>
-    <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. Click a row to see the grouped variants.</p>
+    <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead><tr style={{ background: PANEL }}>{["Benchmark part","Make","Category","Quotes","Suppliers","Min","Median","Avg","Max","Spread"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <thead><tr style={{ background: PANEL }}>{["Benchmark part","Make","Category","Basis","Quotes","Suppliers","Min","Median","Avg","Max","Spread"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>{clusters.slice(0, 400).map((c, i) => (
           <React.Fragment key={c.key + i}>
             <tr onClick={() => setOpen(open === c.key + i ? null : c.key + i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.12)" : "transparent" }}>
               <td style={{ ...td, fontWeight: 600 }}>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
               <td style={td}>{c.make}</td><td style={{ ...td, color: MUTE }}>{c.cat}</td>
+              <td style={{ ...td, textAlign: "center" }}><span title={c.bridged ? "name-bridged across " + c.pns.length + " part numbers" : "single part number"} style={{ fontSize: 10, fontWeight: 700, color: c.bridged ? AMBER : TEAL_L }}>{c.bridged ? "≈ " + c.pns.length + "PN" : "PN"}</span></td>
               <td style={{ ...td, textAlign: "center", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, color: MUTE }}>{c.suppliers.length}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}</td>
@@ -470,7 +635,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
               <td style={{ ...td, textAlign: "right" }}>{c.avg}</td><td style={{ ...td, textAlign: "right", color: MUTE }}>{c.max}</td>
               <td style={{ ...td, textAlign: "right", color: c.spread > 0 ? RED : MUTE }}>{c.spread || "—"}</td></tr>
             {open === c.key + i && (
-              <tr style={{ background: "#082430" }}><td colSpan={10} style={{ padding: "8px 14px", fontSize: 11.5, color: MUTE }}>
+              <tr style={{ background: "#082430" }}><td colSpan={11} style={{ padding: "8px 14px", fontSize: 11.5, color: MUTE }}>
                 <QuoteLines c={c} /></td></tr>)}
           </React.Fragment>))}</tbody></table></div>
   </>);
@@ -630,6 +795,107 @@ function MNormalisation({ clusters }) {
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>At the current threshold no cluster merged differing names. Loosen the threshold on the Benchmark tab to see merges.</span></Card>}</>);
 }
 
+/* ---------- Assess a claim: match an incoming estimate to the benchmark ---------- */
+// Find the best benchmark cluster for one estimate line. Exact normalised part number wins;
+// otherwise fuzzy name within the same make (if a make is supplied).
+function matchLine(line, clusters, cfg) {
+  const npn = normPN(line.part_number || "");
+  if (npn) {
+    const exact = clusters.find((c) => c.pns.includes(npn));
+    if (exact) return { cluster: exact, how: "part number", score: 1 };
+  }
+  const nm = line.part_name || "";
+  if (nm) {
+    let best = null, bestScore = 0;
+    clusters.forEach((c) => {
+      if (line.make && cfg.sameMake && c.make !== "Unknown" && line.make.toLowerCase() !== c.make.toLowerCase()) return;
+      const s = Math.max(...c.names.map((n) => similarity(nm, n, cfg.tokenWeight)));
+      if (s > bestScore) { bestScore = s; best = c; }
+    });
+    if (best && bestScore >= cfg.threshold) return { cluster: best, how: "name", score: +bestScore.toFixed(2) };
+  }
+  return { cluster: null, how: "no match", score: 0 };
+}
+
+const SAMPLE_ESTIMATE = `MBA213 906 67 01, HEADLAMP UNIT, 2600
+T81130-06590, HEAD LAMP RH, 420
+415 885 0205MB, BUMPER REINFORCEMENT FRT, 620
+8R2998002, WIPER BLADES, 95
+9999-XXX, UNLISTED WIDGET, 300`;
+
+function Assess({ clusters, cfg, inflPct, setInflPct }) {
+  const [text, setText] = useState("");
+  const [rows, setRows] = useState(null);
+
+  const run = (raw) => {
+    const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const out = lines.map((l) => {
+      // accept "part_no, name, price" or "part_no | name | price" (make optional 4th)
+      const parts = l.split(/\s*[|,\t]\s*/);
+      let [pn, name, price, make] = parts;
+      // if only 2 fields, assume name, price
+      if (parts.length === 2) { pn = ""; name = parts[0]; price = parts[1]; }
+      const quoted = parseFloat(String(price || "").replace(/[^\d.]/g, "")) || 0;
+      const m = matchLine({ part_number: pn, part_name: name, make }, clusters, cfg);
+      const bench = m.cluster ? m.cluster.med : null;
+      const over = bench ? +(quoted - bench).toFixed(2) : null;
+      const overPct = bench ? +(((quoted - bench) / bench) * 100).toFixed(0) : null;
+      const flagged = overPct != null && overPct >= inflPct;
+      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how,
+        n: m.cluster ? m.cluster.n : 0, flagged, cluster: m.cluster };
+    });
+    setRows(out);
+  };
+
+  const matched = rows ? rows.filter((r) => r.bench != null) : [];
+  const totQuoted = matched.reduce((s, r) => s + r.quoted, 0);
+  const totBench = matched.reduce((s, r) => s + r.bench, 0);
+  const totOver = matched.reduce((s, r) => s + (r.over > 0 ? r.over : 0), 0);
+  const flagged = rows ? rows.filter((r) => r.flagged) : [];
+
+  return (<>
+    <Card title="Assess an incoming repairer estimate">
+      <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Paste the estimate's parts, one per line as <span style={{ fontFamily: "ui-monospace,monospace", color: TEXT }}>part number, description, quoted price</span> (make optional as a 4th field). Each line is matched to the benchmark — by exact part number first, then by name — and compared against its median. This is the inverse of building the reference: it puts the reference to work on a live claim.</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={SAMPLE_ESTIMATE}
+        style={{ width: "100%", minHeight: 120, marginTop: 6, background: "#082430", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 11, fontSize: 12.5, fontFamily: "ui-monospace,monospace", outline: "none", resize: "vertical" }} />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+        <button onClick={() => run()} style={{ ...btn(LIME, TEAL_D), marginTop: 0 }}>Assess estimate</button>
+        <button onClick={() => { setText(SAMPLE_ESTIMATE); run(SAMPLE_ESTIMATE); }} style={{ ...btn(ICE, TEAL_D), marginTop: 0 }}>Try sample</button>
+        <span style={{ fontSize: 12.5, color: MUTE, marginLeft: 8 }}>Flag when quoted exceeds median by <b style={{ color: RED }}>+{inflPct}%</b>&nbsp;
+          <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 160, verticalAlign: "middle" }} /></span>
+      </div>
+    </Card>
+
+    {rows && (<>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
+        {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
+          ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
+          ["Potential over-claim S$", totOver.toFixed(0), totOver > 0 ? RED : LIME], ["Lines flagged", flagged.length, flagged.length ? RED : LIME]]
+          .map(([l, v, c]) => (
+          <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
+            <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
+      </div>
+      <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead><tr style={{ background: PANEL }}>{[["Part no","left"],["Description","left"],["Matched via","left"],["Quotes","center"],["Quoted S$","right"],["Benchmark S$","right"],["Variance S$","right"],["Variance %","right"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
+          <tbody>{rows.map((r, i) => (
+            <tr key={i} style={{ borderTop: `1px solid ${LINE}`, background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
+              <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}>{r.pn}</td>
+              <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
+              <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
+              <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
+              <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
+              <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
+              <td style={{ ...td, textAlign: "right", fontWeight: 700, color: r.over > 0 ? RED : r.over < 0 ? LIME : MUTE }}>{r.over != null ? (r.over > 0 ? "+" : "") + r.over.toFixed(2) : "—"}</td>
+              <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td></tr>))}</tbody></table></div>
+      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+        {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
+        Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.</p>
+    </>)}
+  </>);
+}
+
 function Coverage({ parts, clusters }) {
   const usable = parts.filter((p) => p.ltype === "Supplier Part");
   const catMap = {};
@@ -671,7 +937,7 @@ function MethodNotes() {
           <span style={{ fontWeight: 700, fontSize: 13.5, color: "#fff" }}>{t}</span></div>
         <div style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.65 }}>{d}</div></div>))}</div>
     <div style={{ marginTop: 18, background: "#082430", border: `1px solid ${LINE}`, borderRadius: 12, padding: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, color: LIME }}>Matching: fuzzy names, not exact part numbers</div>
-      <div style={{ color: TEXT, fontSize: 12.5, lineHeight: 1.75 }}>Exact part numbers almost never repeat across a small bill set, so they yield no benchmarks. Fuzzy name matching (token overlap + edit distance, configurable on the Benchmark tab) clusters the same part written differently — e.g. "HEAD LAMP RH" with "HEADLAMP ASSY, RH" — which is what produces usable multi-quote medians. On a productised site, back this with SQLite: <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>suppliers</span>, <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>invoices</span>, <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>part_lines</span> tables plus a benchmark view; Postgres only for multi-tenant concurrency.</div></div>
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, color: LIME }}>Matching: hybrid, part-number-first</div>
+      <div style={{ color: TEXT, fontSize: 12.5, lineHeight: 1.75 }}>The benchmark groups by exact normalised <b>part number</b> first — the identifier supplier bills carry that PeerIndex and eSource lack — and only then <i>bridges</i> different part numbers whose names are fuzzy-similar within the same make and model (e.g. OEM vs aftermarket). This keeps genuinely-different parts apart: a Camry headlamp will not merge with a Hilux headlamp. The <b>Basis</b> column marks whether each benchmark rests on a single part number (PN) or a name bridge (≈). Pure fuzzy-name mode is still available, but name-only matching can over-merge, so hybrid is the default. Use the <b style={{ color: LIME }}>Assess a Claim</b> tab to run an incoming repairer estimate against the reference and get a line-by-line variance and total potential over-claim. On a productised site, back this with SQLite: <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>suppliers</span>, <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>invoices</span>, <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>part_lines</span> tables plus a benchmark view; Postgres only for multi-tenant concurrency.</div></div>
   </div>);
 }

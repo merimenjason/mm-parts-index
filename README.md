@@ -18,20 +18,28 @@ bills** (174 part lines) so you can explore it immediately.
 - **Ingest two ways** — bulk-upload Claude-OCR'd spreadsheets, or upload raw invoice PDFs/images and have Claude OCR them live.
 - **Auto-enrich** — normalises part numbers, infers make/model, assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
+- **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Benchmark tab (bridging is off by default for the most defensible number).
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line) and get a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
 - **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab.
 - **Quote drill-down** — click any benchmark part (on the Dashboard, Benchmark or Analytics tabs) to expand the individual quotes behind it (part number · supplier · price · date).
+- **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
 - **Coverage report** — by make and category, against the project's success criteria.
 - **Loads on open + persists** — the 18-bill demo dataset loads automatically on first visit; uploads persist to the browser and reload next session; export the enriched DB + benchmark to `.xlsx`.
 
-### Why fuzzy matching?
+### How matching works (hybrid, part-number-first)
 
-Exact part numbers almost never repeat across a small set of bills, so they yield
-**no** benchmarks. Fuzzy **name** matching (token overlap + edit distance,
-configurable on the **Benchmark** tab) clusters the same part written differently
-— e.g. `HEAD LAMP RH` with `HEADLAMP ASSY, RH` — which is what produces usable
-multi-quote medians. You control the similarity threshold, the token-vs-spelling
-weight, whether to match only within the same make, and can fall back to exact
-part-number or category grouping.
+The whole point of supplier bills is that they carry the **part number** — the key
+PeerIndex and eSource lack. So the benchmark groups by exact normalised part
+number **first**: identical part numbers are definitely the same part. Because
+exact numbers rarely repeat across a small set of bills, you can optionally turn
+on **bridging**, which also merges *different* part numbers whose names are
+fuzzy-similar (token overlap + edit distance) within the same make and model —
+e.g. an OEM and an aftermarket `HEAD LAMP RH` / `HEADLAMP ASSY, RH`. Keeping
+**Same model** on prevents a Camry headlamp merging with a Hilux one, and every
+benchmark shows a **Basis** flag: `PN` (rests on one part number) or `≈` (a looser
+name bridge). Bridging is **off by default** for the most defensible number; turn
+it on for coverage on small datasets. Pure fuzzy-name and category modes are still
+available on the Benchmark tab.
 
 ---
 
@@ -93,10 +101,11 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 
 | Tab | What it does |
 |---|---|
-| **Dashboard** | KPI tiles, make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
+| **Dashboard** | KPI tiles (click any tile to drill into it), make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
 | **Ingest** | Excel upload, live OCR, reload-demo, export, clear, activity log |
 | **Parts Ledger** | Every enriched line; search + filter by make / line-type |
-| **Benchmark** | The matching configuration + fuzzy-clustered median table (click a row to see the grouped quotes) |
+| **Benchmark** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with a Basis column; click a row to see the grouped quotes |
+| **Assess a Claim** | Paste a repairer estimate → line-by-line variance vs the benchmark, total potential over-claim, flagged lines |
 | **Analytics** | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
 | **Coverage** | Make & category coverage vs the success criteria |
 | **Method Notes** | What each analytic computes and why |
