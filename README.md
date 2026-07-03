@@ -166,6 +166,8 @@ partsindex/
 ├─ .github/workflows/
 │  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
 ├─ public/
+│  ├─ favicon.ico / favicon-32.png / favicon-128.png   ← Merimen "f" browser icon
+│  ├─ apple-touch-icon.png
 │  └─ screenshot.png             ← dashboard preview used in this README
 └─ src/
    ├─ main.jsx
