@@ -61,9 +61,9 @@ quote count / suppliers per cluster. Grouping is **configurable on the Benchmark
 tab**:
 
 - **Mode**
-  - **Hybrid** *(default, recommended)* — group by exact normalised **part number** first (definitely the same part), then optionally *bridge* different part numbers by fuzzy name (see below). This keeps the part number — the key supplier bills carry that PeerIndex/eSource lack — as the primary basis.
+  - **Fuzzy part name** *(default)* — cluster parts whose names are similar (token overlap + edit distance). Forms usable multi-quote medians on a small dataset; can over-merge, so scope with same-make/same-model.
+  - **Hybrid** — group by exact normalised **part number** first (definitely the same part), then optionally *bridge* different part numbers by fuzzy name. The most defensible basis as real volume accumulates; keeps the part number — the key supplier bills carry that PeerIndex/eSource lack — primary.
   - **Exact part no only** — strict PN grouping, no bridging.
-  - **Fuzzy part name only** — name similarity alone (can over-merge; use with care).
   - **Category + make** — coarse grouping by canonical category.
 - **Bridge by name across part numbers** *(off by default)* — in hybrid mode, also merge PN-groups whose names are fuzzy-similar within the same make/model. Off = most defensible (identical PN only); on = more coverage on small datasets. Bridged benchmarks are flagged **≈** in the **Basis** column; single-PN benchmarks show **PN**.
 - **Similarity threshold** *(0.40–0.95)* and **token vs spelling weight** *(0–1)* — control the fuzzy score used for bridging (token overlap for word-order variants like `HEAD LAMP` vs `HEADLAMP ASSY`; spelling for typos).

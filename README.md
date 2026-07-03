@@ -26,20 +26,20 @@ bills** (174 part lines) so you can explore it immediately.
 - **Coverage report** — by make and category, against the project's success criteria.
 - **Loads on open + persists** — the 18-bill demo dataset loads automatically on first visit; uploads persist to the browser and reload next session; export the enriched DB + benchmark to `.xlsx`.
 
-### How matching works (hybrid, part-number-first)
+### How matching works
 
-The whole point of supplier bills is that they carry the **part number** — the key
-PeerIndex and eSource lack. So the benchmark groups by exact normalised part
-number **first**: identical part numbers are definitely the same part. Because
-exact numbers rarely repeat across a small set of bills, you can optionally turn
-on **bridging**, which also merges *different* part numbers whose names are
-fuzzy-similar (token overlap + edit distance) within the same make and model —
-e.g. an OEM and an aftermarket `HEAD LAMP RH` / `HEADLAMP ASSY, RH`. Keeping
-**Same model** on prevents a Camry headlamp merging with a Hilux one, and every
-benchmark shows a **Basis** flag: `PN` (rests on one part number) or `≈` (a looser
-name bridge). Bridging is **off by default** for the most defensible number; turn
-it on for coverage on small datasets. Pure fuzzy-name and category modes are still
-available on the Benchmark tab.
+The **default** mode is **fuzzy part name** — it clusters parts whose names are
+similar (token overlap + edit distance), which is what forms usable multi-quote
+medians on a small dataset. For a more conservative, court-defensible basis, the
+**Hybrid** mode groups by exact normalised **part number** first — the identifier
+supplier bills carry that PeerIndex and eSource lack — and only merges *different*
+part numbers by name when you turn **bridging** on. Keeping **Same model** on
+prevents a Camry headlamp merging with a Hilux one, and every benchmark shows a
+**Basis** flag: `PN` (rests on one part number) or `≈` (a name bridge). All four
+modes — fuzzy name, hybrid, exact part number, and category — are selectable on
+the Benchmark tab, along with similarity threshold, token-vs-spelling weight, and
+same-make/same-model constraints. As real volume builds and identical part
+numbers recur, prefer Hybrid.
 
 ---
 

@@ -274,7 +274,7 @@ export default function App() {
   const [loading, setLoading] = useState(null);
   const [log, setLog] = useState([]);
   const [q, setQ] = useState(""), [fMake, setFMake] = useState("All"), [fType, setFType] = useState("All");
-  const [cfg, setCfg] = useState({ mode: "hybrid", threshold: 0.7, sameMake: true, sameModel: true, tokenWeight: 0.6, bridge: false });
+  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false });
   const [method, setMethod] = useState("benchmark");
   const [inflPct, setInflPct] = useState(30);
   const excelRef = useRef(), invRef = useRef();
@@ -598,9 +598,9 @@ function Benchmark({ cfg, setCfg, clusters }) {
       <div style={{ display: "flex", gap: 22, flexWrap: "wrap", alignItems: "center" }}>
         <label style={{ fontSize: 12.5 }}>Mode&nbsp;
           <select value={cfg.mode} onChange={(e) => set("mode", e.target.value)} style={inp(210)}>
+            <option value="fuzzy-name">Fuzzy part name only</option>
             <option value="hybrid">Hybrid (part no → name bridge)</option>
             <option value="exact-pn">Exact part no only</option>
-            <option value="fuzzy-name">Fuzzy part name only</option>
             <option value="category">Category + make</option>
           </select></label>
         {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <>
@@ -616,7 +616,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
         <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
           <input type="checkbox" checked={cfg.sameModel} onChange={(e) => set("sameModel", e.target.checked)} /> Same model</label>
       </div>
-      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Hybrid</b> (recommended) groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack. With bridging <b>off</b> (the default), a benchmark only forms from identical part numbers, which is the most defensible basis but needs volume before medians appear. Turn <b>bridging on</b> to also merge different part numbers whose names are similar within the same make/model (e.g. OEM vs aftermarket) — useful on small datasets, but looser: those rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column. Keeping <b>Same model</b> on prevents a Camry headlamp merging with a Hilux one.</p>
+      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Fuzzy part name</b> (the default) clusters parts whose names are similar — good for forming multi-quote medians on a small dataset. <b>Hybrid</b> is the more conservative option: it groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack — and only bridges different part numbers by name when you turn bridging on (bridged rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column). Use <b>Same make</b>/<b>Same model</b> to stop, say, a Camry headlamp merging with a Hilux one, and the similarity/token sliders to tune name matching. As real volume builds and identical part numbers recur, prefer Hybrid for the most defensible number.</p>
     </Card>
     <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
