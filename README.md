@@ -43,6 +43,30 @@ numbers recur, prefer Hybrid.
 
 ---
 
+### Data quality & validation
+
+- **Grade, GST & unit-basis fields** — every line carries a parts **grade**
+  (`OEM Genuine` / `OES` / `Aftermarket` / `Used/Recon` / `Unknown`), a **unit basis**
+  (`each` / `pair` / `set`) and the invoice's **GST treatment**. Grade is the single
+  largest legitimate price driver: the matcher **refuses to merge an OEM-genuine
+  quote with an aftermarket one** (togglable via *Separate grades* on the Benchmark
+  tab; Unknown grades never block a merge), and per-pair prices never join per-each
+  medians. Grades come from OCR/Excel when supplied, else are inferred from name
+  tags like `(ORIGINAL)`, `(TW)`, `RECON` — never guessed.
+- **Totals-reconciliation gate** — every OCR'd invoice's extracted line sum is
+  checked against the invoice's own printed parts subtotal (tolerance S$1 or 0.5%).
+  Mismatched bills are **held for review and excluded from all benchmarks** until
+  accepted or discarded in the Ingest tab's review queue. Duplicate bills
+  (same supplier + bill no) are skipped at upload so quotes never double-count.
+- **Gold-standard matcher evaluation** — `npm run eval:pairs` generates candidate
+  part pairs for human labeling; `npm run eval:score` replays the *exact* production
+  matcher over the labeled set and reports precision/recall/F1 across the full
+  threshold grid, including the highest-recall setting that keeps false merges
+  under 5% ("dispute-grade"). See [`eval/README.md`](eval/README.md) — the worked
+  example on the demo set already surfaced a stopword bug and threshold headroom.
+
+---
+
 ## Quick start (local)
 
 ```bash
@@ -178,10 +202,17 @@ partsindex/
 │  ├─ favicon.ico / favicon-32.png / favicon-128.png   ← Merimen "f" browser icon
 │  ├─ apple-touch-icon.png
 │  └─ screenshot.png             ← dashboard preview used in this README
+├─ eval/
+│  ├─ README.md                   ← gold-set labeling policy + how to read results
+│  ├─ generate_pairs.mjs          ← emits candidate pairs for human labeling
+│  ├─ evaluate.mjs                ← precision/recall/F1 sweep over the labeled set
+│  └─ gold_pairs.example_labeled.csv  ← worked example (illustrative labels)
 └─ src/
    ├─ main.jsx
    ├─ index.css
-   └─ PartsIndex.jsx              ← the whole app: pipeline + fuzzy matcher + UI + embedded demo
+   ├─ pipeline.js                 ← pure enrichment + matcher (shared by app AND eval)
+   ├─ demoData.js                 ← embedded 174-line demo dataset
+   └─ PartsIndex.jsx              ← the React UI
 ```
 
 ---

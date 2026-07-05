@@ -204,3 +204,45 @@ that turns the reference into a daily adjuster tool.
 - **Price comparability.** Bills span multiple years and mixed GST treatment; medians currently treat all prices as directly comparable. Normalising to ex-GST and weighting by recency is a worthwhile next step.
 - **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking (token limits).
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
+
+
+---
+
+## Data quality & validation (added July 2026)
+
+### Grade, GST and unit basis
+Every enriched line now carries `grade` (OEM Genuine / OES / Aftermarket /
+Used/Recon / Unknown), `unit_basis` (each / pair / set) and `gst` (incl / excl /
+unknown). Values supplied by OCR or an Excel column win; otherwise grade and basis
+are inferred from name tags (`(ORIGINAL)` → OEM Genuine, `(TW)`/`APM` → Aftermarket,
+`RECON` → Used/Recon, `LH/RH`/`SET` → pair/set) and never guessed. Clustering
+respects them: with **Separate grades** on (the default), quotes whose grades are
+*both known and different* never merge — genuine and aftermarket prices for the
+same part number are different markets, not one benchmark. Unknown grades never
+block a merge. Per-pair lines never merge with per-each lines in any mode. Mixed-
+grade clusters (possible only with the toggle off) are flagged **MIXED GRADE** in
+red on the Benchmark tab.
+
+### Totals-reconciliation gate & review queue
+The OCR prompt now also extracts the invoice's printed **parts subtotal**, GST
+amount and grand total. On upload, the sum of extracted line totals is compared to
+the printed subtotal (tolerance: S$1 or 0.5%, whichever is larger). A mismatch
+means lines were missed, duplicated or misread, so the whole bill is **held for
+review**: its lines are stored but excluded from every benchmark, KPI and analytic,
+an amber *Needs review* KPI appears on the Dashboard, and the Ingest tab shows a
+review queue with the reason and the extracted lines, plus **Accept** (lines are
+correct → join the benchmark) and **Discard** (drop the bill). Bills whose
+supplier + bill number already exist in the dataset are skipped at upload —
+duplicates would double-count quotes and skew medians.
+
+### Gold-standard matcher evaluation
+`npm run eval:pairs` generates `eval/gold_pairs.csv` — candidate part pairs from
+the dataset, sorted so the borderline region is labeled first. Fill the `label`
+column (y / n / ?), then `npm run eval:score` replays the exact production
+similarity function (`src/pipeline.js` is imported directly) and reports
+precision / recall / F1 for thresholds 0.40–0.95 at token weights 0.4/0.6/0.8,
+plus the "dispute-grade" setting: the highest recall achievable at ≥95% precision.
+Labeling policy, worked example and the two issues it already found (a positional-
+stopword bug causing a permanent false merge, and headroom to raise the default
+threshold) are documented in `eval/README.md`. Re-run the score after **any**
+matcher change — it is the regression test for the heart of the product.

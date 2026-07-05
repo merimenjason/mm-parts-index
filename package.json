@@ -3,12 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Parts pricing reference for SG motor third-party claims — fuzzy-matched median benchmark from supplier bills.",
+  "description": "Parts pricing reference for SG motor third-party claims \u2014 fuzzy-matched median benchmark from supplier bills.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "VITE_BASE=/partsindex/ vite build && gh-pages -d dist"
+    "deploy": "VITE_BASE=/partsindex/ vite build && gh-pages -d dist",
+    "eval:pairs": "node eval/generate_pairs.mjs",
+    "eval:score": "node eval/evaluate.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

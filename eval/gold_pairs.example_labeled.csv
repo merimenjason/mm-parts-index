@@ -1,0 +1,139 @@
+pair_id,similarity,label,part_name_a,part_number_a,supplier_a,unit_a,part_name_b,part_number_b,supplier_b,unit_b,make,category_a,category_b
+1,1.0000,y,DISTANCE SENSOR,MBA000 905 55 04 9999,Min Ghee Auto Pte Ltd,95,DISTANCE SENSOR,MBA000 905 56 04 9999,Min Ghee Auto Pte Ltd,95,Mercedes-Benz,Sensor,Sensor
+2,1.0000,y,HEADLAMP UNIT,MBA213 906 67 01,Min Ghee Auto Pte Ltd,2050,HEADLAMP UNIT,MBA213 906 68 01,Min Ghee Auto Pte Ltd,2050,Mercedes-Benz,Headlamp,Headlamp
+3,1.0000,y,FRONT FENDER,MBA213 880 00 18,Min Ghee Auto Pte Ltd,530,FRONT FENDER,MBA213 880 01 18,Min Ghee Auto Pte Ltd,530,Mercedes-Benz,Fender,Fender
+4,1.0000,?,DOOR HANDLE,MBA099 760 74 00 9999,Min Ghee Auto Pte Ltd,328,DOOR HANDLE,MBA099 760 20 01 9197,Min Ghee Auto Pte Ltd,355,Mercedes-Benz,Door Handle,Door Handle
+5,1.0000,n,"WEATHERSTRIP,HOOD",JJ5902A078,Jae Auto Pte Ltd,18,"WEATHERSTRIP,HOOD,FR",JJ5902A021,Jae Auto Pte Ltd,18,Unknown,Hood/Bonnet,Hood/Bonnet
+6,1.0000,y,"FRT BUMPER 09""",T52119-06971,Jae Auto Pte Ltd,190,BUMPER FR,T52119-06922,He Xing Auto Parts Pte Ltd,185,Toyota,Front Bumper,Front Bumper
+7,1.0000,y,RADIATOR SIDE AIR GUIDE LH,8R0121283P,Jae Auto Pte Ltd,18,RADIATOR SIDE AIR GUIDE RH,8R0121284R,Jae Auto Pte Ltd,18,Audi,Radiator Ancillary,Radiator Ancillary
+8,1.0000,y,FRONT BUMPER SIDE LOWER BRACKET LH,8R0807277C,Jae Auto Pte Ltd,18,FRONT BUMPER SIDE LOWER BRACKET RH,8R0807278C,Jae Auto Pte Ltd,18,Audi,Bumper Bracket/Retainer,Bumper Bracket/Retainer
+9,1.0000,y,H LAMP RH UNIT -HID,T81145-06251,He Xing Auto Parts Pte Ltd,450,H LAMP LH UNIT -HID,T81185-06251,He Xing Auto Parts Pte Ltd,450,Toyota,Headlamp,Headlamp
+10,1.0000,y,BONNET ABSOR RH,T53440-0W110,He Xing Auto Parts Pte Ltd,110,BONNET ABSOR LH,T53450-0W090,He Xing Auto Parts Pte Ltd,110,Toyota,Hood/Bonnet,Hood/Bonnet
+11,0.6857,n,BALL JOINT ASSY,HY51760-2H000 HA,Min Ghee Auto Pte Ltd,23,BALL JOINT ASSY-INR L/R,KA56540 2H 000,Min Ghee Auto Pte Ltd,42,Hyundai,Suspension/Steering Arm,Suspension/Steering Arm
+12,0.5957,n,RADIATOR LOWER BRACKET LH/RH,8K0805201,Jae Auto Pte Ltd,20,RADIATOR GRILLE BRACKET,8R0807333A,Jae Auto Pte Ltd,15,Audi,Bumper Bracket/Retainer,Grille
+13,0.5462,n,RADIATOR,415 888 0511MB,Pas Auto Pte Ltd,550,RADIATOR CLIP,000 888 0001MB,Pas Auto Pte Ltd,12,Mercedes-Benz,Radiator/Cooling,Radiator Ancillary
+14,0.5286,n,HEADLAMP HOUSE,415 826 0001MB,Pas Auto Pte Ltd,288,HEADLAMP UNIT,MBA213 906 67 01,Min Ghee Auto Pte Ltd,2050,Mercedes-Benz,Headlamp,Headlamp
+15,0.5286,n,HEADLAMP HOUSE,415 826 0001MB,Pas Auto Pte Ltd,288,HEADLAMP UNIT,MBA213 906 68 01,Min Ghee Auto Pte Ltd,2050,Mercedes-Benz,Headlamp,Headlamp
+16,0.5286,n,RADIATOR,415 888 0511MB,Pas Auto Pte Ltd,550,RADIATOR GUIDE,415 888 0020MB,Pas Auto Pte Ltd,275,Mercedes-Benz,Radiator/Cooling,Radiator Ancillary
+17,0.5263,n,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,"COVER,FR BUMPER GRILLE,L",JJ6400H067,Jae Auto Pte Ltd,5,Unknown,Front Bumper,Front Bumper
+18,0.5009,n,"GARNISH,FR BUMPER,CTR",JJ6402A402,Jae Auto Pte Ltd,140,"GARNISH,FR BUMPER,LH(W/FOG LAMP)",JJ8321A689,Jae Auto Pte Ltd,25,Unknown,Front Bumper,Fog Lamp
+19,0.5000,n,CLIPS GRILLE,000 882 0506MB,Pas Auto Pte Ltd,5.8,GRILLE,415 888 0023MB,Pas Auto Pte Ltd,145,Mercedes-Benz,Grille,Grille
+20,0.5000,n,HEADLAMP ASSY LH,JJ8301C341/8301A911,Jae Auto Pte Ltd,350,"GROMMET,HEADLAMP",JJMN167828,Jae Auto Pte Ltd,3,Unknown,Headlamp,Headlamp
+21,0.4933,n,SUPPORT BRACKET,415 880 0510MB,Pas Auto Pte Ltd,75,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,Mercedes-Benz,Other,Bumper Bracket/Retainer
+22,0.4857,n,RADIATOR GUIDE,415 888 0020MB,Pas Auto Pte Ltd,275,RADIATOR CLIP,000 888 0001MB,Pas Auto Pte Ltd,12,Mercedes-Benz,Radiator Ancillary,Radiator Ancillary
+23,0.4846,n,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,GRILLE,415 888 0023MB,Pas Auto Pte Ltd,145,Mercedes-Benz,Front Bumper,Grille
+24,0.4714,n,FRT GRILLE SUPPORT,415 880 0508MB,Pas Auto Pte Ltd,98,GRILLE,415 888 0023MB,Pas Auto Pte Ltd,145,Mercedes-Benz,Grille,Grille
+25,0.4667,n,MIRROR GLASS,MBA099 810 02 16,Min Ghee Auto Pte Ltd,520,MIRROR FRAME,MBA213 810 74 01,Min Ghee Auto Pte Ltd,650,Mercedes-Benz,Mirror,Mirror
+26,0.4640,n,RADIATOR LOWER BRACKET LH/RH,8K0805201,Jae Auto Pte Ltd,20,FRONT BUMPER SIDE LOWER BRACKET LH,8R0807277C,Jae Auto Pte Ltd,18,Audi,Bumper Bracket/Retainer,Bumper Bracket/Retainer
+27,0.4640,n,RADIATOR LOWER BRACKET LH/RH,8K0805201,Jae Auto Pte Ltd,20,FRONT BUMPER SIDE LOWER BRACKET RH,8R0807278C,Jae Auto Pte Ltd,18,Audi,Bumper Bracket/Retainer,Bumper Bracket/Retainer
+28,0.4600,n,GRILLE,415 888 0023MB,Pas Auto Pte Ltd,145,GRILLE MOULDING,415 880 0023MB,Pas Auto Pte Ltd,240,Mercedes-Benz,Grille,Grille
+29,0.4571,n,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,Mercedes-Benz,Front Bumper,Bumper Bracket/Retainer
+30,0.4571,n,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,Mercedes-Benz,Front Bumper,Bumper Bracket/Retainer
+31,0.4545,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Front Bumper,Front Bumper
+32,0.4462,n,CLIPS GRILLE,000 882 0506MB,Pas Auto Pte Ltd,5.8,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,Mercedes-Benz,Grille,Front Bumper
+33,0.4462,n,SEALING RAIL,MBA213 720 02 24 28,Min Ghee Auto Pte Ltd,53,MOUNTING RAIL,MBA213 885 06 21,Min Ghee Auto Pte Ltd,10,Mercedes-Benz,Seal/Weatherstrip,Other
+34,0.4462,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,Unknown,Front Bumper,Front Bumper
+35,0.4462,n,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Front Bumper,Front Bumper
+36,0.4333,n,COVER STRIP,MBA213 730 02 02,Min Ghee Auto Pte Ltd,22,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Bumper Cover/Tow,Bumper Cover/Tow
+37,0.4333,n,TRIM BUMPER,MBA213 885 03 38 9999,Min Ghee Auto Pte Ltd,660,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Front Bumper,Front Bumper
+38,0.4333,n,MIRROR GLASS,MBA099 810 02 16,Min Ghee Auto Pte Ltd,520,MIRROR BOWL,MBA099 811 04 00 9197,Min Ghee Auto Pte Ltd,108,Mercedes-Benz,Mirror,Mirror
+39,0.4333,n,MIRROR BOWL,MBA099 811 04 00 9197,Min Ghee Auto Pte Ltd,108,MIRROR FRAME,MBA213 810 74 01,Min Ghee Auto Pte Ltd,650,Mercedes-Benz,Mirror,Mirror
+40,0.4333,n,FRT FENDER RH (TH),T53801-06130,Jae Auto Pte Ltd,150,FRT FENDER LINER RH,T53875-06081,Jae Auto Pte Ltd,65,Toyota,Fender,Fender Liner/Mudguard
+41,0.4286,n,RADIATOR GUIDE,415 888 0020MB,Pas Auto Pte Ltd,275,WINDOW GUIDE,MBA213 725 28 00,Min Ghee Auto Pte Ltd,83,Mercedes-Benz,Radiator Ancillary,Other
+42,0.4154,n,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,Mercedes-Benz,Front Bumper,Front Bumper
+43,0.4143,n,RADIATOR,415 888 0511MB,Pas Auto Pte Ltd,550,"RESERVOIR,RADIATOR RESERVOIR",MBA205 500 00 49,Min Ghee Auto Pte Ltd,63,Mercedes-Benz,Radiator/Cooling,Radiator Ancillary
+44,0.4133,n,FRT GRILLE SUPPORT,415 880 0508MB,Pas Auto Pte Ltd,98,GRILLE MOULDING,415 880 0023MB,Pas Auto Pte Ltd,240,Mercedes-Benz,Grille,Grille
+45,0.4133,n,"GRILLE,FR RADIATOR",JJ7450B019,Jae Auto Pte Ltd,170,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,Unknown,Grille,Front Bumper
+46,0.4105,n,BUMPER REINFORCMENT FRT,415 885 0205MB,Pas Auto Pte Ltd,452,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,Mercedes-Benz,Bumper Reinforcement,Bumper Bracket/Retainer
+47,0.4000,n,COVER STRIP,MBA213 730 02 02,Min Ghee Auto Pte Ltd,22,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Bumper Cover/Tow,Front Bumper
+48,0.4000,n,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Front Bumper,Bumper Cover/Tow
+49,0.4000,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"REINFORCEMENT,FR BUMPER",JJ6400C639,Jae Auto Pte Ltd,210,Unknown,Front Bumper,Bumper Reinforcement
+50,0.3895,n,BUMPER REINFORCMENT FRT,415 885 0205MB,Pas Auto Pte Ltd,452,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,Mercedes-Benz,Bumper Reinforcement,Front Bumper
+51,0.3895,n,BUMPER REINFORCMENT FRT,415 885 0205MB,Pas Auto Pte Ltd,452,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,Mercedes-Benz,Bumper Reinforcement,Front Bumper
+52,0.3818,n,TRIM BUMPER,MBA213 885 03 38 9999,Min Ghee Auto Pte Ltd,660,TRIM RING,MBA099 766 18 00 9999,Min Ghee Auto Pte Ltd,36,Mercedes-Benz,Front Bumper,Other
+53,0.3800,n,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,"REINFORCEMENT,FR BUMPER",JJ6400C639,Jae Auto Pte Ltd,210,Unknown,Front Bumper,Bumper Reinforcement
+54,0.3786,n,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Bumper Cover/Tow,Other
+55,0.3667,n,ENGINE UNDER COVER,415 888 0004MB,Pas Auto Pte Ltd,115,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Other,Other
+56,0.3654,n,DRIVER'S DOOR,MBA213 720 02 05,Min Ghee Auto Pte Ltd,1050,REAR DOOR,MBA213 730 02 05,Min Ghee Auto Pte Ltd,1160,Mercedes-Benz,Door Panel,Door Panel
+57,0.3644,n,"GARNISH,FR BUMPER,CTR",JJ6402A402,Jae Auto Pte Ltd,140,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,Unknown,Front Bumper,Front Bumper
+58,0.3633,n,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Front Bumper,Front Bumper
+59,0.3618,n,MIRROR FRAME,MBA213 810 74 01,Min Ghee Auto Pte Ltd,650,"TRIM, WINDOW FRAME",MBA213 727 02 00 9051,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Mirror,Other
+60,0.3605,n,BUMPER REINFORCMENT FRT,415 885 0205MB,Pas Auto Pte Ltd,452,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,Mercedes-Benz,Bumper Reinforcement,Other
+61,0.3600,n,DECOUPLING RING,MBA000 542 12 51,Min Ghee Auto Pte Ltd,6,TRIM RING,MBA099 766 18 00 9999,Min Ghee Auto Pte Ltd,36,Mercedes-Benz,Other,Other
+62,0.3600,n,"REINFORCEMENT,FR BUMPER",JJ6400C639,Jae Auto Pte Ltd,210,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Bumper Reinforcement,Front Bumper
+63,0.3500,n,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,Mercedes-Benz,Other,Front Bumper
+64,0.3500,n,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,MIRROR FRAME,MBA213 810 74 01,Min Ghee Auto Pte Ltd,650,Mercedes-Benz,Other,Mirror
+65,0.3500,n,FOG LAMP COVER,415 885 0008MB,Pas Auto Pte Ltd,98,TOW COVER,415 885 0233MB,Pas Auto Pte Ltd,18,Mercedes-Benz,Fog Lamp,Bumper Cover/Tow
+66,0.3500,n,COVER STRIP,MBA213 730 02 02,Min Ghee Auto Pte Ltd,22,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Bumper Cover/Tow,Other
+67,0.3500,n,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,"GARNISH,FR BUMPER,CTR",JJ6402A402,Jae Auto Pte Ltd,140,Unknown,Front Bumper,Front Bumper
+68,0.3429,n,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Bumper Bracket/Retainer,Front Bumper
+69,0.3429,n,RADIATOR CLIP,000 888 0001MB,Pas Auto Pte Ltd,12,"RESERVOIR,RADIATOR RESERVOIR",MBA205 500 00 49,Min Ghee Auto Pte Ltd,63,Mercedes-Benz,Radiator Ancillary,Radiator Ancillary
+70,0.3412,n,"FRT BUMPER 09""",T52119-06971,Jae Auto Pte Ltd,190,"FRT BUMPER S/RETAINER RH 09""",T52535-06100,Jae Auto Pte Ltd,30,Toyota,Front Bumper,Bumper Bracket/Retainer
+71,0.3412,n,"FRT BUMPER S/RETAINER RH 09""",T52535-06100,Jae Auto Pte Ltd,30,BUMPER FR,T52119-06922,He Xing Auto Parts Pte Ltd,185,Toyota,Bumper Bracket/Retainer,Front Bumper
+72,0.3382,n,WINDOW GUIDE,MBA213 725 28 00,Min Ghee Auto Pte Ltd,83,"TRIM, WINDOW FRAME",MBA213 727 02 00 9051,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Other,Other
+73,0.3367,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,Unknown,Front Bumper,Front Bumper
+74,0.3333,n,TOW COVER,415 885 0233MB,Pas Auto Pte Ltd,18,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Bumper Cover/Tow,Front Bumper
+75,0.3305,n,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,"COVER,FR BUMPER GRILLE,L",JJ6400H067,Jae Auto Pte Ltd,5,Unknown,Bumper Bracket/Retainer,Front Bumper
+76,0.3300,n,"REINFORCEMENT,FR BUMPER",JJ6400C639,Jae Auto Pte Ltd,210,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,Unknown,Bumper Reinforcement,Front Bumper
+77,0.3286,n,RADIATOR GUIDE,415 888 0020MB,Pas Auto Pte Ltd,275,"RESERVOIR,RADIATOR RESERVOIR",MBA205 500 00 49,Min Ghee Auto Pte Ltd,63,Mercedes-Benz,Radiator Ancillary,Radiator Ancillary
+78,0.3278,n,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,Mercedes-Benz,Other,Front Bumper
+79,0.3278,n,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,Mercedes-Benz,Other,Bumper Bracket/Retainer
+80,0.3278,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"GARNISH,FR BUMPER,CTR",JJ6402A402,Jae Auto Pte Ltd,140,Unknown,Front Bumper,Front Bumper
+81,0.3278,n,"GARNISH,FR BUMPER,CTR",JJ6402A402,Jae Auto Pte Ltd,140,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Front Bumper,Front Bumper
+82,0.3250,n,COVER STRIP,MBA213 730 02 02,Min Ghee Auto Pte Ltd,22,"COVER, WHEEL ARCH",MBA238 691 10 00,Min Ghee Auto Pte Ltd,105,Mercedes-Benz,Bumper Cover/Tow,Fender Liner/Mudguard
+83,0.3250,n,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,"COVER, WHEEL ARCH",MBA238 691 10 00,Min Ghee Auto Pte Ltd,105,Mercedes-Benz,Front Bumper,Fender Liner/Mudguard
+84,0.3250,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,Unknown,Front Bumper,Bumper Bracket/Retainer
+85,0.3250,n,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,Unknown,Bumper Bracket/Retainer,Front Bumper
+86,0.3214,n,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Front Bumper,Other
+87,0.3200,n,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,Unknown,Bumper Bracket/Retainer,Front Bumper
+88,0.3200,n,"HEAD LAMP RH 09"" (TH)",T81130-06590,Jae Auto Pte Ltd,310,H LAMP RH UNIT -HID,T81145-06251,He Xing Auto Parts Pte Ltd,450,Toyota,Headlamp,Headlamp
+89,0.3200,n,"HEAD LAMP RH 09"" (TH)",T81130-06590,Jae Auto Pte Ltd,310,H LAMP LH UNIT -HID,T81185-06251,He Xing Auto Parts Pte Ltd,450,Toyota,Headlamp,Headlamp
+90,0.3184,n,"FACE,FR BUMPER",JJ6400H438,Jae Auto Pte Ltd,600,"COVER,FR BUMPER GRILLE,L",JJ6400H067,Jae Auto Pte Ltd,5,Unknown,Front Bumper,Front Bumper
+91,0.3184,n,"CLIP,FR BUMPER",JJMR288150,Jae Auto Pte Ltd,2,"COVER,FR BUMPER GRILLE,L",JJ6400H067,Jae Auto Pte Ltd,5,Unknown,Front Bumper,Front Bumper
+92,0.3167,n,FRT FENDER RH (TH),T53801-06130,Jae Auto Pte Ltd,150,"HEAD LAMP RH 09"" (TH)",T81130-06590,Jae Auto Pte Ltd,310,Toyota,Fender,Headlamp
+93,0.3147,n,TRIM RING,MBA099 766 18 00 9999,Min Ghee Auto Pte Ltd,36,"TRIM, WINDOW FRAME",MBA213 727 02 00 9051,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Other,Other
+94,0.3100,n,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,Unknown,Front Bumper,Front Bumper
+95,0.3000,n,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,"COVER, WHEEL ARCH",MBA238 691 10 00,Min Ghee Auto Pte Ltd,105,Mercedes-Benz,Bumper Cover/Tow,Fender Liner/Mudguard
+96,0.3000,n,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,"GRILLE,FR BUMPER",JJ6402A399,Jae Auto Pte Ltd,55,Unknown,Bumper Bracket/Retainer,Front Bumper
+97,0.3000,n,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Front Bumper,Front Bumper
+98,0.3000,n,TOW COVER,415 885 0233MB,Pas Auto Pte Ltd,18,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Bumper Cover/Tow,Bumper Cover/Tow
+99,0.1667,n,HEADLAMP UNIT,MBA213 906 67 01,Min Ghee Auto Pte Ltd,2050,AMBIENT LAMP,MBA099 906 10 01,Min Ghee Auto Pte Ltd,32,Mercedes-Benz,Headlamp,Signal/Marker Lamp
+100,0.1143,n,FRT APRON,415 882 0203MB,Pas Auto Pte Ltd,218,ANTENNA,MBA213 905 50 09,Min Ghee Auto Pte Ltd,72,Mercedes-Benz,Fender,Electronic Module
+101,0.1143,n,SPRING ELEMENT,MBA205 880 00 27,Min Ghee Auto Pte Ltd,18,MIRROR FRAME,MBA213 810 74 01,Min Ghee Auto Pte Ltd,650,Mercedes-Benz,Absorber/Damper,Mirror
+102,0.1143,n,CONSOLE,MBA213 620 17 01,Min Ghee Auto Pte Ltd,115,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Dashboard,Other
+103,0.1111,n,ENGINE UNDER COVER,415 888 0004MB,Pas Auto Pte Ltd,115,DRIVER'S DOOR,MBA213 720 02 05,Min Ghee Auto Pte Ltd,1050,Mercedes-Benz,Other,Door Panel
+104,0.1091,n,LOGO BONNET,MBA212 817 03 16,Min Ghee Auto Pte Ltd,43,CONSOLE,MBA213 620 17 01,Min Ghee Auto Pte Ltd,115,Mercedes-Benz,Hood/Bonnet,Dashboard
+105,0.1000,n,CLIPS GRILLE,000 882 0506MB,Pas Auto Pte Ltd,5.8,SEALING RAIL,MBA213 720 02 24 28,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Grille,Seal/Weatherstrip
+106,0.1000,n,CROSS MEMBER,MBA213 620 01 30,Min Ghee Auto Pte Ltd,273,"COVER, WHEEL ARCH",MBA238 691 10 00,Min Ghee Auto Pte Ltd,105,Mercedes-Benz,Structural Panel,Fender Liner/Mudguard
+107,0.0909,n,DOOR HANDLE,MBA099 760 74 00 9999,Min Ghee Auto Pte Ltd,328,ADJ. DRV. MIRROR HOUSING,MBA099 820 20 00,Min Ghee Auto Pte Ltd,130,Mercedes-Benz,Door Handle,Mirror
+108,0.0889,n,BUMPER INNER FRAME FRT,415 885 0211MB,Pas Auto Pte Ltd,115,DOOR HANDLE,MBA099 760 74 00 9999,Min Ghee Auto Pte Ltd,328,Mercedes-Benz,Other,Door Handle
+109,0.0889,n,TOW COVER,415 885 0233MB,Pas Auto Pte Ltd,18,FRONT FENDER,MBA213 880 00 18,Min Ghee Auto Pte Ltd,530,Mercedes-Benz,Bumper Cover/Tow,Fender
+110,0.0870,n,RADIATOR SIDE AIR GUIDE RH,8R0121284R,Jae Auto Pte Ltd,18,FRONT BUMPER SPONGE,8R0807550E,Jae Auto Pte Ltd,45,Audi,Radiator Ancillary,Bumper Bracket/Retainer
+111,0.0857,n,HEADLAMP HOUSE,415 826 0001MB,Pas Auto Pte Ltd,288,DOOR HANDLE,MBA099 760 74 00 9999,Min Ghee Auto Pte Ltd,328,Mercedes-Benz,Headlamp,Door Handle
+112,0.0857,n,RADIATOR GUIDE,415 888 0020MB,Pas Auto Pte Ltd,275,TRIM BUMPER,MBA213 885 03 38 9999,Min Ghee Auto Pte Ltd,660,Mercedes-Benz,Radiator Ancillary,Front Bumper
+113,0.0857,n,RADIATOR CLIP,000 888 0001MB,Pas Auto Pte Ltd,12,BASIC MOUNTING,MBA213 885 11 65,Min Ghee Auto Pte Ltd,28,Mercedes-Benz,Radiator Ancillary,Other
+114,0.0857,n,CONTROL UNIT,MBA222 900 30 13,Min Ghee Auto Pte Ltd,440,COVER F ENGINE,MBA213 520 06 00,Min Ghee Auto Pte Ltd,35,Mercedes-Benz,Electronic Module,Other
+115,0.0842,n,BUMPER REINFORCMENT FRT,415 885 0205MB,Pas Auto Pte Ltd,452,TRIM RING,MBA099 766 18 00 9999,Min Ghee Auto Pte Ltd,36,Mercedes-Benz,Bumper Reinforcement,Other
+116,0.0800,n,DECOUPLING RING,MBA000 542 12 51,Min Ghee Auto Pte Ltd,6,CONSOLE,MBA213 620 17 01,Min Ghee Auto Pte Ltd,115,Mercedes-Benz,Other,Dashboard
+117,0.0750,n,"COVER, WHEEL ARCH",MBA238 691 10 00,Min Ghee Auto Pte Ltd,105,COOLANT PUMP,MBA000 500 43 86,Min Ghee Auto Pte Ltd,420,Mercedes-Benz,Fender Liner/Mudguard,Radiator/Cooling
+118,0.0727,n,ADJ. DRV. MIRROR HOUSING,MBA099 820 20 00,Min Ghee Auto Pte Ltd,130,"TRIM, WINDOW FRAME",MBA213 727 02 00 9051,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Mirror,Other
+119,0.0667,n,FRT FENDER LINER RH,T53875-06081,Jae Auto Pte Ltd,65,RADIATOR,T16400-0H260-K,He Xing Auto Parts Pte Ltd,290,Toyota,Fender Liner/Mudguard,Radiator/Cooling
+120,0.0640,n,GRILLE,415 888 0023MB,Pas Auto Pte Ltd,145,ELECTRICAL WIRING HARNESS,MBA213 540 59 03,Min Ghee Auto Pte Ltd,255,Mercedes-Benz,Grille,Other
+121,0.0632,n,COVER STRIP,MBA213 730 02 02,Min Ghee Auto Pte Ltd,22,W204 FR & RR DOOR RH & LH WEATHE,MBA204 727 11 87,Min Ghee Auto Pte Ltd,153,Mercedes-Benz,Bumper Cover/Tow,Door Panel
+122,0.0632,n,W204 FR & RR DOOR RH & LH WEATHE,MBA204 727 11 87,Min Ghee Auto Pte Ltd,153,SEALING RAIL,MBA213 720 02 24 28,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Door Panel,Seal/Weatherstrip
+123,0.0615,n,SIGNAL LEN RH,MBA099 906 46 01,Min Ghee Auto Pte Ltd,97,MOUNTING RAIL,MBA213 885 06 21,Min Ghee Auto Pte Ltd,10,Mercedes-Benz,Signal/Marker Lamp,Other
+124,0.0571,n,FRT APRON,415 882 0203MB,Pas Auto Pte Ltd,218,FRT GRILLE SUPPORT,415 880 0508MB,Pas Auto Pte Ltd,98,Mercedes-Benz,Fender,Grille
+125,0.0571,n,FRT GRILLE SUPPORT,415 880 0508MB,Pas Auto Pte Ltd,98,CONSOLE,MBA213 620 17 01,Min Ghee Auto Pte Ltd,115,Mercedes-Benz,Grille,Dashboard
+126,0.0571,n,FOG LAMP COVER,415 885 0008MB,Pas Auto Pte Ltd,98,SEALING RAIL,MBA213 720 02 24 28,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Fog Lamp,Seal/Weatherstrip
+127,0.0571,n,BUMPER SET,415 885 0201MB,Pas Auto Pte Ltd,980,"RESERVOIR,RADIATOR RESERVOIR",MBA205 500 00 49,Min Ghee Auto Pte Ltd,63,Mercedes-Benz,Front Bumper,Radiator Ancillary
+128,0.0571,n,BUMPER BRACKET,415 885 0215MB,Pas Auto Pte Ltd,36,SEALING RAIL,MBA213 720 02 24 28,Min Ghee Auto Pte Ltd,53,Mercedes-Benz,Bumper Bracket/Retainer,Seal/Weatherstrip
+129,0.0533,n,SUPPORT BRACKET,415 880 0510MB,Pas Auto Pte Ltd,75,REAR DOOR,MBA213 730 02 05,Min Ghee Auto Pte Ltd,1160,Mercedes-Benz,Other,Door Panel
+130,0.0533,n,GRILLE MOULDING,415 880 0023MB,Pas Auto Pte Ltd,240,DOOR HANDLE,MBA099 760 20 01 9197,Min Ghee Auto Pte Ltd,355,Mercedes-Benz,Grille,Door Handle
+131,0.0533,n,SEAL FRONT,MBA213 720 60 02,Min Ghee Auto Pte Ltd,22,DECOUPLING RING,MBA000 542 12 51,Min Ghee Auto Pte Ltd,6,Mercedes-Benz,Seal/Weatherstrip,Other
+132,0.0421,n,"CLIP,HOOD INSULATOR",JJMU001282,Jae Auto Pte Ltd,2,"BRKT,FR BUMPER SIDE,L",JJ6400F549,Jae Auto Pte Ltd,10,Unknown,Hood/Bonnet,Bumper Bracket/Retainer
+133,0.0333,n,COVER BUMPER,MBA213 885 16 00,Min Ghee Auto Pte Ltd,32,HOOD,MBA213 880 03 57,Min Ghee Auto Pte Ltd,1205,Mercedes-Benz,Front Bumper,Hood/Bonnet
+134,0.0333,n,COVER TOWING,MBA213 885 03 22 9999,Min Ghee Auto Pte Ltd,32,WINDOW GUIDE,MBA213 725 28 00,Min Ghee Auto Pte Ltd,83,Mercedes-Benz,Bumper Cover/Tow,Other
+135,0.0333,n,FRONT FENDER,MBA213 880 01 18,Min Ghee Auto Pte Ltd,530,COOLANT PUMP,MBA000 500 43 86,Min Ghee Auto Pte Ltd,420,Mercedes-Benz,Fender,Radiator/Cooling
+136,0.0308,n,FRT BUMPER GRILLE,415 885 0153MB,Pas Auto Pte Ltd,62,HEADLAMP UNIT,MBA213 906 68 01,Min Ghee Auto Pte Ltd,2050,Mercedes-Benz,Front Bumper,Headlamp
+137,0.0267,n,DISTANCE SENSOR,MBA000 905 56 04 9999,Min Ghee Auto Pte Ltd,95,HOOD,MBA213 880 03 57,Min Ghee Auto Pte Ltd,1205,Mercedes-Benz,Sensor,Hood/Bonnet
+138,0.0250,n,"REIN,FR BUMPER,UPR",JJ6400A832,Jae Auto Pte Ltd,45,"GROMMET,HEADLAMP",JJMN167828,Jae Auto Pte Ltd,3,Unknown,Front Bumper,Headlamp

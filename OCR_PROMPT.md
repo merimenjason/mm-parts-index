@@ -23,6 +23,9 @@ The importer matches columns flexibly, but these are the canonical headers. One 
 | `Qty` | Quantity | number |
 | `Unit Cost` | Unit price | leave blank/0 if not printed — app derives it |
 | `Total Cost` | Line total | number |
+| `Grade` | `OEM Genuine` / `OES` / `Aftermarket` / `Used/Recon` / `Unknown` | only when the bill marks it; never guessed |
+| `Unit Basis` | `each` / `pair` / `set` | per-pair prices must not join per-each medians |
+| `GST` | `incl` / `excl` / `unknown` | whether line prices include GST |
 
 ---
 
@@ -48,13 +51,32 @@ Schema:
                                   // chassis/part prefix; else ""
   "model": string,                // else ""
   "doc_type": "Tax Invoice" | "Repair Estimate",
+  "gst_treatment": "incl" | "excl" | "unknown",
+                                  // do the LINE prices include GST, or is GST
+                                  // added after the subtotal?
+  "parts_subtotal": number,       // printed sum of the parts lines BEFORE GST;
+                                  // 0 if not printed. Used by the app's
+                                  // reconciliation gate to verify no line was
+                                  // missed or misread — extract EXACTLY as printed
+  "gst_amount": number,           // printed GST amount, 0 if not shown
+  "invoice_total": number,        // printed grand total, 0 if not shown
   "parts": [
     {
       "part_name": string,        // verbatim description
       "part_number": string,      // verbatim; keep spaces and dashes
       "qty": number,
       "unit_cost": number,        // 0 if not printed (will be derived)
-      "total_cost": number
+      "total_cost": number,
+      "grade": "OEM Genuine" | "OES" | "Aftermarket" | "Used/Recon" | "Unknown",
+                                  // "OEM Genuine" only if marked original/genuine;
+                                  // "Aftermarket" if marked replacement/copy/(TW)/APM;
+                                  // "Used/Recon" if used/recon/secondhand.
+                                  // NEVER guess — default "Unknown". Grade is the
+                                  // single largest legitimate price driver, so a
+                                  // wrong grade is worse than no grade.
+      "unit_basis": "each" | "pair" | "set"
+                                  // "pair" if the line prices two sides together
+                                  // (LH/RH, pair); "set" for kits; else "each"
     }
   ]
 }
