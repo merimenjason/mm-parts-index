@@ -24,7 +24,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -224,7 +224,7 @@ export default function App() {
       <div style={{ padding: 26, maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }} />}
-        {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }} />}
+        {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
         {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct }} />}
         {tab === "analytics" && <Analytics {...{ parts, clusters, cfg, method, setMethod, inflPct, setInflPct }} />}
@@ -261,6 +261,7 @@ function QuoteLines({ c }) {
 
 function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
   const [openTop, setOpenTop] = useState(null);
+  const [openMake, setOpenMake] = useState(null);
   const [kpi, setKpi] = useState(null);
   const clickable = parts.length > 0;
   return (<>
@@ -288,13 +289,16 @@ function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
       </div>
     ) : (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Card title="Coverage vs common SG makes">
-          {SG_MAKES.map((m) => { const n = parts.filter((p) => p.make === m && p.ltype === "Supplier Part").length;
-            return (<div key={m} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", fontSize: 12.5 }}>
-              <span style={{ width: 120, color: n ? TEXT : MUTE }}>{m}</span>
-              <div style={{ flex: 1, height: 7, background: "#0A2C38", borderRadius: 5, overflow: "hidden" }}>
-                <div style={{ width: `${Math.min(100, n * 6)}%`, height: "100%", background: n ? LIME : "transparent" }} /></div>
-              <span style={{ width: 28, textAlign: "right", color: MUTE }}>{n || "—"}</span></div>); })}
+        <Card title="Coverage vs common SG makes · click a make">
+          {SG_MAKES.map((m) => { const items = parts.filter((p) => p.make === m && p.ltype === "Supplier Part"); const n = items.length; const isOpen = openMake === m;
+            return (<div key={m}>
+              <div onClick={() => n && setOpenMake(isOpen ? null : m)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", fontSize: 12.5, cursor: n ? "pointer" : "default" }}>
+                <span style={{ width: 120, color: n ? TEXT : MUTE }}>{n ? <span style={{ color: LIME, marginRight: 4 }}>{isOpen ? "▾" : "▸"}</span> : <span style={{ marginRight: 14 }} />}{m}</span>
+                <div style={{ flex: 1, height: 7, background: "#0A2C38", borderRadius: 5, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(100, n * 6)}%`, height: "100%", background: n ? LIME : "transparent" }} /></div>
+                <span style={{ width: 28, textAlign: "right", color: MUTE }}>{n || "—"}</span></div>
+              {isOpen && <div style={{ padding: "2px 0 8px 18px", fontSize: 11, color: MUTE, maxHeight: 150, overflow: "auto" }}><PartLines items={items} /></div>}
+            </div>); })}
         </Card>
         <Card title="Top fuzzy-matched benchmarks (≥2 quotes)">
           {clusters.filter((c) => c.n > 1).slice(0, 10).map((c, i) => {
@@ -471,26 +475,52 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
   </div>);
 }
 
-function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }) {
+function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }) {
+  const [open, setOpen] = useState(null);
   return (<>
     <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
       <input placeholder="Search part / number / supplier" value={q} onChange={(e) => setQ(e.target.value)} style={inp(240)} />
       <select value={fMake} onChange={(e) => setFMake(e.target.value)} style={inp(160)}>{makes.map((m) => <option key={m}>{m}</option>)}</select>
       <select value={fType} onChange={(e) => setFType(e.target.value)} style={inp(200)}>
         {["All", "Supplier Part", "Consumable / Fastener", "Repair Estimate", "Labour"].map((t) => <option key={t}>{t}</option>)}</select>
-      <span style={{ color: MUTE, fontSize: 12.5, alignSelf: "center" }}>{filtered.length} rows</span></div>
+      <span style={{ color: MUTE, fontSize: 12.5, alignSelf: "center" }}>{filtered.length} rows · click a line for its full record</span></div>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
         <thead><tr style={{ background: PANEL }}>{["Make","Category","Part name","Part no","Grade","Qty","Unit S$","Total S$","Line type","Supplier"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-        <tbody>{filtered.slice(0, 400).map((p) => (
-          <tr key={p.id} style={{ borderTop: `1px solid ${LINE}`, background: p.review ? "rgba(232,163,61,.12)" : p.ltype === "Repair Estimate" ? "#3A2226" : p.ltype.startsWith("Consumable") ? "#0C2E3A" : "transparent" }} title={p.review ? p.review_reason : undefined}>
-            <td style={td}>{p.make}</td><td style={td}>{p.cat}</td><td style={{ ...td, fontWeight: 600 }}>{p.review && <span style={{ color: AMBER, marginRight: 5 }} title={p.review_reason}>⚠</span>}{p.part_name}</td>
-            <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}>{p.part_number}</td>
-            <td style={{ ...td, fontSize: 11, color: !p.grade || p.grade === "Unknown" ? MUTE : p.grade === "OEM Genuine" ? LIME : AMBER }}>{!p.grade || p.grade === "Unknown" ? "—" : p.grade}{p.unit_basis && p.unit_basis !== "each" ? " · /" + p.unit_basis : ""}</td>
-            <td style={{ ...td, textAlign: "center" }}>{p.qty}</td><td style={{ ...td, textAlign: "right" }}>{p.unit?.toFixed(2)}</td>
-            <td style={{ ...td, textAlign: "right" }}>{p.total?.toFixed(2)}</td><td style={{ ...td, color: MUTE }}>{p.ltype}</td><td style={{ ...td, color: MUTE }}>{p.supplier}</td></tr>))}</tbody></table>
+        <tbody>{filtered.slice(0, 400).map((p) => { const isOpen = open === p.id; return (
+          <React.Fragment key={p.id}>
+            <tr onClick={() => setOpen(isOpen ? null : p.id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: p.review ? "rgba(232,163,61,.12)" : p.ltype === "Repair Estimate" ? "#3A2226" : p.ltype.startsWith("Consumable") ? "#0C2E3A" : "transparent" }} title={p.review ? p.review_reason : undefined}>
+              <td style={td}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{p.make}</td><td style={td}>{p.cat}</td><td style={{ ...td, fontWeight: 600 }}>{p.review && <span style={{ color: AMBER, marginRight: 5 }} title={p.review_reason}>⚠</span>}{p.part_name}</td>
+              <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}>{p.part_number}</td>
+              <td style={{ ...td, fontSize: 11, color: !p.grade || p.grade === "Unknown" ? MUTE : p.grade === "OEM Genuine" ? LIME : AMBER }}>{!p.grade || p.grade === "Unknown" ? "—" : p.grade}{p.unit_basis && p.unit_basis !== "each" ? " · /" + p.unit_basis : ""}</td>
+              <td style={{ ...td, textAlign: "center" }}>{p.qty}</td><td style={{ ...td, textAlign: "right" }}>{p.unit?.toFixed(2)}</td>
+              <td style={{ ...td, textAlign: "right" }}>{p.total?.toFixed(2)}</td><td style={{ ...td, color: MUTE }}>{p.ltype}</td><td style={{ ...td, color: MUTE }}>{p.supplier}</td></tr>
+            {isOpen && <tr style={{ background: "#082430" }}><td colSpan={10} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
+              <LedgerDetail p={p} parts={parts} clusters={clusters} /></td></tr>}
+          </React.Fragment>); })}</tbody></table>
       {filtered.length > 400 && <div style={{ padding: 10, color: MUTE, fontSize: 12 }}>Showing first 400 of {filtered.length}.</div>}</div>
   </>);
+}
+// Everything the app knows about one ledger line: the raw record, its bill
+// context, and which benchmark (if any) the line feeds.
+function LedgerDetail({ p, parts, clusters }) {
+  const sib = p.bill_no ? parts.filter((x) => x.bill_no === p.bill_no) : [p];
+  const billTotal = sib.reduce((s, x) => s + (x.total || 0), 0);
+  const usable = p.ltype === "Supplier Part" && !p.review;
+  const c = usable ? clusters.find((cl) => cl.members.some((m) => m.id === p.id)) : null;
+  return (<div>
+    <div><b style={{ color: TEXT }}>Record</b> — bill {p.bill_no || "—"}{p.bill_date ? ` · ${p.bill_date}` : ""} · {p.doc_type} · GST {p.gst || "unknown"} · grade {p.grade || "Unknown"} · priced per {p.unit_basis || "each"} · normalised PN <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>{p.npn || "—"}</span> · qty {p.qty} × S${(p.unit || 0).toFixed(2)} = S${(p.total || 0).toFixed(2)} · via {p.src === "ocr" ? "Claude OCR" : "Excel import"}
+      {p.review && <span style={{ color: AMBER }}> · held for review: {p.review_reason}</span>}</div>
+    {sib.length > 1 && <div style={{ marginTop: 6 }}><b style={{ color: TEXT }}>Same bill</b> — {sib.length} lines on bill {p.bill_no} ({p.supplier}) totalling S${billTotal.toFixed(2)}.</div>}
+    <div style={{ marginTop: 6 }}>
+      {!usable
+        ? <span><b style={{ color: TEXT }}>Benchmark</b> — {p.review ? "held for review, so excluded from every benchmark until accepted or discarded on the Ingest tab." : `${p.ltype} lines are excluded from the parts cost benchmark by design.`}</span>
+        : c && c.n > 1
+          ? <><b style={{ color: TEXT }}>Feeds benchmark</b> — <b style={{ color: LIME }}>{c.label}</b> ({c.make}) · median S${c.med} across {c.n} quotes from {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}:
+              <div style={{ marginTop: 4 }}><QuoteLines c={c} /></div></>
+          : <span><b style={{ color: TEXT }}>Benchmark</b> — sole quote in its cluster at the current matching settings; a defensible median needs a second quote. Loosen the threshold on the Benchmark tab or add more bills.</span>}
+    </div>
+  </div>);
 }
 
 /* ---------- Benchmark with configurable fuzzy matcher ---------- */
@@ -767,8 +797,8 @@ function matchLine(line, clusters, cfg) {
     if (exact) return { cluster: exact, how: "part number", score: 1 };
   }
   const nm = line.part_name || "";
+  let best = null, bestScore = 0;
   if (nm) {
-    let best = null, bestScore = 0;
     clusters.forEach((c) => {
       if (line.make && cfg.sameMake && c.make !== "Unknown" && line.make.toLowerCase() !== c.make.toLowerCase()) return;
       const s = Math.max(...c.names.map((n) => similarity(nm, n, cfg.tokenWeight)));
@@ -776,7 +806,8 @@ function matchLine(line, clusters, cfg) {
     });
     if (best && bestScore >= cfg.threshold) return { cluster: best, how: "name", score: +bestScore.toFixed(2) };
   }
-  return { cluster: null, how: "no match", score: 0 };
+  // No match — but keep the nearest rejected candidate so the UI can explain WHY.
+  return { cluster: null, how: "no match", score: 0, near: best ? { label: best.label, make: best.make, score: +bestScore.toFixed(2) } : null };
 }
 
 const SAMPLE_ESTIMATE = `MBA213 906 67 01, HEADLAMP UNIT, 2600
@@ -789,6 +820,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState(null);
   const [claimRef, setClaimRef] = useState("");
+  const [openRow, setOpenRow] = useState(null);
 
   const run = (raw) => {
     const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
@@ -804,10 +836,11 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
       const over = bench ? +(quoted - bench).toFixed(2) : null;
       const overPct = bench ? +(((quoted - bench) / bench) * 100).toFixed(0) : null;
       const flagged = overPct != null && overPct >= inflPct;
-      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score,
+      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score, near: m.near || null,
         n: m.cluster ? m.cluster.n : 0, flagged, cluster: m.cluster };
     });
     setRows(out);
+    setOpenRow(null);
   };
 
   const matched = rows ? rows.filter((r) => r.bench != null) : [];
@@ -867,18 +900,29 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
       <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead><tr style={{ background: PANEL }}>{[["Part no","left"],["Description","left"],["Matched via","left"],["Quotes","center"],["Quoted S$","right"],["Benchmark S$","right"],["Variance S$","right"],["Variance %","right"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
-          <tbody>{rows.map((r, i) => (
-            <tr key={i} style={{ borderTop: `1px solid ${LINE}`, background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
-              <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}>{r.pn}</td>
-              <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
-              <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
-              <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
-              <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
-              <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
-              <td style={{ ...td, textAlign: "right", fontWeight: 700, color: r.over > 0 ? RED : r.over < 0 ? LIME : MUTE }}>{r.over != null ? (r.over > 0 ? "+" : "") + r.over.toFixed(2) : "—"}</td>
-              <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td></tr>))}</tbody></table></div>
+          <tbody>{rows.map((r, i) => { const isOpen = openRow === i; return (
+            <React.Fragment key={i}>
+              <tr onClick={() => setOpenRow(isOpen ? null : i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
+                <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
+                <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
+                <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
+                <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
+                <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
+                <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
+                <td style={{ ...td, textAlign: "right", fontWeight: 700, color: r.over > 0 ? RED : r.over < 0 ? LIME : MUTE }}>{r.over != null ? (r.over > 0 ? "+" : "") + r.over.toFixed(2) : "—"}</td>
+                <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td></tr>
+              {isOpen && <tr style={{ background: "#082430" }}><td colSpan={8} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
+                {r.cluster ? (<div>
+                  <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}. This is the evidence the dispute pack exports:</div>
+                  <QuoteLines c={r.cluster} /></div>)
+                : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
+                    ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Benchmark tab or add the part number to the estimate line.</>
+                    : "No candidate cluster could be compared — the part is not in the reference yet, or the make constraint filtered everything out."}</div>)}
+              </td></tr>}
+            </React.Fragment>); })}</tbody></table></div>
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
         {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
+        Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
         Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.
         <b style={{ color: TEXT }}> Export dispute pack</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
     </>)}
@@ -886,20 +930,30 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
 }
 
 function Coverage({ parts, clusters }) {
+  const [openMake, setOpenMake] = useState(null);
+  const [openCat, setOpenCat] = useState(null);
   const usable = parts.filter((p) => p.ltype === "Supplier Part");
   const catMap = {};
-  usable.forEach((p) => { (catMap[p.cat] = catMap[p.cat] || { n: 0 }); catMap[p.cat].n++; });
-  const cats = Object.entries(catMap).sort((a, b) => b[1].n - a[1].n);
+  usable.forEach((p) => { (catMap[p.cat] = catMap[p.cat] || []).push(p); });
+  const cats = Object.entries(catMap).sort((a, b) => b[1].length - a[1].length);
   const covered = new Set(usable.map((p) => p.make));
   const hit = SG_MAKES.filter((m) => covered.has(m)).length;
   return (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-    <Card title={`Make coverage · ${hit}/${SG_MAKES.length} common SG makes`}>
-      {SG_MAKES.map((m) => { const n = usable.filter((p) => p.make === m).length;
-        return <div key={m} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5, color: n ? TEXT : MUTE }}>
-          <span>{m}</span><span style={{ color: n ? LIME : MUTE }}>{n ? `${n} parts` : "— gap"}</span></div>; })}</Card>
-    <Card title="Category coverage · usable parts">
-      {cats.length ? cats.map(([c, v]) => <div key={c} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5 }}>
-        <span>{c}</span><span style={{ color: MUTE }}>{v.n} parts</span></div>) : <span style={{ color: MUTE, fontSize: 12.5 }}>No data yet.</span>}</Card>
+    <Card title={`Make coverage · ${hit}/${SG_MAKES.length} common SG makes · click a make for its parts`}>
+      {SG_MAKES.map((m) => { const items = usable.filter((p) => p.make === m); const n = items.length; const isOpen = openMake === m;
+        return (<div key={m} style={{ borderBottom: `1px solid ${LINE}` }}>
+          <div onClick={() => n && setOpenMake(isOpen ? null : m)} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5, color: n ? TEXT : MUTE, cursor: n ? "pointer" : "default" }}>
+            <span>{n ? <span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span> : <span style={{ marginRight: 16 }} />}{m}</span>
+            <span style={{ color: n ? LIME : MUTE }}>{n ? `${n} parts` : "— gap"}</span></div>
+          {isOpen && <div style={{ padding: "2px 0 8px 16px", fontSize: 11, color: MUTE, maxHeight: 170, overflow: "auto" }}><PartLines items={items} /></div>}
+        </div>); })}</Card>
+    <Card title="Category coverage · usable parts · click a category for its parts">
+      {cats.length ? cats.map(([c, items]) => { const isOpen = openCat === c;
+        return (<div key={c} style={{ borderBottom: `1px solid ${LINE}` }}>
+          <div onClick={() => setOpenCat(isOpen ? null : c)} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5, cursor: "pointer" }}>
+            <span><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c}</span><span style={{ color: MUTE }}>{items.length} parts</span></div>
+          {isOpen && <div style={{ padding: "2px 0 8px 16px", fontSize: 11, color: MUTE, maxHeight: 170, overflow: "auto" }}><PartLines items={items} /></div>}
+        </div>); }) : <span style={{ color: MUTE, fontSize: 12.5 }}>No data yet.</span>}</Card>
     <div style={{ gridColumn: "1 / -1" }}><Card title="Success criteria (from the project brief)">
       <div style={{ fontSize: 12.5, lineHeight: 1.8 }}>
         <b style={{ color: LIME }}>a. Coverage completeness</b> — {hit} of {SG_MAKES.length} common makes and {cats.length} categories; {clusters.filter((c) => c.n > 1).length} fuzzy clusters have a 2+-quote benchmark. Depth grows with invoice volume.<br />

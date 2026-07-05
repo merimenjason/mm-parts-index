@@ -238,6 +238,22 @@ was merged — the over-merge inspection view. Rationale: a reference an
 adjuster can't verify is a reference they won't defend, so no number in the
 app should be more than one click from its source quotes.
 
+**Step 13 — Drill-downs on the remaining tabs.** Extended the same principle
+beyond Analytics. **Parts Ledger** rows open the full record (bill · date ·
+doc type · GST · grade · unit basis · normalised PN · qty × unit = total ·
+ingest source · review reason), the bill context (sibling line count and bill
+total), and the benchmark the line feeds — with the other quotes in that
+cluster, or the reason it feeds none (estimate/consumable/labour by design,
+held for review, or sole quote). **Assess a Claim** result rows open the match
+evidence: how the line matched (exact PN vs name similarity vs threshold),
+the cluster's median/range/suppliers, and its quotes — the on-screen twin of
+the dispute pack's Evidence sheet; unmatched lines now explain themselves via
+`matchLine`'s new nearest-rejected-candidate return ("closest was X at 0.58,
+below the 0.65 threshold"), turning a dead "no match" into an actionable one.
+**Coverage** makes and categories, and the Dashboard's make-coverage bars,
+expand into their underlying part lines. Ingest needed nothing: its review
+queue already lists every held line inline.
+
 ---
 
 ## 9. Limitations & next steps
