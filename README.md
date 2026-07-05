@@ -152,7 +152,7 @@ reloads (it won't re-seed the demo).
 - **Spreadsheets:** Ingest → *Bulk upload*. Columns are matched flexibly
   (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
   and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
-- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key).
+- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet by default; Haiku for clean prints, Opus/Fable for faint fax and handwriting) — the batch runner takes the same choice via `--model`.
 - The OCR prompt both paths use lives in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
   (documented in [`OCR_PROMPT.md`](./OCR_PROMPT.md)) — one source of truth.
 

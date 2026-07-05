@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -75,6 +75,22 @@ console.log("buildDisputePack");
   ok(pack.summary.find((r) => r.Field === "Potential over-claim, S$").Value === +(520 - c.med).toFixed(2), "over-claim total correct");
   ok(pack.lines.length === 2 && pack.lines[1]["Benchmark cluster"] === "no match", "unmatched line included and marked");
   ok(pack.evidence.length === 2 && pack.evidence.every((e) => e["Bill no"] && e.Supplier && e["Unit price S$"] > 0), "evidence lists every underlying quote with provenance");
+}
+
+console.log("upgradePart (stale localStorage migration)");
+{
+  // A part as persisted by a pre-grade app version: no grade/unit_basis/gst/review fields at all.
+  const stale = { id: "abc", bill_no: "8049120", supplier: "Min Ghee Auto Pte Ltd", bill_date: "28/12/2016",
+    make: "Hyundai", model: "Tucson (TL/2L)", part_name: "BALL JOINT ASSY-INR L/R", part_number: "KA56540 2H 000",
+    npn: "KA565402H000", cat: "Suspension/Steering Arm", qty: 1, unit: 42, total: 42, ltype: "Supplier Part", doc_type: "Tax Invoice", src: "excel" };
+  const up = upgradePart(stale);
+  ok(up.grade === "Unknown" && up.unit_basis === "pair" && up.gst === "unknown" && up.review === false,
+     "missing fields back-filled (L/R name → per pair; grade unknown, not undefined)");
+  ok(up.id === "abc" && up.npn === "KA565402H000" && up.unit === 42, "existing values untouched");
+  const modern = upgradePart({ ...stale, grade: "OES", unit_basis: "each", gst: "incl", review: true, review_reason: "x" });
+  ok(modern.grade === "OES" && modern.unit_basis === "each" && modern.gst === "incl" && modern.review === true, "valid present values always win");
+  const noBasis = upgradePart({ ...stale, part_name: "BALL JOINT ASSY", npn: undefined, ltype: undefined });
+  ok(noBasis.unit_basis === "each" && noBasis.npn === "KA565402H000" && noBasis.ltype === "Supplier Part", "plain name → per each; npn/ltype recomputed when absent");
 }
 
 console.log("batch runner helpers");

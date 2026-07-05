@@ -21,10 +21,22 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
-  normPN, similarity, snapshotId, buildDisputePack } from "./pipeline.js";
+  normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
+
+/* Selectable Claude models for the live-OCR path (Ingest tab). The batch
+   runner takes the same choice via --model. Sonnet is the tuned default;
+   Haiku trades accuracy for cost on clean prints; Opus/Fable help on the
+   worst faxes and handwriting at a higher price. */
+const OCR_MODELS = [
+  ["claude-sonnet-4-6", "Sonnet 4.6 — default: fast, accurate, economical"],
+  ["claude-haiku-4-5-20251001", "Haiku 4.5 — fastest & cheapest, for clean prints"],
+  ["claude-opus-4-8", "Opus 4.8 — stronger on faint fax / handwriting"],
+  ["claude-fable-5", "Fable 5 — most capable, highest cost"],
+];
+const MODEL_KEY = "partsindex_ocr_model";
 
 /* ================= persistence ================= */
 const KEY = "partsindex_dataset_v3";
@@ -37,14 +49,14 @@ async function saveDS(ds) { try { localStorage.setItem(KEY, JSON.stringify(ds));
 /* ================= Claude OCR =================
    The system prompt lives in src/ocrPrompt.js — the single source of truth
    shared with the bulk runner (tools/batch-ocr.mjs). Tune it there. */
-async function ocrFile(base64, mediaType, isPdf) {
+async function ocrFile(base64, mediaType, isPdf, model) {
   const docBlock = isPdf
     ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
     : { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
   // Routed through the serverless proxy (api/ocr.js) so the API key stays server-side.
   const res = await fetch("/api/ocr", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, system: OCR_SYS,
+    body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 4000, system: OCR_SYS,
       messages: [{ role: "user", content: [docBlock, { type: "text", text: OCR_USER_TEXT }] }] }),
   });
   const data = await res.json();
@@ -104,11 +116,22 @@ export default function App() {
   const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true });
   const [method, setMethod] = useState("benchmark");
   const [inflPct, setInflPct] = useState(30);
+  const [ocrModel, setOcrModelState] = useState(() => {
+    try { const v = localStorage.getItem(MODEL_KEY); return OCR_MODELS.some(([m]) => m === v) ? v : OCR_MODELS[0][0]; }
+    catch { return OCR_MODELS[0][0]; }
+  });
+  const setOcrModel = (m) => { setOcrModelState(m); try { localStorage.setItem(MODEL_KEY, m); } catch {} };
   const excelRef = useRef(), invRef = useRef();
 
   useEffect(() => {
     loadDS().then((stored) => {
-      if (stored && Array.isArray(stored.parts)) { setDs(stored); }      // returning user (incl. explicitly cleared)
+      if (stored && Array.isArray(stored.parts)) {
+        // Migrate datasets persisted by older app versions: back-fill fields added
+        // since (grade, unit basis, GST, review) so stale lines don't render empty
+        // badges or dodge the grade/basis merge guards. Existing values always win.
+        const upgraded = { ...stored, parts: stored.parts.map(upgradePart) };
+        setDs(upgraded); saveDS(upgraded);
+      }
       else { const seeded = { parts: DEMO_18.map(enrichPart) }; setDs(seeded); saveDS(seeded); } // first run -> demo
     });
   }, []);
@@ -123,9 +146,9 @@ export default function App() {
   };
   const onInvoice = async (e) => {
     const files = [...e.target.files]; if (!files.length) return;
-    for (const f of files) { setLoading(`OCR: ${f.name}…`);
+    for (const f of files) { setLoading(`OCR: ${f.name} · ${ocrModel}…`);
       try { const b64 = await fileToB64(f); const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
-        const j = await ocrFile(b64, f.type || "image/png", isPdf);
+        const j = await ocrFile(b64, f.type || "image/png", isPdf, ocrModel);
         // Dedup gate: the same supplier+bill_no must never be ingested twice, or its quotes double-count and skew medians.
         const dupKey = `${(j.supplier_name || "").trim().toLowerCase()}|${(j.bill_no || "").trim().toLowerCase()}`;
         if (j.bill_no && ds.parts.some((p) => `${p.supplier.trim().toLowerCase()}|${p.bill_no.trim().toLowerCase()}` === dupKey)) {
@@ -200,7 +223,7 @@ export default function App() {
 
       <div style={{ padding: 26, maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
-        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill }} />}
+        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
         {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct }} />}
@@ -224,12 +247,15 @@ function Card({ title, children, span }) {
     {title && <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#fff" }}>{title}</div>}{children}</div>;
 }
 // Shared drill-down: lists the individual quotes behind a benchmark cluster.
+// Format: part name · part number · supplier · unit price · bill date, plus two
+// optional tags — GRADE (only when known) and PER PAIR / PER SET (only when the
+// line doesn't price a single unit). Hover a tag for what it means.
 function QuoteLines({ c }) {
   return (<>{c.members.map((m, k) => (
     <div key={k} style={{ padding: "2px 0" }}>
       <span style={{ color: TEXT }}>{m.part_name}</span> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{m.part_number || "—"}</span> · {m.supplier} · <b style={{ color: LIME }}>S${m.unit}</b>{m.bill_date ? " · " + m.bill_date : ""}
-      {m.grade !== "Unknown" && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: m.grade === "OEM Genuine" ? LIME : AMBER, border: `1px solid ${m.grade === "OEM Genuine" ? LIME : AMBER}`, borderRadius: 4, padding: "0 4px" }}>{m.grade}</span>}
-      {m.unit_basis !== "each" && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: TEAL_L, border: `1px solid ${TEAL_L}`, borderRadius: 4, padding: "0 4px" }}>per {m.unit_basis}</span>}
+      {m.grade && m.grade !== "Unknown" && <span title={`Parts grade: ${m.grade} — printed on the bill or inferred from name tags like (ORIGINAL) or (TW). Grade is the biggest legitimate price driver, so quotes of different known grades are never merged into one benchmark.`} style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", cursor: "help", color: m.grade === "OEM Genuine" ? LIME : AMBER, border: `1px solid ${m.grade === "OEM Genuine" ? LIME : AMBER}`, borderRadius: 4, padding: "0 4px" }}>{m.grade}</span>}
+      {m.unit_basis && m.unit_basis !== "each" && <span title={`This line prices a ${m.unit_basis} (e.g. LH+RH together), not a single unit — per-${m.unit_basis} prices are kept out of per-each medians so they can't skew the benchmark.`} style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", cursor: "help", color: TEAL_L, border: `1px solid ${TEAL_L}`, borderRadius: 4, padding: "0 4px" }}>per {m.unit_basis}</span>}
     </div>))}</>);
 }
 
@@ -397,7 +423,7 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
     </div>
   );
 }
-function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill }) {
+function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }) {
   // Group flagged lines by bill for the review queue.
   const flaggedBills = useMemo(() => {
     const g = {};
@@ -427,9 +453,12 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
       <button onClick={() => excelRef.current.click()} style={btn(LIME, TEAL_D)}>Choose spreadsheets</button></Card>
     <Card title="OCR invoices · live via Claude">
       <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6 }}>Upload raw invoice PDFs or images. Each is read by Claude, extracted to structured parts, enriched and stored.</p>
+      <label style={{ display: "block", fontSize: 11, color: MUTE, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 700, margin: "10px 0 5px" }}>Claude model</label>
+      <select value={ocrModel} onChange={(e) => setOcrModel(e.target.value)} style={inp(320)}>
+        {OCR_MODELS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
       <input ref={invRef} type="file" accept=".pdf,image/*" multiple onChange={onInvoice} style={{ display: "none" }} />
-      <button onClick={() => invRef.current.click()} style={btn(TEAL_L, "#fff")}>Choose invoices to OCR</button>
-      <p style={{ color: MUTE, fontSize: 11, marginTop: 10 }}>In a deployed static site, route this through a serverless proxy so the API key stays server-side.</p></Card>
+      <div><button onClick={() => invRef.current.click()} style={btn(TEAL_L, "#fff")}>Choose invoices to OCR</button></div>
+      <p style={{ color: MUTE, fontSize: 11, marginTop: 10 }}>The choice persists in this browser and applies to this button; the batch runner takes the same choice via <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>--model {ocrModel}</span>. In a deployed static site, route this through a serverless proxy so the API key stays server-side.</p></Card>
     <Card title="Dataset actions">
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={loadDemo} style={btn(ICE, TEAL_D)}>Load demo (18 bills)</button>
@@ -457,7 +486,7 @@ function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }) 
           <tr key={p.id} style={{ borderTop: `1px solid ${LINE}`, background: p.review ? "rgba(232,163,61,.12)" : p.ltype === "Repair Estimate" ? "#3A2226" : p.ltype.startsWith("Consumable") ? "#0C2E3A" : "transparent" }} title={p.review ? p.review_reason : undefined}>
             <td style={td}>{p.make}</td><td style={td}>{p.cat}</td><td style={{ ...td, fontWeight: 600 }}>{p.review && <span style={{ color: AMBER, marginRight: 5 }} title={p.review_reason}>⚠</span>}{p.part_name}</td>
             <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}>{p.part_number}</td>
-            <td style={{ ...td, fontSize: 11, color: p.grade === "Unknown" ? MUTE : p.grade === "OEM Genuine" ? LIME : AMBER }}>{p.grade === "Unknown" ? "—" : p.grade}{p.unit_basis !== "each" ? " · /" + p.unit_basis : ""}</td>
+            <td style={{ ...td, fontSize: 11, color: !p.grade || p.grade === "Unknown" ? MUTE : p.grade === "OEM Genuine" ? LIME : AMBER }}>{!p.grade || p.grade === "Unknown" ? "—" : p.grade}{p.unit_basis && p.unit_basis !== "each" ? " · /" + p.unit_basis : ""}</td>
             <td style={{ ...td, textAlign: "center" }}>{p.qty}</td><td style={{ ...td, textAlign: "right" }}>{p.unit?.toFixed(2)}</td>
             <td style={{ ...td, textAlign: "right" }}>{p.total?.toFixed(2)}</td><td style={{ ...td, color: MUTE }}>{p.ltype}</td><td style={{ ...td, color: MUTE }}>{p.supplier}</td></tr>))}</tbody></table>
       {filtered.length > 400 && <div style={{ padding: 10, color: MUTE, fontSize: 12 }}>Showing first 400 of {filtered.length}.</div>}</div>
@@ -556,7 +585,7 @@ function MBenchmark({ clusters }) {
   const ready = clusters.filter((c) => c.n > 1);
   const rows = ready.length ? ready : clusters.slice(0, 25);
   const heads = [["Benchmark part","left"],["Make","left"],["Quotes","center"],["Median S$","right"],["Avg S$","right"],["Range S$","right"]];
-  return (<><Head>The core reference: median unit price per fuzzy-matched part cluster. Median resists a single inflated bill; average is shown so reviewers can see skew. Only clusters with 2+ quotes give a defensible benchmark. Click a part to see its quotes.</Head>
+  return (<><Head>The core reference: median unit price per fuzzy-matched part cluster. Median resists a single inflated bill; average is shown so reviewers can see skew. Only clusters with 2+ quotes give a defensible benchmark. Click a part to see its quotes — each line reads <i>part name · part number · supplier · unit price · bill date</i>, followed by up to two tags: a <b style={{ color: AMBER }}>grade</b> tag (OEM Genuine / OES / Aftermarket / Used-Recon — shown only when the bill states it or a name tag implies it; different known grades never merge into one benchmark) and a <b style={{ color: TEAL_L }}>per pair / per set</b> tag (the line prices two sides or a kit together, so it's kept out of per-each medians). No tags means grade unknown and priced per unit.</Head>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
         <thead><tr style={{ background: PANEL }}>{heads.map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>

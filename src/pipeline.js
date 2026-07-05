@@ -238,6 +238,30 @@ export function parseDate(s) {
   return new Date(y, +m[2] - 1, +m[1]);
 }
 
+/* ---- stored-dataset migration ----
+   Parts are enriched ONCE at ingest and then persisted, so a dataset stored by
+   an older app version lacks fields added since (grade, unit_basis, gst, review,
+   …). Left alone, those undefined fields render as empty badges and dodge the
+   grade/basis merge guards. upgradePart back-fills anything missing on load —
+   values that are already present and valid always win. */
+export function upgradePart(p) {
+  const qty = Number(p.qty) || 1;
+  let unit = Number(p.unit) || 0; const total = Number(p.total) || 0;
+  if (!unit && total) unit = +(total / qty).toFixed(2);
+  return {
+    ...p,
+    id: p.id || crypto.randomUUID(),
+    npn: p.npn != null ? p.npn : normPN(p.part_number),
+    cat: p.cat || categorise(p.part_name),
+    ltype: p.ltype || lineType(p.doc_type, p.cat || categorise(p.part_name)),
+    qty, unit, total,
+    grade: GRADES.includes(p.grade) ? p.grade : inferGrade(p.part_name, p.grade),
+    unit_basis: UNIT_BASES.includes(p.unit_basis) ? p.unit_basis : inferUnitBasis(p.part_name, p.unit_basis),
+    gst: ["incl", "excl"].includes(String(p.gst || "").toLowerCase()) ? String(p.gst).toLowerCase() : "unknown",
+    review: !!p.review, review_reason: p.review_reason || "",
+  };
+}
+
 /* ================= OCR output schema validation =================
    Validates one extracted invoice object BEFORE it is allowed anywhere near
    the dataset. Catches model output drift (missing fields, wrong types,

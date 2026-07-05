@@ -209,6 +209,20 @@ latent Assess-tab bug (`normPN`/`similarity` were used but not imported) and
 taught the Excel importer to read Grade / Unit Basis / GST / Review columns so
 the runner's output round-trips losslessly.
 
+**Step 11 — Tag legend, OCR model picker, stale-data migration.** A field
+screenshot showed the quote-drill-down tags rendering as an empty pill and a
+bare "per": the browser's persisted dataset predated the grade/unit-basis
+fields, so `undefined` slipped past the `!== "Unknown"` badge checks. Fixed at
+the root with `upgradePart` — stored datasets are migrated on load, back-filling
+grade / unit basis / GST / review via the same inference the app applies at
+ingest (present values always win) — plus defensive badge rendering. The tags
+now carry hover tooltips and the Analytics → Median benchmark header explains
+them (grade tag: shown only when known, different grades never merge; per
+pair/set tag: kept out of per-each medians). Also added a **Claude model
+picker** to the Ingest OCR card (Sonnet default; Haiku for clean prints;
+Opus/Fable for the worst scans), persisted per browser and passed straight
+through the proxy — the batch runner takes the same choice via `--model`.
+
 ---
 
 ## 9. Limitations & next steps
