@@ -24,7 +24,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.0";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -573,13 +573,6 @@ function Analytics({ parts, clusters, cfg, method, setMethod, inflPct, setInflPc
   </>);
 }
 function Head({ children }) { return <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.65, marginBottom: 14, maxWidth: 780 }}>{children}</p>; }
-function Tbl({ cols, rows }) {
-  return <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-      <thead><tr style={{ background: PANEL }}>{cols.map((c) => <th key={c.k} style={{ ...th, textAlign: c.a || "left" }}>{c.h}</th>)}</tr></thead>
-      <tbody>{rows.map((r, i) => <tr key={i} style={{ borderTop: `1px solid ${LINE}`, background: r._bg || "transparent" }}>
-        {cols.map((c) => <td key={c.k} style={{ ...td, textAlign: c.a || "left", color: c.mut ? MUTE : (r["_c" + c.k] || TEXT), fontFamily: c.mono ? "ui-monospace,monospace" : "inherit", fontWeight: c.b ? 700 : 400 }}>{r[c.k]}</td>)}</tr>)}</tbody></table></div>;
-}
 function MBenchmark({ clusters }) {
   const [open, setOpen] = useState(null);
   const ready = clusters.filter((c) => c.n > 1);
@@ -605,100 +598,162 @@ function MInflation({ clusters, inflPct, setInflPct }) {
   const rows = [];
   clusters.filter((c) => c.n > 1).forEach((c) => c.members.forEach((m) => {
     const over = c.med ? ((m.unit - c.med) / c.med) * 100 : 0;
-    if (over >= inflPct) rows.push({ part: m.part_name, make: c.make, supplier: m.supplier, quoted: m.unit, med: c.med, over: `+${over.toFixed(0)}%`, _cover: RED, _bg: "rgba(232,97,90,.10)" });
+    if (over >= inflPct) rows.push({ part: m.part_name, make: c.make, supplier: m.supplier, quoted: m.unit, med: c.med, over: `+${over.toFixed(0)}%`, _cover: RED, _bg: "rgba(232,97,90,.10)",
+      _detail: (<div>
+        <div style={{ marginBottom: 6 }}>Flagged quote: <b style={{ color: TEXT }}>bill {m.bill_no || "—"}</b>{m.bill_date ? ` · ${m.bill_date}` : ""} · {m.supplier} — <b style={{ color: RED }}>S${m.unit}</b> vs cluster median <b style={{ color: LIME }}>S${c.med}</b> across {c.n} quotes. All quotes in this benchmark:</div>
+        <QuoteLines c={c} /></div>) });
   }));
-  return (<><Head>Every quoted line is compared with its cluster median; anything above the threshold is flagged for negotiation. This is the negotiation trigger the brief asks for. On the demo set most matched pairs are identical prices, so few flags appear — volume surfaces the real outliers.</Head>
+  return (<><Head>Every quoted line is compared with its cluster median; anything above the threshold is flagged for negotiation. This is the negotiation trigger the brief asks for. Click a flagged line to see which bill it came from and every quote behind the median it was judged against. On the demo set most matched pairs are identical prices, so few flags appear — volume surfaces the real outliers.</Head>
     <div style={{ marginBottom: 14, fontSize: 12.5 }}>Flag threshold: <b style={{ color: RED }}>+{inflPct}%</b> over median&nbsp;&nbsp;
       <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 220, verticalAlign: "middle" }} /></div>
-    {rows.length ? <Tbl cols={[{k:"part",h:"Part"},{k:"make",h:"Make"},{k:"supplier",h:"Supplier"},{k:"quoted",h:"Quoted S$",a:"right"},{k:"med",h:"Median S$",a:"right",mut:1},{k:"over",h:"Over",a:"right",b:1}]} rows={rows} />
+    {rows.length ? <ExpandTable cols={[{k:"part",h:"Part"},{k:"make",h:"Make"},{k:"supplier",h:"Supplier"},{k:"quoted",h:"Quoted S$",a:"right"},{k:"med",h:"Median S$",a:"right",mut:1},{k:"over",h:"Over",a:"right",b:1}]} rows={rows} />
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>No lines exceed +{inflPct}% over their cluster median at the current matching setting.</span></Card>}</>);
 }
 function MConfidence({ clusters }) {
   const now = new Date();
-  const score = (c) => {
+  const scoreParts = (c) => {
     const q = Math.min(1, (c.n - 1) / 4);                       // quote depth
     const s = Math.min(1, (c.suppliers.length - 1) / 3);        // supplier diversity
     const ds = c.dates.map(parseDate).filter(Boolean);
     const recency = ds.length ? Math.max(...ds.map((d) => 1 - Math.min(1, (now - d) / (1000*60*60*24*365*3)))) : 0;
-    return Math.round((0.4*q + 0.35*s + 0.25*recency) * 100);
+    return { q, s, recency, total: Math.round((0.4*q + 0.35*s + 0.25*recency) * 100) };
   };
-  const rows = clusters.filter((c) => c.n > 1).map((c) => { const sc = score(c);
-    return { label: c.label, make: c.make, n: c.n, sup: c.suppliers.length, score: sc,
-      band: sc >= 60 ? "High" : sc >= 30 ? "Medium" : "Low", _cscore: sc >= 60 ? LIME : sc >= 30 ? AMBER : RED, _cband: sc >= 60 ? LIME : sc >= 30 ? AMBER : RED }; })
+  const Bar = ({ label, frac, weight, why }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "3px 0" }}>
+      <span style={{ width: 150, color: TEXT }}>{label} <span style={{ color: MUTE }}>× {weight}</span></span>
+      <div style={{ flex: 1, maxWidth: 220, height: 7, background: "#0A2C38", borderRadius: 5, overflow: "hidden" }}>
+        <div style={{ width: `${frac * 100}%`, height: "100%", background: frac >= 0.6 ? LIME : frac >= 0.3 ? AMBER : RED }} /></div>
+      <span style={{ width: 110, color: MUTE }}>{(frac * weight * 100).toFixed(0)} / {weight * 100} pts</span>
+      <span style={{ color: MUTE }}>{why}</span></div>);
+  const rows = clusters.filter((c) => c.n > 1).map((c) => { const sc = scoreParts(c);
+    const ds = c.dates.map(parseDate).filter(Boolean).sort((a, b) => b - a);
+    return { label: c.label, make: c.make, n: c.n, sup: c.suppliers.length, score: sc.total,
+      band: sc.total >= 60 ? "High" : sc.total >= 30 ? "Medium" : "Low", _cscore: sc.total >= 60 ? LIME : sc.total >= 30 ? AMBER : RED, _cband: sc.total >= 60 ? LIME : sc.total >= 30 ? AMBER : RED,
+      _detail: (<div>
+        <div style={{ marginBottom: 6 }}>How the score of <b style={{ color: TEXT }}>{sc.total}</b> is built (0–100):</div>
+        <Bar label="Quote depth" frac={sc.q} weight={0.40} why={`${c.n} quotes — full marks at 5+`} />
+        <Bar label="Supplier diversity" frac={sc.s} weight={0.35} why={`${c.suppliers.length} supplier${c.suppliers.length > 1 ? "s" : ""} — full marks at 4+`} />
+        <Bar label="Recency" frac={sc.recency} weight={0.25} why={ds.length ? `newest quote ${ds[0].toLocaleDateString("en-SG")} — decays to zero over 3 years` : "no dated quotes"} />
+        <div style={{ margin: "8px 0 4px" }}>The quotes behind it:</div>
+        <QuoteLines c={c} /></div>) }; })
     .sort((a, b) => b.score - a.score);
-  return (<><Head>Each benchmark is rated on quote depth, supplier diversity and recency (0–100). Insurers lean on high-confidence figures and treat thin ones as indicative. Weights: 40% depth, 35% diversity, 25% recency.</Head>
-    {rows.length ? <Tbl cols={[{k:"label",h:"Benchmark part"},{k:"make",h:"Make"},{k:"n",h:"Quotes",a:"center"},{k:"sup",h:"Suppliers",a:"center"},{k:"score",h:"Score",a:"center",b:1},{k:"band",h:"Confidence",b:1}]} rows={rows} />
+  return (<><Head>Each benchmark is rated on quote depth, supplier diversity and recency (0–100). Insurers lean on high-confidence figures and treat thin ones as indicative. Weights: 40% depth, 35% diversity, 25% recency. Click a row to see exactly how its score is built and the quotes behind it.</Head>
+    {rows.length ? <ExpandTable cols={[{k:"label",h:"Benchmark part"},{k:"make",h:"Make"},{k:"n",h:"Quotes",a:"center"},{k:"sup",h:"Suppliers",a:"center"},{k:"score",h:"Score",a:"center",b:1},{k:"band",h:"Confidence",b:1}]} rows={rows} />
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>No multi-quote clusters yet — confidence needs 2+ quotes.</span></Card>}</>);
 }
 function MDispersion({ clusters }) {
-  const rows = clusters.filter((c) => c.n > 1 && c.spread > 0).map((c) => ({
-    label: c.label, make: c.make, spread: c.spread, pctSpread: c.med ? `${((c.spread / c.med) * 100).toFixed(0)}%` : "—",
-    detail: c.members.map((m) => `${m.supplier} S$${m.unit}`).join("  ·  "), _cpctSpread: RED,
-  })).sort((a, b) => b.spread - a.spread);
-  return (<><Head>Where the same part varies across suppliers, wide spread signals either genuine grade differences (OEM vs aftermarket) or a mispriced supplier — both worth knowing before negotiating.</Head>
-    {rows.length ? <Tbl cols={[{k:"label",h:"Part"},{k:"make",h:"Make"},{k:"spread",h:"Spread S$",a:"right",b:1},{k:"pctSpread",h:"% of median",a:"right"},{k:"detail",h:"By supplier",mut:1}]} rows={rows} />
+  const rows = clusters.filter((c) => c.n > 1 && c.spread > 0).map((c) => {
+    const lo = c.members.reduce((a, b) => (a.unit <= b.unit ? a : b));
+    const hi = c.members.reduce((a, b) => (a.unit >= b.unit ? a : b));
+    return {
+      label: c.label, make: c.make, spread: c.spread, pctSpread: c.med ? `${((c.spread / c.med) * 100).toFixed(0)}%` : "—",
+      summary: `${lo.supplier} S$${lo.unit} → ${hi.supplier} S$${hi.unit}`, _cpctSpread: RED,
+      _detail: (<div>
+        <div style={{ marginBottom: 6 }}>Widest gap: <b style={{ color: LIME }}>{lo.supplier} S${lo.unit}</b>{lo.bill_no ? ` (bill ${lo.bill_no})` : ""} vs <b style={{ color: RED }}>{hi.supplier} S${hi.unit}</b>{hi.bill_no ? ` (bill ${hi.bill_no})` : ""} — spread S${c.spread} on a median of S${c.med}.
+          {c.grades.filter((g) => g !== "Unknown").length > 1
+            ? <span style={{ color: AMBER }}> Grades differ across these quotes — the gap may be a legitimate OEM-vs-aftermarket difference rather than a mispricing.</span>
+            : " Same known grade (or grade unknown) throughout — worth querying the dearer supplier."}</div>
+        <QuoteLines c={c} /></div>),
+    };
+  }).sort((a, b) => b.spread - a.spread);
+  return (<><Head>Where the same part varies across suppliers, wide spread signals either genuine grade differences (OEM vs aftermarket) or a mispriced supplier — both worth knowing before negotiating. Click a row to see the cheapest-vs-dearest gap and every quote behind it.</Head>
+    {rows.length ? <ExpandTable cols={[{k:"label",h:"Part"},{k:"make",h:"Make"},{k:"spread",h:"Spread S$",a:"right",b:1},{k:"pctSpread",h:"% of median",a:"right"},{k:"summary",h:"Cheapest → dearest",mut:1}]} rows={rows} />
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>No price dispersion within clusters at the current setting — matched quotes are identical.</span></Card>}</>);
 }
 function MTrend({ parts }) {
+  const [openCat, setOpenCat] = useState(null);
   const usable = parts.filter((p) => p.ltype === "Supplier Part" && parseDate(p.bill_date));
   const byCat = {};
   usable.forEach((p) => { (byCat[p.cat] = byCat[p.cat] || []).push(p); });
   const cats = Object.entries(byCat).filter(([, a]) => a.length >= 3).sort((a, b) => b[1].length - a[1].length).slice(0, 6);
   const allDates = usable.map((p) => parseDate(p.bill_date));
   const min = Math.min(...allDates), max = Math.max(...allDates), span = max - min || 1;
-  return (<><Head>Unit price plotted by bill date, per category, to separate genuine drift from one-off spikes and to keep benchmarks current. Each dot is a part line; the lime marker is the category median.</Head>
+  return (<><Head>Unit price plotted by bill date, per category, to separate genuine drift from one-off spikes and to keep benchmarks current. Each dot is a part line (hover it for details); click a category strip to list its lines in date order.</Head>
     {cats.length ? cats.map(([cat, arr]) => {
       const units = arr.map((p) => p.unit); const umin = Math.min(...units), umax = Math.max(...units), urange = umax - umin || 1; const med = median(units);
-      return (<div key={cat} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 8 }}>
-          <b>{cat}</b><span style={{ color: MUTE }}>{arr.length} lines · S${umin}–{umax} · median S${med.toFixed(0)}</span></div>
+      const isOpen = openCat === cat;
+      return (<div key={cat} style={{ background: PANEL, border: `1px solid ${isOpen ? LIME : LINE}`, borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
+        <div onClick={() => setOpenCat(isOpen ? null : cat)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 8, cursor: "pointer" }}>
+          <b><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{cat}</b><span style={{ color: MUTE }}>{arr.length} lines · S${umin}–{umax} · median S${med.toFixed(0)}</span></div>
         <div style={{ position: "relative", height: 40, background: "#082430", borderRadius: 6 }}>
           {arr.map((p, i) => { const x = ((parseDate(p.bill_date) - min) / span) * 96 + 2; const y = 90 - ((p.unit - umin) / urange) * 80;
             return <div key={i} title={`${p.part_name} S$${p.unit} ${p.bill_date}`} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: 7, height: 7, borderRadius: 7, background: TEAL_L, transform: "translate(-50%,-50%)" }} />; })}
-        </div></div>); })
+        </div>
+        {isOpen && <div style={{ marginTop: 10, fontSize: 11, color: MUTE, maxHeight: 200, overflow: "auto" }}>
+          {arr.slice().sort((a, b) => parseDate(a.bill_date) - parseDate(b.bill_date)).map((p, i) => (
+            <div key={i} style={{ padding: "2px 0" }}>
+              <span style={{ fontFamily: "ui-monospace,monospace" }}>{p.bill_date}</span> · <span style={{ color: TEXT }}>{p.part_name}</span> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{p.part_number || "—"}</span> · {p.supplier} · <b style={{ color: p.unit === umax && umin !== umax ? RED : p.unit === umin && umin !== umax ? LIME : TEXT }}>S${p.unit}</b>{p.bill_no ? ` · bill ${p.bill_no}` : ""}
+            </div>))}
+          <div style={{ marginTop: 4, color: MUTE }}>Dearest line in red, cheapest in lime — the strip above shows the same lines positioned by date (left→right) and price (low→high).</div>
+        </div>}
+      </div>); })
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>Not enough dated lines per category to plot a trend yet.</span></Card>}
     <p style={{ color: MUTE, fontSize: 11, marginTop: 4 }}>Time runs left→right across each strip; vertical position is unit price within the category.</p></>);
 }
 function MAgreement({ clusters }) {
   const rows = clusters.filter((c) => c.suppliers.length > 1).map((c) => {
+    const pct = c.med ? (c.spread / c.med) * 100 : 0;
     const withinTol = c.med ? (c.spread / c.med) <= 0.1 : false;
-    return { label: c.label, make: c.make, suppliers: c.suppliers.join(", "), med: c.med, tol: `${c.med ? ((c.spread / c.med) * 100).toFixed(0) : 0}%`,
-      verdict: withinTol ? "Agree (≤10%)" : "Diverge", _cverdict: withinTol ? LIME : AMBER, _bg: withinTol ? "rgba(195,215,0,.10)" : "transparent" };
+    return { label: c.label, make: c.make, suppliers: c.suppliers.join(", "), med: c.med, tol: `${pct.toFixed(0)}%`,
+      verdict: withinTol ? "Agree (≤10%)" : "Diverge", _cverdict: withinTol ? LIME : AMBER, _bg: withinTol ? "rgba(195,215,0,.10)" : "transparent",
+      _detail: (<div>
+        <div style={{ marginBottom: 6 }}>{c.suppliers.length} independent suppliers quote this part between <b style={{ color: TEXT }}>S${c.min}</b> and <b style={{ color: TEXT }}>S${c.max}</b> — spread S${c.spread} is <b style={{ color: withinTol ? LIME : AMBER }}>{pct.toFixed(0)}%</b> of the S${c.med} median, {withinTol ? "within" : "outside"} the 10% agreement tolerance.
+          {withinTol ? " Independent sources arriving at the same price is the credibility signal a disputed figure needs." : <span style={{ color: AMBER }}> Check the quotes below for a grade or per-pair difference before treating the divergence as a mispricing.</span>}</div>
+        <QuoteLines c={c} /></div>) };
   }).sort((a, b) => (a.verdict > b.verdict ? 1 : -1));
-  return (<><Head>When the same part is quoted by independent suppliers at a similar price, that agreement is itself the credibility signal insurers and courts want. Clusters spanning 2+ suppliers within 10% are marked as agreeing.</Head>
-    {rows.length ? <Tbl cols={[{k:"label",h:"Part"},{k:"make",h:"Make"},{k:"suppliers",h:"Independent suppliers",mut:1},{k:"med",h:"Median S$",a:"right",b:1},{k:"tol",h:"Spread",a:"right"},{k:"verdict",h:"Verdict",b:1}]} rows={rows} />
+  return (<><Head>When the same part is quoted by independent suppliers at a similar price, that agreement is itself the credibility signal insurers and courts want. Clusters spanning 2+ suppliers within 10% are marked as agreeing. Click a row for the arithmetic and the quotes from each supplier.</Head>
+    {rows.length ? <ExpandTable cols={[{k:"label",h:"Part"},{k:"make",h:"Make"},{k:"suppliers",h:"Independent suppliers",mut:1},{k:"med",h:"Median S$",a:"right",b:1},{k:"tol",h:"Spread",a:"right"},{k:"verdict",h:"Verdict",b:1}]} rows={rows} />
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>No cross-supplier clusters yet — needs the same part from 2+ different suppliers.</span></Card>}</>);
 }
 function MAccuracy({ parts }) {
+  const [openMatch, setOpenMatch] = useState(null);
   // list vs net from estimate lines
   const est = parts.filter((p) => p.doc_type.toLowerCase().includes("estimate") && p.unit && p.total && p.unit !== p.total);
   const byBill = {};
   est.forEach((p) => { (byBill[p.bill_no] = byBill[p.bill_no] || []).push(p); });
   const summ = Object.entries(byBill).map(([bill, arr]) => {
     const list = arr.reduce((s, p) => s + p.unit, 0), net = arr.reduce((s, p) => s + p.total, 0);
-    return { bill, supplier: arr[0].supplier, list: list.toFixed(0), net: net.toFixed(0), disc: `${(((list - net) / list) * 100).toFixed(0)}%`, _cdisc: AMBER };
+    return { bill, supplier: arr[0].supplier, list: list.toFixed(0), net: net.toFixed(0), disc: `${(((list - net) / list) * 100).toFixed(0)}%`, _cdisc: AMBER,
+      _detail: (<div>
+        <div style={{ marginBottom: 6 }}>Line-by-line list price vs net (what the repairer actually pays) in this estimate:</div>
+        {arr.map((p, i) => { const d = p.unit ? (((p.unit - p.total) / p.unit) * 100).toFixed(0) : 0;
+          return (<div key={i} style={{ padding: "2px 0" }}>
+            <span style={{ color: TEXT }}>{p.part_name}</span> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{p.part_number || "—"}</span> · list <b style={{ color: TEXT }}>S${p.unit}</b> → net <b style={{ color: LIME }}>S${p.total}</b> · <b style={{ color: AMBER }}>−{d}%</b>
+          </div>); })}</div>) };
   });
   // cross-source identical PN (all lines)
   const byPN = {}; parts.forEach((p) => { if (p.npn) (byPN[p.npn] = byPN[p.npn] || []).push(p); });
   const matches = Object.values(byPN).filter((a) => new Set(a.map((x) => x.bill_no)).size > 1);
-  return (<><Head>To prove value (POC#2) you compare, per claim: supplier-bill cost vs repairer estimate line vs insurer final offer. The sample pairs these on different claims, so we show the two accuracy signals it does contain.</Head>
+  return (<><Head>To prove value (POC#2) you compare, per claim: supplier-bill cost vs repairer estimate line vs insurer final offer. The sample pairs these on different claims, so we show the two accuracy signals it does contain. Click an estimate for its line-by-line list-vs-net, or a cross-source match for the bills behind it.</Head>
     <Card title="Signal 1 · List-vs-net margin inside repairer estimates" span="1 / -1">
-      {summ.length ? <Tbl cols={[{k:"bill",h:"Estimate"},{k:"supplier",h:"Source"},{k:"list",h:"List S$",a:"right"},{k:"net",h:"Net S$",a:"right"},{k:"disc",h:"Discount",a:"right",b:1}]} rows={summ} />
+      {summ.length ? <ExpandTable cols={[{k:"bill",h:"Estimate"},{k:"supplier",h:"Source"},{k:"list",h:"List S$",a:"right"},{k:"net",h:"Net S$",a:"right"},{k:"disc",h:"Discount",a:"right",b:1}]} rows={summ} />
         : <span style={{ color: MUTE, fontSize: 12.5 }}>No estimate lines with distinct list/net prices in this set.</span>}
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 8 }}>The list-to-net gap is the repairer margin the benchmark is meant to police.</p></Card>
     <div style={{ height: 14 }} />
     <Card title="Signal 2 · Cross-source identical part number" span="1 / -1">
-      {matches.length ? matches.map((a, i) => (<div key={i} style={{ fontSize: 12.5, padding: "4px 0" }}>
-        <b>{a[0].part_name}</b> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{a[0].part_number}</span>: {a.map((x) => `${x.supplier} S$${x.unit}`).join("  vs  ")}
-        {new Set(a.map((x) => x.unit)).size === 1 && <span style={{ color: LIME, fontWeight: 700 }}> — identical price (consistency)</span>}</div>))
+      {matches.length ? matches.map((a, i) => { const isOpen = openMatch === i; return (
+        <div key={i} style={{ borderBottom: `1px solid ${LINE}` }}>
+          <div onClick={() => setOpenMatch(isOpen ? null : i)} style={{ fontSize: 12.5, padding: "6px 0", cursor: "pointer" }}>
+            <span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>
+            <b>{a[0].part_name}</b> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{a[0].part_number}</span>: {a.map((x) => `${x.supplier} S$${x.unit}`).join("  vs  ")}
+            {new Set(a.map((x) => x.unit)).size === 1 && <span style={{ color: LIME, fontWeight: 700 }}> — identical price (consistency)</span>}</div>
+          {isOpen && <div style={{ padding: "0 0 8px 18px", fontSize: 11, color: MUTE }}>
+            <div style={{ marginBottom: 4 }}>The same normalised part number seen on {new Set(a.map((x) => x.bill_no)).size} different bills — the strongest form of cross-source validation, no fuzzy matching involved:</div>
+            {a.map((x, k) => (<div key={k} style={{ padding: "2px 0" }}>
+              <span style={{ color: TEXT }}>{x.part_name}</span> · <span style={{ fontFamily: "ui-monospace,monospace" }}>{x.part_number}</span> · {x.supplier} · bill {x.bill_no || "—"}{x.bill_date ? ` · ${x.bill_date}` : ""} · <b style={{ color: LIME }}>S${x.unit}</b> · {x.doc_type}
+            </div>))}</div>}
+        </div>); })
         : <span style={{ color: MUTE, fontSize: 12.5 }}>No part number recurs across bills in this set.</span>}
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 8 }}>Full inflation quantification needs matched triples (bill + estimate + final offer) per claim — captured in Extraction #2.</p></Card></>);
 }
 function MNormalisation({ clusters }) {
   const multi = clusters.filter((c) => c.names.length > 1 || c.pns.length > 1).slice(0, 30);
-  return (<><Head>None of the analytics work without collapsing the many ways a part is written into one entity. Below: fuzzy clusters that unified 2+ differently-written names or part numbers — the foundation the whole reference stands on.</Head>
-    {multi.length ? <Tbl cols={[{k:"label",h:"Canonical"},{k:"make",h:"Make"},{k:"names",h:"Unified names",mut:1},{k:"pns",h:"Unified part nos",mono:1,mut:1}]}
-      rows={multi.map((c) => ({ label: c.label, make: c.make, names: c.names.join("  |  "), pns: c.pns.join("  |  ") }))} />
+  return (<><Head>None of the analytics work without collapsing the many ways a part is written into one entity. Below: fuzzy clusters that unified 2+ differently-written names or part numbers — the foundation the whole reference stands on. Click a row to inspect the merge: every underlying line with its exact spelling, part number, supplier and price, so an over-merge is spotted before it corrupts a benchmark.</Head>
+    {multi.length ? <ExpandTable cols={[{k:"label",h:"Canonical"},{k:"make",h:"Make"},{k:"names",h:"Unified names",mut:1},{k:"pns",h:"Unified part nos",mono:1,mut:1}]}
+      rows={multi.map((c) => ({ label: c.label, make: c.make, names: c.names.join("  |  "), pns: c.pns.join("  |  "),
+        _detail: (<div>
+          <div style={{ marginBottom: 6 }}>{c.names.length} spelling{c.names.length > 1 ? "s" : ""} and {c.pns.length} part number{c.pns.length > 1 ? "s" : ""} merged into one benchmark{c.bridged ? <span style={{ color: AMBER }}> — spans multiple part numbers (name-bridged ≈), so verify these really are the same part</span> : " — same normalised part number throughout"}. The lines as written on the bills:</div>
+          <QuoteLines c={c} /></div>) }))} />
       : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>At the current threshold no cluster merged differing names. Loosen the threshold on the Benchmark tab to see merges.</span></Card>}</>);
 }
 
@@ -863,7 +918,7 @@ function MethodNotes() {
     ["Normalisation view", "The fuzzy clusters that unified differently-written names/part numbers — the foundation everything else stands on."],
   ];
   return (<div>
-    <Head>Each method is live under the Analytics tab. These notes summarise what each computes and why it matters for an insurer-grade reference.</Head>
+    <Head>Each method is live under the Analytics tab. These notes summarise what each computes and why it matters for an insurer-grade reference. Every view drills down: click any row (or trend strip) to open the evidence behind the number — the individual quotes with supplier, bill, date, grade and price — because a reference an adjuster can't verify is a reference they won't defend.</Head>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
       {items.map(([t, d], i) => (<div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 18 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 8 }}>

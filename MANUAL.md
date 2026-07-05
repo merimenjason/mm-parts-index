@@ -223,6 +223,21 @@ picker** to the Ingest OCR card (Sonnet default; Haiku for clean prints;
 Opus/Fable for the worst scans), persisted per browser and passed straight
 through the proxy — the batch runner takes the same choice via `--model`.
 
+**Step 12 — Drill-downs across all Analytics views.** Previously only Median
+benchmark expanded into its quotes; the other seven views were static tables.
+Now every row everywhere opens the evidence behind the number: inflation flags
+open the offending bill and the full cluster it was judged against; confidence
+scores break down into depth / diversity / recency bars with the exact points
+each contributes; dispersion rows show the cheapest-vs-dearest gap with an
+automatic caution when the quotes span different grades; trend strips list
+their lines chronologically with dearest/cheapest highlighted; agreement rows
+show the spread-vs-tolerance arithmetic; accuracy Signal 1 expands each
+estimate to line-level list-vs-net and Signal 2 shows per-bill provenance for
+every cross-source match; and normalisation rows reveal each raw spelling that
+was merged — the over-merge inspection view. Rationale: a reference an
+adjuster can't verify is a reference they won't defend, so no number in the
+app should be more than one click from its source quotes.
+
 ---
 
 ## 9. Limitations & next steps
