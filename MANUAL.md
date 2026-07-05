@@ -194,6 +194,21 @@ a benchmark rests on an identical part number or a looser name match. Added the
 against the benchmark with a total potential over-claim — the inverse workflow
 that turns the reference into a daily adjuster tool.
 
+**Step 10 — Batch OCR runner + dispute pack.** Built the two pieces that carry
+the POC into daily use. (a) `tools/batch-ocr.mjs`: a resumable bulk runner for
+the 200-invoice extraction — same prompt as the app (now shared via
+`src/ocrPrompt.js`), **schema validation on every response**, the reconciliation
+gate, cross-run duplicate protection, a SHA-256 manifest so crashed runs resume,
+optional **Message Batches API** mode at 50% token cost, and an app-importable
+`PartsIndex_import.xlsx` with a per-file Run Log. (b) **Export dispute pack** on
+the Assess tab: an Excel with Summary / Line Assessment / **Evidence** sheets —
+every underlying supplier quote behind every benchmark used — stamped with a
+**benchmark snapshot id** (hash of the usable dataset + matching config) so any
+figure quoted in a negotiation is reproducible later. Along the way, fixed a
+latent Assess-tab bug (`normPN`/`similarity` were used but not imported) and
+taught the Excel importer to read Grade / Unit Basis / GST / Review columns so
+the runner's output round-trips losslessly.
+
 ---
 
 ## 9. Limitations & next steps
@@ -202,7 +217,8 @@ that turns the reference into a daily adjuster tool.
 - **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The Assess tab compares an estimate to the benchmark; feeding it real final-offer data closes the loop.
 - **Make/model** is often absent from the bill; inferred from chassis/part-prefix. Joining full claim metadata via chassis tightens this and makes same-model separation exact.
 - **Price comparability.** Bills span multiple years and mixed GST treatment; medians currently treat all prices as directly comparable. Normalising to ex-GST and weighting by recency is a worthwhile next step.
-- **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking (token limits).
+- **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. For volume, use the batch runner (`npm run ocr:batch`) — it validates, reconciles, dedupes and resumes; very large multi-page bills may still need splitting (the runner rejects files over the request cap and says so).
+- **Benchmark reproducibility** is handled at export time (each dispute pack carries a snapshot id), but past snapshots are not stored — regenerating an old pack requires the dataset as it stood. Persisting benchmark snapshots is the natural next step once storage moves beyond localStorage.
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
 
 

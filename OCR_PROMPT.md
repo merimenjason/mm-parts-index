@@ -2,7 +2,11 @@
 
 Use this when handing the **200 supplier invoices** to Claude for OCR. It is tuned to produce output that maps **1:1** onto the columns PartsIndex expects, so the resulting spreadsheet imports with no manual cleanup.
 
-There are two ways to run it. **Option A** (structured JSON, then convert to Excel) is the most reliable for bulk work and is what the app's built-in "OCR invoices" button uses. **Option B** asks Claude to emit a spreadsheet-ready table directly.
+> **The canonical prompt lives in [`src/ocrPrompt.js`](./src/ocrPrompt.js)** — imported by both the app's live-OCR button and the bulk runner, so all paths extract identically. If you tune the prompt, tune it there; this file documents it.
+>
+> **For the 200-invoice run itself, don't drive this by hand** — use the batch runner: `npm run ocr:batch -- --in ./invoices` (add `--mode batch` for 50% token cost via the Message Batches API). It applies this prompt, validates every response against the schema, runs the reconciliation gate, dedupes on supplier + bill number, resumes after crashes, and emits an app-ready `PartsIndex_import.xlsx`. See the README's *Batch OCR runner* section.
+
+There are two ways to run it manually. **Option A** (structured JSON, then convert to Excel) is the most reliable for bulk work and is what the app's built-in "OCR invoices" button and the batch runner use. **Option B** asks Claude to emit a spreadsheet-ready table directly.
 
 ---
 
@@ -139,8 +143,9 @@ Paste the resulting tables into one sheet (or save as CSV) and upload via **Bulk
 
 ## Tips for the 200-invoice run
 
-- **Batch, don't merge.** One document per OCR call keeps part lines from bleeding across invoices. The app dedupes on ingest, so re-running a file is safe.
-- **Multi-page bills.** If a single invoice runs to many pages and the parts list is long, split it and OCR in chunks — output token limits can truncate very large tables. Stitch the chunks into one sheet before upload.
-- **Verify a sample.** Eyeball ~5% of extracted rows against the source (the POC#1 accuracy check). Handwriting and faint fax copy are where errors cluster.
+- **Batch, don't merge.** One document per OCR call keeps part lines from bleeding across invoices — the batch runner does this automatically, dedupes on supplier + bill number across runs, and a totals mismatch lands the bill in the review queue instead of the benchmark.
+- **Trial first.** `--dry-run` shows the plan; `--limit 5` runs a five-invoice trial so the extraction quality is confirmed before committing the full folder (and, in batch mode, before paying for it).
+- **Multi-page bills.** If a single invoice runs to many pages and the parts list is long, split it and OCR in chunks — output token limits can truncate very large tables (the runner's reconciliation gate will catch a truncated table as a totals mismatch). Stitch the chunks into one sheet before upload.
+- **Verify a sample.** Eyeball ~5% of extracted rows against the source (the POC#1 accuracy check) — the per-invoice JSONs under `ocr_out/json/` make this quick. Handwriting and faint fax copy are where errors cluster.
 - **Keep Part Number verbatim.** The app normalises it on ingest (strips spaces/dashes/brand filler). Don't pre-clean it yourself — that's the app's job and keeping the raw form preserves an audit trail.
 - **Blank over guess.** A blank make/model or unit cost is recoverable; a wrong one silently corrupts the benchmark.

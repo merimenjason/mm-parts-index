@@ -237,3 +237,181 @@ export function parseDate(s) {
   if (!m) return null; let y = +m[3]; if (y < 100) y += 2000;
   return new Date(y, +m[2] - 1, +m[1]);
 }
+
+/* ================= OCR output schema validation =================
+   Validates one extracted invoice object BEFORE it is allowed anywhere near
+   the dataset. Catches model output drift (missing fields, wrong types,
+   invented enum values) at ingest time instead of as a corrupted benchmark
+   three weeks later. Coercible problems are downgraded to warnings and fixed
+   on a copy; structural problems are errors and the invoice is rejected. */
+const UNIT_BASES = ["each", "pair", "set"];
+const GST_VALUES = ["incl", "excl", "unknown"];
+export function validateInvoice(j) {
+  const errors = [], warnings = [];
+  if (!j || typeof j !== "object" || Array.isArray(j)) {
+    return { ok: false, errors: ["response is not a JSON object"], warnings, invoice: null };
+  }
+  const inv = JSON.parse(JSON.stringify(j)); // work on a copy; coercions never mutate the input
+  const str = (v) => (v == null ? "" : String(v));
+  const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
+
+  inv.supplier_name = str(inv.supplier_name).trim();
+  inv.bill_no = str(inv.bill_no).trim();
+  if (!inv.supplier_name) warnings.push("supplier_name is empty");
+  if (!inv.bill_no) warnings.push("bill_no is empty — duplicate detection is impossible for this bill");
+
+  if (!["Tax Invoice", "Repair Estimate"].includes(inv.doc_type)) {
+    warnings.push(`doc_type "${str(inv.doc_type)}" is not in the schema — coerced to "Tax Invoice"`);
+    inv.doc_type = "Tax Invoice";
+  }
+  if (!GST_VALUES.includes(inv.gst_treatment)) {
+    if (inv.gst_treatment != null && str(inv.gst_treatment) !== "") warnings.push(`gst_treatment "${str(inv.gst_treatment)}" invalid — coerced to "unknown"`);
+    inv.gst_treatment = "unknown";
+  }
+  for (const f of ["parts_subtotal", "gst_amount", "invoice_total"]) {
+    const n = num(inv[f]);
+    if (Number.isNaN(n)) { warnings.push(`${f} is not a number — set to 0`); inv[f] = 0; }
+    else inv[f] = n;
+  }
+
+  if (!Array.isArray(inv.parts)) { errors.push("parts is missing or not an array"); inv.parts = []; }
+  else if (inv.parts.length === 0) errors.push("parts array is empty — nothing was extracted");
+
+  inv.parts = inv.parts.map((p, i) => {
+    const row = { ...p };
+    row.part_name = str(row.part_name).trim();
+    row.part_number = str(row.part_number).trim();
+    if (!row.part_name && !row.part_number) errors.push(`parts[${i}]: both part_name and part_number are empty`);
+    const qty = num(row.qty);
+    if (Number.isNaN(qty) || qty < 0) { warnings.push(`parts[${i}] "${row.part_name || row.part_number}": qty invalid — set to 1`); row.qty = 1; }
+    else row.qty = qty || 1;
+    for (const f of ["unit_cost", "total_cost"]) {
+      const n = num(row[f]);
+      if (Number.isNaN(n) || n < 0) { if (row[f] != null) warnings.push(`parts[${i}] "${row.part_name || row.part_number}": ${f} invalid — set to 0`); row[f] = 0; }
+      else row[f] = n;
+    }
+    if (!row.unit_cost && !row.total_cost) errors.push(`parts[${i}] "${row.part_name || row.part_number}": no price at all (unit_cost and total_cost both 0)`);
+    if (!GRADES.includes(row.grade)) {
+      if (row.grade != null && str(row.grade) !== "") warnings.push(`parts[${i}]: grade "${str(row.grade)}" invalid — coerced to "Unknown"`);
+      row.grade = "Unknown";
+    }
+    if (!UNIT_BASES.includes(row.unit_basis)) {
+      if (row.unit_basis != null && str(row.unit_basis) !== "") warnings.push(`parts[${i}]: unit_basis "${str(row.unit_basis)}" invalid — coerced to "each"`);
+      row.unit_basis = "each";
+    }
+    return row;
+  });
+
+  return { ok: errors.length === 0, errors, warnings, invoice: errors.length === 0 ? inv : null };
+}
+
+/* ================= benchmark snapshot fingerprint =================
+   Benchmarks shift as bills accumulate. A dispute pack must record WHICH
+   benchmark state produced its numbers, or a figure quoted in a negotiation
+   is irreproducible three weeks later. The snapshot id hashes (a) every line
+   that feeds the benchmark and (b) the matching configuration. Same data +
+   same config => same id, on any machine. */
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, "0");
+}
+export function datasetFingerprint(parts) {
+  const lines = parts
+    .map((p) => [p.supplier, p.bill_no, p.npn || p.part_number, p.part_name, p.unit, p.qty, p.grade, p.unit_basis, p.gst, p.review ? 1 : 0].join("\u001f"))
+    .sort();
+  return fnv1a(lines.join("\u001e"));
+}
+export function configFingerprint(cfg) {
+  const keys = Object.keys(cfg || {}).sort();
+  return fnv1a(keys.map((k) => k + "=" + JSON.stringify(cfg[k])).join("&"));
+}
+export function snapshotId(parts, cfg) {
+  return `PIX-${datasetFingerprint(parts)}-${configFingerprint(cfg)}`;
+}
+
+/* ================= dispute pack =================
+   Turns an Assess-a-Claim result into the three tables an adjuster attaches
+   to a negotiation: a summary (what/when/against which benchmark state), the
+   line-by-line assessment, and — the part that makes the number defensible —
+   the full evidence trail: every underlying supplier quote behind every
+   benchmark used, down to bill number and date. Pure function so it is
+   unit-testable in Node; the app maps the three arrays onto xlsx sheets. */
+export function buildDisputePack(rows, cfg, meta) {
+  const matched = rows.filter((r) => r.bench != null);
+  const totQuoted = matched.reduce((s, r) => s + r.quoted, 0);
+  const totBench = matched.reduce((s, r) => s + r.bench, 0);
+  const totOver = matched.reduce((s, r) => s + (r.over > 0 ? r.over : 0), 0);
+  const MODES = { hybrid: "Hybrid (part-number first" , "fuzzy-name": "Fuzzy part name", "exact-pn": "Exact part number", category: "Category" };
+  const modeLabel = (MODES[cfg.mode] || cfg.mode) + (cfg.mode === "hybrid" ? (cfg.bridge ? ", name bridging ON)" : ", name bridging OFF)") : "");
+
+  const summary = [
+    ["Claim reference", meta.claimRef || "—"],
+    ["Generated", meta.generatedAt],
+    ["Generated by", `PartsIndex v${meta.appVersion}`],
+    ["Benchmark snapshot", meta.snapshotId],
+    ["Reference dataset", `${meta.invoices} invoices · ${meta.usableLines} usable supplier-part lines`],
+    ["Matching mode", modeLabel],
+    ["Similarity threshold", cfg.threshold],
+    ["Token weight", cfg.tokenWeight],
+    ["Same make required", cfg.sameMake ? "yes" : "no"],
+    ["Same model required", cfg.sameModel ? "yes" : "no"],
+    ["Grades kept separate", cfg.sepGrade !== false ? "yes" : "no"],
+    ["Inflation flag threshold", `+${meta.inflPct}% over median`],
+    ["Lines assessed", rows.length],
+    ["Lines matched to a benchmark", matched.length],
+    ["Quoted total (matched lines), S$", +totQuoted.toFixed(2)],
+    ["Benchmark total (matched lines), S$", +totBench.toFixed(2)],
+    ["Potential over-claim, S$", +totOver.toFixed(2)],
+    ["Lines flagged", rows.filter((r) => r.flagged).length],
+    ["Note", "Potential over-claim sums only lines quoted above their benchmark median. Benchmarks with few quotes are indicative; the Evidence sheet lists every underlying supplier quote so each figure can be verified against source bills. Reproducible: same snapshot id = same data + same matching configuration."],
+  ].map(([f, v]) => ({ Field: f, Value: v }));
+
+  const lines = rows.map((r, i) => ({
+    "Line": i + 1,
+    "Part No (estimate)": r.pn,
+    "Description (estimate)": r.name,
+    "Quoted S$": r.quoted,
+    "Matched via": r.how,
+    "Match score": r.how === "name" ? r.score : r.how === "part number" ? 1 : "",
+    "Benchmark cluster": r.cluster ? r.cluster.label : "no match",
+    "Cluster basis": r.cluster ? (r.cluster.bridged ? "name-bridged (≈)" : "part number") : "",
+    "Grade": r.cluster ? r.cluster.grade : "",
+    "Unit basis": r.cluster ? r.cluster.unit_basis : "",
+    "Quotes (n)": r.n || "",
+    "Suppliers (n)": r.cluster ? r.cluster.suppliers.length : "",
+    "Benchmark median S$": r.bench != null ? r.bench : "",
+    "Evidence min S$": r.cluster ? r.cluster.min : "",
+    "Evidence max S$": r.cluster ? r.cluster.max : "",
+    "Evidence dates": r.cluster ? evidenceDateRange(r.cluster) : "",
+    "Variance S$": r.over != null ? r.over : "",
+    "Variance %": r.overPct != null ? r.overPct : "",
+    "Flagged": r.flagged ? "YES" : "",
+  }));
+
+  const evidence = [];
+  rows.forEach((r, i) => {
+    if (!r.cluster) return;
+    r.cluster.members.forEach((m) => evidence.push({
+      "Line": i + 1,
+      "Estimate part": r.name,
+      "Evidence part name": m.part_name,
+      "Part number": m.part_number || "",
+      "Supplier": m.supplier,
+      "Bill no": m.bill_no,
+      "Bill date": m.bill_date || "",
+      "Grade": m.grade,
+      "Unit basis": m.unit_basis,
+      "Unit price S$": m.unit,
+      "Source": m.src === "ocr" ? "Claude OCR of supplier bill" : "Excel import",
+    }));
+  });
+
+  return { summary, lines, evidence };
+}
+export function evidenceDateRange(c) {
+  const ds = c.dates.map(parseDate).filter(Boolean).sort((a, b) => a - b);
+  if (!ds.length) return "—";
+  const f = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  return ds.length === 1 ? f(ds[0]) : `${f(ds[0])} – ${f(ds[ds.length - 1])}`;
+}

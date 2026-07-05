@@ -20,7 +20,11 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
   "Volkswagen","Mitsubishi","Suzuki","Subaru","Lexus","Mitsubishi Fuso","Porsche","Chevrolet"];
 
 import { DEMO_18 } from "./demoData.js";
-import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice } from "./pipeline.js";
+import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
+  normPN, similarity, snapshotId, buildDisputePack } from "./pipeline.js";
+import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
+
+const APP_VERSION = "1.1.0";
 
 /* ================= persistence ================= */
 const KEY = "partsindex_dataset_v3";
@@ -30,14 +34,9 @@ async function loadDS() {
 }
 async function saveDS(ds) { try { localStorage.setItem(KEY, JSON.stringify(ds)); } catch (e) { console.error(e); } }
 
-/* ================= Claude OCR ================= */
-const OCR_SYS = `You OCR Singapore motor-parts supplier invoices and repair estimates. Return ONLY a JSON object, no markdown. Schema:
-{"supplier_name":str,"supplier_id":str,"bill_no":str,"bill_date":str,"repairer":str,"vehicle":str,"make":str,"model":str,"doc_type":"Tax Invoice"|"Repair Estimate","gst_treatment":"incl"|"excl"|"unknown","parts_subtotal":num,"gst_amount":num,"invoice_total":num,"parts":[{"part_name":str,"part_number":str,"qty":num,"unit_cost":num,"total_cost":num,"grade":"OEM Genuine"|"OES"|"Aftermarket"|"Used/Recon"|"Unknown","unit_basis":"each"|"pair"|"set"}]}
-Rules: extract every parts line, stitch page-split tables, exclude struck-through/returned/labour/GST/subtotal rows. unit_cost 0 if not printed. make/model only if printed or inferable from chassis. doc_type "Repair Estimate" only for repairer estimates.
-grade: "OEM Genuine" only if marked original/genuine; "Aftermarket" if marked replacement/copy/(TW)/APM; "Used/Recon" if used/recon/secondhand; else "Unknown". Never guess.
-unit_basis: "pair" if the line prices two sides together (LH/RH, pair), "set" for kits/sets, else "each".
-gst_treatment: whether the LINE prices include GST ("incl") or GST is added after subtotal ("excl"); "unknown" if unclear.
-parts_subtotal: the printed sum of the parts lines BEFORE GST (0 if not printed). invoice_total: the printed grand total (0 if not printed). These are used to verify no line was missed or misread — extract them exactly as printed.`;
+/* ================= Claude OCR =================
+   The system prompt lives in src/ocrPrompt.js — the single source of truth
+   shared with the bulk runner (tools/batch-ocr.mjs). Tune it there. */
 async function ocrFile(base64, mediaType, isPdf) {
   const docBlock = isPdf
     ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
@@ -46,7 +45,7 @@ async function ocrFile(base64, mediaType, isPdf) {
   const res = await fetch("/api/ocr", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, system: OCR_SYS,
-      messages: [{ role: "user", content: [docBlock, { type: "text", text: "Extract this invoice as JSON per the schema." }] }] }),
+      messages: [{ role: "user", content: [docBlock, { type: "text", text: OCR_USER_TEXT }] }] }),
   });
   const data = await res.json();
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
@@ -74,15 +73,22 @@ function parseExcel(wb) {
     const iQty=col(H,["qty"],["quant"]), iUnit=col(H,["unit"],["u/price"],["u.price"]), iTot=col(H,["total"],["amount"],["line"]);
     const iSup=col(H,["supplier"]), iMake=col(H,["make"]), iModel=col(H,["model"]);
     const iBill=col(H,["bill","no"],["invoice","no"],["bill ref"]), iDate=col(H,["date"]), iDoc=col(H,["doc","type"],["line","type"]);
+    // columns emitted by tools/batch-ocr.mjs — read them so OCR-extracted grade/GST/review survive the Excel round-trip
+    const iGrade=col(H,["grade"]), iBasis=col(H,["unit","basis"]), iGst=col(H,["gst"]);
+    const iRevReason=col(H,["review","reason"]);
+    const iReview=H.findIndex((x,ix)=>/review/i.test(String(x)) && ix!==iRevReason);
     if (iName < 0 && iNo < 0) return;
     for (let r = hi + 1; r < rows.length; r++) {
       const row = rows[r]; if (!row) continue;
       const name = iName >= 0 ? row[iName] : "", no = iNo >= 0 ? row[iNo] : "";
       if (!name && !no) continue;
+      const review = iReview >= 0 && /^(y|yes|true|1)$/i.test(String(row[iReview] || "").trim());
       out.push({ part_name: name, part_number: no, qty: iQty>=0?row[iQty]:1, unit_cost: iUnit>=0?row[iUnit]:0,
         total_cost: iTot>=0?row[iTot]:0, supplier: iSup>=0?row[iSup]:(sn||""), make: iMake>=0?row[iMake]:"",
         model: iModel>=0?row[iModel]:"", bill_no: iBill>=0?row[iBill]:"", bill_date: iDate>=0?row[iDate]:"",
-        doc_type: iDoc>=0?row[iDoc]:"Tax Invoice", src: "excel" });
+        doc_type: iDoc>=0?row[iDoc]:"Tax Invoice", src: "excel",
+        grade: iGrade>=0?row[iGrade]:"", unit_basis: iBasis>=0?row[iBasis]:"", gst: iGst>=0?row[iGst]:"",
+        review, review_reason: review && iRevReason>=0 ? String(row[iRevReason]||"") : "" });
     }
   });
   return out;
@@ -197,7 +203,7 @@ export default function App() {
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
-        {tab === "assess" && <Assess {...{ clusters, cfg, inflPct, setInflPct }} />}
+        {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct }} />}
         {tab === "analytics" && <Analytics {...{ parts, clusters, cfg, method, setMethod, inflPct, setInflPct }} />}
         {tab === "coverage" && <Coverage {...{ parts, clusters }} />}
         {tab === "methods" && <MethodNotes />}
@@ -695,9 +701,10 @@ T81130-06590, HEAD LAMP RH, 420
 8R2998002, WIPER BLADES, 95
 9999-XXX, UNLISTED WIDGET, 300`;
 
-function Assess({ clusters, cfg, inflPct, setInflPct }) {
+function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState(null);
+  const [claimRef, setClaimRef] = useState("");
 
   const run = (raw) => {
     const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
@@ -713,7 +720,7 @@ function Assess({ clusters, cfg, inflPct, setInflPct }) {
       const over = bench ? +(quoted - bench).toFixed(2) : null;
       const overPct = bench ? +(((quoted - bench) / bench) * 100).toFixed(0) : null;
       const flagged = overPct != null && overPct >= inflPct;
-      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how,
+      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score,
         n: m.cluster ? m.cluster.n : 0, flagged, cluster: m.cluster };
     });
     setRows(out);
@@ -725,6 +732,27 @@ function Assess({ clusters, cfg, inflPct, setInflPct }) {
   const totOver = matched.reduce((s, r) => s + (r.over > 0 ? r.over : 0), 0);
   const flagged = rows ? rows.filter((r) => r.flagged) : [];
 
+  // The exportable audit trail: line assessment + every underlying supplier
+  // quote, stamped with a benchmark snapshot id so the figures are reproducible.
+  const exportPack = () => {
+    const snap = snapshotId(parts.filter((p) => !p.review), cfg);
+    const meta = {
+      claimRef: claimRef.trim(), generatedAt: new Date().toLocaleString("en-SG"), appVersion: APP_VERSION,
+      snapshotId: snap, invoices: new Set(parts.map((p) => p.bill_no).filter(Boolean)).size,
+      usableLines: parts.filter((p) => p.ltype === "Supplier Part" && !p.review).length, inflPct,
+    };
+    const pack = buildDisputePack(rows, cfg, meta);
+    const wb = XLSX.utils.book_new();
+    const wsS = XLSX.utils.json_to_sheet(pack.summary); wsS["!cols"] = [{ wch: 30 }, { wch: 90 }];
+    const wsL = XLSX.utils.json_to_sheet(pack.lines); wsL["!cols"] = [{ wch: 5 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 11 }, { wch: 26 }, { wch: 15 }, { wch: 12 }, { wch: 9 }, { wch: 9 }, { wch: 11 }, { wch: 17 }, { wch: 13 }, { wch: 13 }, { wch: 23 }, { wch: 11 }, { wch: 10 }, { wch: 8 }];
+    const wsE = XLSX.utils.json_to_sheet(pack.evidence); wsE["!cols"] = [{ wch: 5 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 11 }, { wch: 12 }, { wch: 9 }, { wch: 12 }, { wch: 26 }];
+    XLSX.utils.book_append_sheet(wb, wsS, "Summary");
+    XLSX.utils.book_append_sheet(wb, wsL, "Line Assessment");
+    XLSX.utils.book_append_sheet(wb, wsE, "Evidence");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `DisputePack_${(claimRef.trim() || "claim").replace(/[^\w-]+/g, "_")}_${stamp}.xlsx`);
+  };
+
   return (<>
     <Card title="Assess an incoming repairer estimate">
       <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Paste the estimate's parts, one per line as <span style={{ fontFamily: "ui-monospace,monospace", color: TEXT }}>part number, description, quoted price</span> (make optional as a 4th field). Each line is matched to the benchmark — by exact part number first, then by name — and compared against its median. This is the inverse of building the reference: it puts the reference to work on a live claim.</p>
@@ -735,6 +763,10 @@ function Assess({ clusters, cfg, inflPct, setInflPct }) {
         <button onClick={() => { setText(SAMPLE_ESTIMATE); run(SAMPLE_ESTIMATE); }} style={{ ...btn(ICE, TEAL_D), marginTop: 0 }}>Try sample</button>
         <span style={{ fontSize: 12.5, color: MUTE, marginLeft: 8 }}>Flag when quoted exceeds median by <b style={{ color: RED }}>+{inflPct}%</b>&nbsp;
           <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 160, verticalAlign: "middle" }} /></span>
+        <div style={{ flex: 1 }} />
+        <input value={claimRef} onChange={(e) => setClaimRef(e.target.value)} placeholder="Claim ref (optional)" style={{ ...inp(160), marginTop: 0 }} />
+        <button onClick={exportPack} disabled={!rows} title={rows ? "Excel: summary + line assessment + every underlying supplier quote, stamped with a benchmark snapshot id" : "Assess an estimate first"}
+          style={{ ...btn(rows ? TEAL_L : "#1E4E60", rows ? INK : MUTE), marginTop: 0, cursor: rows ? "pointer" : "not-allowed" }}>Export dispute pack ⬇</button>
       </div>
     </Card>
 
@@ -763,7 +795,8 @@ function Assess({ clusters, cfg, inflPct, setInflPct }) {
               <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td></tr>))}</tbody></table></div>
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
         {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
-        Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.</p>
+        Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.
+        <b style={{ color: TEXT }}> Export dispute pack</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
     </>)}
   </>);
 }

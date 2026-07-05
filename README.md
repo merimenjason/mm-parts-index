@@ -20,6 +20,7 @@ bills** (174 part lines) so you can explore it immediately.
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
 - **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Benchmark tab (bridging is off by default for the most defensible number).
 - **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line) and get a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
+- **Dispute pack export** — one click turns an assessment into the attachable audit trail: an Excel with a **Summary** (claim ref, matching settings, totals, a **benchmark snapshot id**), the **Line Assessment**, and an **Evidence** sheet listing *every underlying supplier quote* behind every benchmark used (supplier · bill no · date · grade · price · source). Same snapshot id = same data + same settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.
 - **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab.
 - **Quote drill-down** — click any benchmark part (on the Dashboard, Benchmark or Analytics tabs) to expand the individual quotes behind it (part number · supplier · price · date).
 - **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
@@ -140,11 +141,59 @@ reloads (it won't re-seed the demo).
 
 ### Ingesting the real invoices
 
+- **Bulk (recommended for the 200-invoice run):** the batch runner —
+  `npm run ocr:batch -- --in ./invoices` — OCRs a whole folder through the
+  Claude API with the app's exact prompt, **validates every response against
+  the schema**, runs the totals-reconciliation gate, dedupes on
+  supplier + bill number, and emits `PartsIndex_import.xlsx` for the app's
+  *Bulk upload* button. Resumable (SHA-256 manifest), retrying, and it
+  supports the **Message Batches API** (`--mode batch`) for 50% token cost.
+  See [Batch OCR runner](#batch-ocr-runner) below.
 - **Spreadsheets:** Ingest → *Bulk upload*. Columns are matched flexibly
-  (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date).
-- **Raw invoices:** Ingest → *OCR invoices* (needs the Vercel proxy + key).
-- The recommended OCR prompt for producing import-ready output is in
-  [`OCR_PROMPT.md`](./OCR_PROMPT.md).
+  (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
+  and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
+- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key).
+- The OCR prompt both paths use lives in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
+  (documented in [`OCR_PROMPT.md`](./OCR_PROMPT.md)) — one source of truth.
+
+---
+
+## Batch OCR runner
+
+`tools/batch-ocr.mjs` is the pipeline for turning a folder of supplier bills
+into an app-ready workbook, built to survive a 200-invoice run:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+npm run ocr:batch -- --in ./invoices --dry-run     # show the plan, no API calls
+npm run ocr:batch -- --in ./invoices --limit 5     # trial run on 5 files first
+npm run ocr:batch -- --in ./invoices               # live, 2 concurrent calls
+npm run ocr:batch -- --in ./invoices --mode batch  # Message Batches API — 50% cost, ≤24 h
+```
+
+What it guarantees:
+
+- **Schema validation before ingest** — every response is checked against the
+  invoice schema (`validateInvoice` in `src/pipeline.js`); model output drift
+  becomes a logged failure, not a corrupted benchmark.
+- **Reconciliation gate** — extracted line totals vs the invoice's own printed
+  subtotal; mismatches are exported with `Review = yes` and the app holds them
+  in the Ingest review queue, out of all benchmarks.
+- **Duplicate protection** — same supplier + bill number is never extracted
+  twice, across runs.
+- **Resume** — `ocr_out/manifest.json` records every file by SHA-256; re-running
+  skips completed work, `--retry-failed` re-attempts failures, and pending
+  Message Batches are polled to completion after a crash.
+- **Audit trail** — one validated JSON per invoice under `ocr_out/json/`, a
+  *Run Log* sheet with per-file status/reconciliation/tokens, and
+  `run_report.json`. Pass `--price-in/--price-out` ($/MTok — see the
+  [pricing docs](https://docs.claude.com/en/docs/about-claude/pricing); use
+  batch rates with `--mode batch`) for a cost estimate.
+
+`tools/mock-server.mjs` fakes the API locally so the whole flow can be tested
+offline (`node tools/mock-server.mjs`, then run with
+`PARTSINDEX_API_BASE=http://127.0.0.1:8787`). `npm run test:tools` runs the
+self-test suite over the validation, dedup, manifest, and dispute-pack logic.
 
 ---
 
@@ -207,10 +256,15 @@ partsindex/
 │  ├─ generate_pairs.mjs          ← emits candidate pairs for human labeling
 │  ├─ evaluate.mjs                ← precision/recall/F1 sweep over the labeled set
 │  └─ gold_pairs.example_labeled.csv  ← worked example (illustrative labels)
+├─ tools/
+│  ├─ batch-ocr.mjs               ← bulk OCR runner for the 200-invoice run (resumable, validating)
+│  ├─ mock-server.mjs             ← local fake of the API for offline testing
+│  └─ selftest.mjs                ← npm run test:tools — validation/dedup/manifest/dispute-pack tests
 └─ src/
    ├─ main.jsx
    ├─ index.css
-   ├─ pipeline.js                 ← pure enrichment + matcher (shared by app AND eval)
+   ├─ ocrPrompt.js                ← the tuned OCR prompt — single source of truth (app + runner)
+   ├─ pipeline.js                 ← pure enrichment + matcher + validation + dispute pack (shared by app, eval, tools)
    ├─ demoData.js                 ← embedded 174-line demo dataset
    └─ PartsIndex.jsx              ← the React UI
 ```
