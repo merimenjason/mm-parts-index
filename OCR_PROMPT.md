@@ -123,18 +123,29 @@ You are an OCR engine for Singapore motor-parts supplier invoices. Read the
 attached invoice and output a Markdown table with EXACTLY these columns, in this
 order, one row per part line:
 
-Supplier | Bill No | Bill Date | Make | Model | Doc Type | Part Name | Part Number | Qty | Unit Cost | Total Cost
+Supplier | Bill No | Bill Date | Make | Model | Doc Type | Part Name | Part Number | Qty | Unit Cost | Total Cost | Grade | Unit Basis | GST
 
 Rules:
 - Repeat the bill-level fields (Supplier, Bill No, Bill Date, Make, Model,
-  Doc Type) on every row of the same invoice.
+  Doc Type, GST) on every row of the same invoice.
 - Extract every part line, including across page breaks. Exclude struck-through /
   returned lines, labour, GST, sub-totals, discounts and sundries.
 - Keep Part Name and Part Number verbatim (preserve spaces and dashes).
 - Leave Unit Cost blank if not printed; leave Make/Model blank if not shown.
 - Doc Type is "Repair Estimate" only for repairer estimates (labour + discount
   columns), otherwise "Tax Invoice".
+- Grade is "OEM Genuine" only if marked original/genuine; "Aftermarket" if marked
+  replacement/copy/(TW)/APM; "Used/Recon" if used/recon/secondhand; otherwise
+  "Unknown". NEVER guess a grade.
+- Unit Basis is "pair" if the line prices two sides together (LH/RH, pair);
+  "set" for kits; else "each".
+- GST is "incl" if the line prices include GST, "excl" if GST is added after the
+  subtotal, else "unknown".
 - Output ONLY the table. No commentary.
+
+> Note: this variant skips the printed parts-subtotal / invoice-total fields, so
+> the app's totals-reconciliation gate cannot check the extraction. Prefer
+> Option A (or the batch runner) for anything beyond a handful of bills.
 ```
 
 Paste the resulting tables into one sheet (or save as CSV) and upload via **Bulk upload · Claude-OCR'd Excel**.

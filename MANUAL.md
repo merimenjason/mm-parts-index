@@ -40,7 +40,8 @@ repairer quote / insurer final offer.
 
 ## 2. The pipeline
 
-Every ingested line passes through the same steps (`src/PartsIndex.jsx`):
+Every ingested line passes through the same steps (`src/pipeline.js` — a pure,
+browser-free module shared by the app, the batch runner and the eval harness):
 
 1. **Part-number normalisation** — uppercase; drop parenthetical notes; keep the primary code before `/`; strip trailing `999x` brand filler; remove spaces/dashes/dots.
    `MBA213 885 03 38 9999` → `MBA2138850338`; `T81110-25221` → `T8111025221`.
@@ -341,6 +342,37 @@ the median but the quotes that produced it.
 - **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. For volume, use the batch runner (`npm run ocr:batch`) — it validates, reconciles, dedupes and resumes; very large multi-page bills may still need splitting (the runner rejects files over the request cap and says so).
 - **Benchmark reproducibility** is handled at export time (each dispute pack carries a snapshot id), but past snapshots are not stored — regenerating an old pack requires the dataset as it stood. Persisting benchmark snapshots is the natural next step once storage moves beyond localStorage.
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
+- **The OCR proxy is unauthenticated.** `api/ocr.js` keeps the API key server-side, but anyone who discovers the deployment URL can POST arbitrary requests and spend the key's credits — there is no origin check, shared secret, model allowlist or rate limit yet. Acceptable for a low-profile POC URL; harden it (or take the deployment down between demos) before the URL circulates.
+- **`localStorage` is bounded (~5 MB).** The 174-line demo is far below it, but a 200-invoice dataset plus a review queue approaches it, and a failed write currently only logs to the console — the app keeps running on in-memory data that will not survive a refresh. Export to Excel regularly during large ingests; a quota meter and visible-failure banner are on the list.
+- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated and the two known matcher issues below are unfixed.
+
+### Known matcher issues — fix before the 200-invoice run
+
+Both were surfaced by the eval harness and are reproducible on the demo set:
+
+1. **Positional-stopword false merge (permanent).** `fr`, `frt`, `front` are in
+   the stopword list, so `WEATHERSTRIP, HOOD` and `WEATHERSTRIP, HOOD, FR`
+   normalise to the same string and merge at *every* threshold — no threshold
+   tuning can recover an identity difference that normalisation erased. The list
+   is also asymmetric: front tokens are stripped but `rear`/`rr` are kept.
+   Per the labeling policy (eval/README.md) LH/RH *are* the same part for
+   pricing, so stripping side tokens is deliberate — the axis (front/rear)
+   tokens are the bug.
+2. **Threshold headroom.** `DOOR PANEL FRONT` vs `DOOR PANEL REAR` scores 0.667
+   and merges at the 0.65 default; on the demo set 0.70–0.75 costs no recall.
+   Confirm on the labeled 200-invoice gold set before changing the shipped
+   default.
+
+### Pre-run checklist (200 invoices)
+
+1. Fix the front/rear stopword bug and re-run `npm run eval:score`.
+2. Label `eval/gold_pairs.csv` (y/n/? — policy in `eval/README.md`), sweep, and
+   pin the calibrated threshold as the shipped default.
+3. Trial the runner: `npm run ocr:batch -- --in ./invoices --dry-run`, then
+   `--limit 5`, verify the extracted JSONs against the source PDFs, then run the
+   full folder (`--mode batch` for 50% token cost).
+4. Export the dataset to Excel immediately after import as a storage-quota
+   safety net.
 
 
 ---
