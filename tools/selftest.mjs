@@ -60,12 +60,13 @@ console.log("reconciliation + snapshot");
 console.log("buildDisputePack");
 {
   const raw = [
-    { part_name: "HEADLAMP RH", part_number: "T81110-02M40", qty: 1, unit_cost: 340, total_cost: 340, supplier: "Jae Auto", bill_no: "J-1", bill_date: "01/02/2025", make: "Toyota", doc_type: "Tax Invoice" },
-    { part_name: "HEAD LAMP RH", part_number: "T81110-02M40", qty: 1, unit_cost: 360, total_cost: 360, supplier: "He Xing", bill_no: "H-7", bill_date: "15/04/2025", make: "Toyota", doc_type: "Tax Invoice" },
+    { part_name: "HEADLAMP RH", part_number: "T81110-02M40", qty: 1, unit_cost: 340, total_cost: 340, supplier: "Jae Auto", bill_no: "J-1", bill_date: "01/02/2025", make: "Toyota", model: "Camry (ACV40/41)", doc_type: "Tax Invoice" },
+    { part_name: "HEAD LAMP RH", part_number: "T81110-02M40", qty: 1, unit_cost: 360, total_cost: 360, supplier: "He Xing", bill_no: "H-7", bill_date: "15/04/2025", make: "Toyota", model: "Camry (ACV40/41)", doc_type: "Tax Invoice" },
   ].map(enrichPart);
   const cfg = { mode: "hybrid", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true };
   const clusters = buildClusters(raw, cfg);
   const c = clusters[0];
+  ok(Array.isArray(c.models) && c.models[0] === "Camry (ACV40/41)" && c.modelMixed === false, "cluster carries models array and modelMixed flag");
   const rows = [
     { pn: "T81110-02M40", name: "HEADLAMP UNIT RH", quoted: 520, bench: c.med, over: +(520 - c.med).toFixed(2), overPct: 49, how: "part number", score: 1, n: c.n, flagged: true, cluster: c },
     { pn: "9999", name: "UNLISTED WIDGET", quoted: 300, bench: null, over: null, overPct: null, how: "no match", score: 0, n: 0, flagged: false, cluster: null },
@@ -74,7 +75,8 @@ console.log("buildDisputePack");
   ok(pack.summary.some((r) => r.Field === "Benchmark snapshot" && r.Value === "PIX-xxxxxxxx-yyyyyyyy"), "summary carries the snapshot id");
   ok(pack.summary.find((r) => r.Field === "Potential over-claim, S$").Value === +(520 - c.med).toFixed(2), "over-claim total correct");
   ok(pack.lines.length === 2 && pack.lines[1]["Benchmark cluster"] === "no match", "unmatched line included and marked");
-  ok(pack.evidence.length === 2 && pack.evidence.every((e) => e["Bill no"] && e.Supplier && e["Unit price S$"] > 0), "evidence lists every underlying quote with provenance");
+  ok(pack.lines[0].Make === "Toyota" && pack.lines[0].Model === "Camry (ACV40/41)", "line assessment carries make and model");
+  ok(pack.evidence.length === 2 && pack.evidence.every((e) => e["Bill no"] && e.Supplier && e["Unit price S$"] > 0 && e.Make === "Toyota"), "evidence lists every underlying quote with provenance incl. make");
 }
 
 console.log("upgradePart (stale localStorage migration)");

@@ -107,10 +107,10 @@ grows.
 ## 5. Tabs & how to use them
 
 - **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
-- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel.
+- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** on any result adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table). The PDF library loads on demand, so it never weighs down the app until used.
 - **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
-- **Parts Ledger** — every enriched line; search + filter by make / line-type.
-- **Benchmark** — the matching configuration (§3) + the clustered median table with a Basis column. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (3–8, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the dispute pack. Click a row to reveal its quotes.
+- **Parts Ledger** — every enriched line with **Make** and **Model** columns; search + filter by make / line-type.
+- **Benchmark** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (3–8, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the dispute pack. Click a row to reveal its quotes.
 - **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line); each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The exported dispute pack records the IQR band, the statistical upper bound and the above-bound flag per line. The inverse of building the reference — putting it to work on a live claim.
 - **Analytics** — the 8 methods (§4); the median-benchmark view is also click-to-expand.
 - **Coverage** — make & category coverage vs the success criteria.
@@ -288,6 +288,37 @@ and whether the line was read by **Claude OCR** or imported from **Excel** (the
 shared `QuoteLines` drill-down gained an opt-in source line, leaving the other
 tabs untouched). Results sort by quote depth so the most defensible benchmarks
 lead.
+
+**Step 16 — Vehicle model shown everywhere.** Surfaced the vehicle **model**
+consistently across every tab, drill-down and export, not just the Demo tab.
+Each cluster now tracks its distinct `models` and a `modelMixed` flag, so a
+cluster that legitimately spans models (possible with *Same model* off) shows
+its representative model with a `+N` marker and a hover listing all of them
+rather than silently showing only the first. Model now appears as a column on
+the Benchmark table, the Parts Ledger, the Dashboard "benchmark-ready" drill-in,
+and the Inflation / Confidence / Dispersion / Cross-source / Normalisation
+analytics tables; inline in the Dashboard top-benchmarks list, the Price-trend
+dots and their date-ordered lines, the Assess match (and nearest-rejected)
+evidence, and every `QuoteLines` / part-line drill-down; and as dedicated
+**Make** and **Model** columns in the dispute-pack Line Assessment and Evidence
+sheets plus the app's Benchmark Excel export (which also gained IQR/SD/CV/
+reliability columns). A single `modelLabel` helper keeps the `+N` presentation
+uniform, and the Demo model filter now matches any of a cluster's models so a
+model search surfaces mixed clusters that contain it.
+
+**Step 17 — Demo worklist with Excel + PDF export.** Added a **Worklist** to the
+Demo tab, between the search and the results. A **+** on any result row (or
+**+ Add all shown**) adds that benchmark to a shortlist a user can build while
+looking parts up; each entry shows its make, model, quotes, median and mean,
+with a one-click remove. The worklist exports two ways: **Excel** — a *Worklist*
+sheet (make/model, quotes, suppliers, median/mean/min/max, IQR/SD/CV and a
+reliability flag) plus an *Evidence* sheet listing every underlying supplier
+quote behind the shortlisted parts — and **PDF**, a clean printable benchmark
+table (landscape, with the reliability caveat footnoted). The PDF generator
+(`jspdf` + `jspdf-autotable`) is **loaded on demand** via dynamic import, so it
+lands in its own lazy chunk and never enters the main bundle until a user
+actually clicks Export PDF. The worklist holds cluster keys and resolves them
+against the live benchmark, so its figures stay current with the dataset.
 
 ---
 

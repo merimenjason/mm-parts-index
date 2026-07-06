@@ -254,6 +254,7 @@ export function makeCluster(mem, cfg = {}) {
   const sup = [...new Set(mem.map((m) => m.supplier))];
   const grades = [...new Set(mem.map((m) => m.grade))];
   const knownGrades = grades.filter((g) => g !== "Unknown");
+  const models = [...new Set(mem.map((m) => m.model).filter((v) => v && v !== "—"))];
   const med = median(units), av = mean(units);
   // A cluster spanning >1 distinct part number was name-bridged, not PN-identical → lower certainty.
   const bridged = pns.length > 1;
@@ -263,7 +264,7 @@ export function makeCluster(mem, cfg = {}) {
     names, pns, rawPns, members: mem, bridged,
     grades, grade: knownGrades.length === 1 ? knownGrades[0] : (knownGrades.length > 1 ? "Mixed" : "Unknown"),
     gradeMixed: knownGrades.length > 1, unit_basis: mem[0].unit_basis,
-    make: mem[0].make, model: mem[0].model, cat: mem[0].cat, suppliers: sup,
+    make: mem[0].make, model: mem[0].model, models, modelMixed: models.length > 1, cat: mem[0].cat, suppliers: sup,
     n: mem.length, min: Math.min(...units), med: +med.toFixed(2), avg: +av.toFixed(2),
     max: Math.max(...units), spread: +(Math.max(...units) - Math.min(...units)).toFixed(2),
     ...disp,
@@ -439,6 +440,8 @@ export function buildDisputePack(rows, cfg, meta) {
     "Matched via": r.how,
     "Match score": r.how === "name" ? r.score : r.how === "part number" ? 1 : "",
     "Benchmark cluster": r.cluster ? r.cluster.label : "no match",
+    "Make": r.cluster ? r.cluster.make : "",
+    "Model": r.cluster ? (r.cluster.modelMixed ? r.cluster.models.join(" | ") : (r.cluster.model || "")) : "",
     "Cluster basis": r.cluster ? (r.cluster.bridged ? "name-bridged (≈)" : "part number") : "",
     "Grade": r.cluster ? r.cluster.grade : "",
     "Unit basis": r.cluster ? r.cluster.unit_basis : "",
@@ -464,6 +467,8 @@ export function buildDisputePack(rows, cfg, meta) {
       "Estimate part": r.name,
       "Evidence part name": m.part_name,
       "Part number": m.part_number || "",
+      "Make": m.make || "",
+      "Model": m.model && m.model !== "—" ? m.model : "",
       "Supplier": m.supplier,
       "Bill no": m.bill_no,
       "Bill date": m.bill_date || "",
