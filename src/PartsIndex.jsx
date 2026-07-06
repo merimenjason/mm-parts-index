@@ -24,7 +24,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -302,6 +302,7 @@ function DemoLookup({ clusters, parts }) {
 
   // Worklist: a user-built shortlist of benchmarks to check, exportable to Excel/PDF.
   const [work, setWork] = useState([]); // ordered cluster keys
+  const [openWork, setOpenWork] = useState(null); // expanded worklist row
   const inWork = (c) => work.includes(c.key);
   const toggleWork = (c) => setWork((w) => w.includes(c.key) ? w.filter((k) => k !== c.key) : [...w, c.key]);
   const addAllShown = () => setWork((w) => [...new Set([...w, ...results.map((c) => c.key)])]);
@@ -339,18 +340,39 @@ function DemoLookup({ clusters, parts }) {
     doc.text(`${workItems.length} part${workItems.length === 1 ? "" : "s"} · generated ${new Date().toLocaleString("en-SG")} · Parts Pricing Reference for SG Motor TP Claims`, 40, 60);
     autoTable(doc, {
       startY: 76,
-      head: [["Part", "Make", "Model", "Category", "Grade", "Quotes", "Suppliers", "Median S$", "Mean S$", "Range S$"]],
-      body: workItems.map((c) => [
-        c.label + (c.n > 1 && !c.reliable ? " *" : ""), c.make, modelExport(c), c.cat,
+      head: [["#", "Part", "Make", "Model", "Category", "Grade", "Quotes", "Suppliers", "Median S$", "Mean S$", "Range S$"]],
+      body: workItems.map((c, i) => [
+        String(i + 1), c.label + (c.n > 1 && !c.reliable ? " *" : ""), c.make, modelExport(c), c.cat,
         c.grade !== "Unknown" ? (c.gradeMixed ? "Mixed" : c.grade) : "—",
         String(c.n), String(c.suppliers.length), String(c.med), String(c.avg), `${c.min}-${c.max}`,
       ]),
       styles: { fontSize: 8, cellPadding: 4, lineColor: [220, 220, 220], lineWidth: 0.5 },
       headStyles: { fillColor: [0, 110, 150], textColor: 255, fontStyle: "bold" },
-      columnStyles: { 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right", fontStyle: "bold" }, 8: { halign: "right" }, 9: { halign: "right" } },
+      columnStyles: { 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right", fontStyle: "bold" }, 9: { halign: "right" }, 10: { halign: "right" } },
       alternateRowStyles: { fillColor: [246, 249, 250] },
     });
-    const endY = doc.lastAutoTable.finalY + 18;
+
+    // Drill-down evidence: every supplier quote behind each worklisted benchmark.
+    const evBody = [];
+    workItems.forEach((c, i) => c.members.forEach((m) => evBody.push([
+      String(i + 1), c.label, `${m.make || c.make}${m.model && m.model !== "—" ? " " + m.model : ""}`,
+      m.supplier, m.bill_no || "—", m.bill_date || "—", m.grade && m.grade !== "Unknown" ? m.grade : "—",
+      String(m.unit), m.src === "ocr" ? "Claude OCR" : "Excel",
+    ])));
+    let y = doc.lastAutoTable.finalY + 22;
+    if (y > 500) { doc.addPage(); y = 48; }
+    doc.setFontSize(11); doc.setTextColor(0, 110, 150); doc.text("Underlying supplier quotes", 40, y);
+    doc.setFontSize(8); doc.setTextColor(120, 120, 120); doc.text("The evidence behind each benchmark — every quote, with its bill and source (# ties back to the worklist above).", 40, y + 12);
+    autoTable(doc, {
+      startY: y + 22,
+      head: [["#", "Part", "Make / Model", "Supplier", "Bill no", "Date", "Grade", "Unit S$", "Source"]],
+      body: evBody,
+      styles: { fontSize: 7.5, cellPadding: 3, lineColor: [225, 225, 225], lineWidth: 0.4 },
+      headStyles: { fillColor: [0, 110, 150], textColor: 255, fontStyle: "bold" },
+      columnStyles: { 7: { halign: "right", fontStyle: "bold" } },
+      alternateRowStyles: { fillColor: [246, 249, 250] },
+    });
+    const endY = doc.lastAutoTable.finalY + 16;
     doc.setFontSize(8); doc.setTextColor(120, 120, 120);
     doc.text("* median from fewer quotes than the reliability floor — indicative only. Prices are per-each unit prices in S$; per-pair / per-set lines are grouped separately.", 40, endY, { maxWidth: 760 });
     doc.save("PartsIndex_worklist.pdf");
@@ -402,18 +424,27 @@ function DemoLookup({ clusters, parts }) {
         : <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr style={{ background: INK }}>{["#", "Part", "Make", "Model", "Category", "Quotes", "Median S$", "Mean S$", ""].map((h, i) => <th key={i} style={{ ...th, textAlign: i >= 5 && i <= 7 ? "right" : "left" }}>{h}</th>)}</tr></thead>
-              <tbody>{workItems.map((c, i) => (
-                <tr key={c.key + i} style={{ borderTop: `1px solid ${LINE}` }}>
-                  <td style={{ ...td, color: MUTE }}>{i + 1}</td>
-                  <td style={{ ...td, fontWeight: 600 }}>{c.label}{c.n > 1 && !c.reliable ? <span title="Below the reliability floor — indicative only" style={{ color: MUTE }}> *</span> : ""}</td>
-                  <td style={td}>{c.make}</td>
-                  <td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
-                  <td style={{ ...td, color: MUTE }}>{c.cat}</td>
-                  <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 700 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
-                  <td style={{ ...td, textAlign: "right", fontWeight: 700, color: LIME }}>{c.med}</td>
-                  <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
-                  <td style={{ ...td, textAlign: "center" }}><button onClick={() => toggleWork(c)} title="Remove from worklist" style={{ background: "none", border: "none", color: RED, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button></td>
-                </tr>))}</tbody></table></div>}
+              <tbody>{workItems.map((c, i) => { const wid = c.key + i, wopen = openWork === wid; return (
+                <React.Fragment key={wid}>
+                  <tr onClick={() => setOpenWork(wopen ? null : wid)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer" }}>
+                    <td style={{ ...td, color: MUTE }}>{i + 1}</td>
+                    <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{wopen ? "▾" : "▸"}</span>{c.label}{c.n > 1 && !c.reliable ? <span title="Below the reliability floor — indicative only" style={{ color: MUTE }}> *</span> : ""}</td>
+                    <td style={td}>{c.make}</td>
+                    <td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
+                    <td style={{ ...td, color: MUTE }}>{c.cat}</td>
+                    <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 700 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
+                    <td style={{ ...td, textAlign: "right", fontWeight: 700, color: LIME }}>{c.med}</td>
+                    <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
+                    <td style={{ ...td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}><button onClick={(e) => { e.stopPropagation(); toggleWork(c); }} title="Remove from worklist" style={{ background: "none", border: "none", color: RED, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button></td>
+                  </tr>
+                  {wopen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
+                    <div style={{ marginBottom: 8, lineHeight: 1.7 }}>
+                      <b style={{ color: TEXT }}>{c.label}</b> · {c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""} — <b style={{ color: LIME }}>median S${c.med}</b>, mean S${c.avg}, from <b style={{ color: TEXT }}>{c.n}</b> quote{c.n > 1 ? "s" : ""} across {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}. Range S${c.min}–{c.max}{c.n > 1 ? <> · IQR band S${c.q1}–S${c.q3}{Number.isFinite(c.cv) ? ` · CV ${c.cv}%` : ""}</> : ""}.
+                      {c.n > 1 && !c.reliable && <span style={{ color: AMBER }}> Thin data — indicative only.</span>}</div>
+                    <div style={{ marginBottom: 4, color: TEXT, fontWeight: 600 }}>Source quotes:</div>
+                    <QuoteLines c={c} showSource />
+                  </td></tr>}
+                </React.Fragment>); })}</tbody></table></div>}
     </div>
 
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 16 }}>

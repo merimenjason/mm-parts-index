@@ -107,7 +107,7 @@ grows.
 ## 5. Tabs & how to use them
 
 - **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
-- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** on any result adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table). The PDF library loads on demand, so it never weighs down the app until used.
+- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** on any result adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
 - **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
 - **Parts Ledger** — every enriched line with **Make** and **Model** columns; search + filter by make / line-type.
 - **Benchmark** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (3–8, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the dispute pack. Click a row to reveal its quotes.
@@ -319,6 +319,16 @@ table (landscape, with the reliability caveat footnoted). The PDF generator
 lands in its own lazy chunk and never enters the main bundle until a user
 actually clicks Export PDF. The worklist holds cluster keys and resolves them
 against the live benchmark, so its figures stay current with the dataset.
+
+**Step 18 — Worklist drill-down + evidence in exports.** Made each worklist row
+expandable, matching the results table: clicking a row reveals its benchmark
+summary and every underlying supplier quote (with bill, date, grade and
+OCR/Excel source) inline. The exports now carry that same evidence — the Excel
+already had an *Evidence* sheet listing every quote behind the shortlisted
+parts, and the **PDF** gained an "Underlying supplier quotes" table beneath the
+worklist summary, with a `#` column tying each quote back to its worklist row —
+so a shortlist exported for a stakeholder is self-contained, showing not just
+the median but the quotes that produced it.
 
 ---
 
