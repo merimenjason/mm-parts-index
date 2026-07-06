@@ -2,6 +2,23 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## Unreleased — documentation only (7 July 2026)
+- **`Fable.md`**: feature roadmap — seven elaborated proposals (F1 estimate
+  OCR intake for Assess, F2 chassis/VIN make-model enrichment, F3
+  recency-aware benchmarks, F4 supplier scorecards, F5 matched-triples claim
+  outcomes / POC#2, F6 quarterly chained price index, F7 shareable read-only
+  benchmark bundles) with sequencing relative to the 200-invoice run.
+- **`OPUS_PROMPTS.md`**: gained P8–P14, one implementation prompt per
+  Fable.md feature, in the existing prompt house style (real file
+  touchpoints, selftest + docs + version-bump requirements, cross-prompt
+  dependency notes, e.g. P8's named-prompt-id interaction with P3).
+- **`HANDOVER.md`**: onboarding handover for a new developer — domain
+  context, repo tour, the five core concepts (pipeline, clustering,
+  statistics, trust machinery, eval harness), house rules, common tasks,
+  known warts, glossary.
+- `README.md` and `MANUAL.md` link the new docs; no code changed, version
+  unchanged.
+
 ## 1.8.0 — July 2026
 - **Demo lookup tab**: stakeholder-facing benchmark search — make/model filters,
   normalisation-aware part-number search, global search, median & mean per part,

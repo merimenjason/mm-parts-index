@@ -11,6 +11,11 @@ bumped (patch for fixes, minor for features).
 Order: P1 → P2 are pre-run and P2 depends on P1 plus your labeled gold set.
 P3 and P4 are pre-run and independent. P5–P7 are post-run.
 
+P8–P14 implement the **new features** elaborated in [`Fable.md`](./Fable.md)
+(F1–F7 — read the matching Fable.md section before running each prompt; it
+carries the rationale and design constraints the prompt assumes). Suggested
+sequencing across both sets is the table at the end of Fable.md.
+
 ---
 
 ## PRE-RUN
@@ -304,4 +309,343 @@ TASK:
    localStorage description), README data-model section (localStorage →
    IndexedDB in the progression note), CHANGELOG.md. Minor bump; tests and
    build pass.
+```
+
+---
+
+## NEW FEATURES (Fable.md F1–F7)
+
+### P8 — F1: OCR the estimate — document intake for Assess a Claim
+
+```
+You are working on PartsIndex (v1.8+), a React/Vite motor-parts benchmarking
+tool. Read Fable.md §F1 first. The Assess a Claim tab (src/PartsIndex.jsx)
+currently takes a pasted textarea of "part no · description · price" lines.
+The app already OCRs supplier bills via ocrFile() (src/PartsIndex.jsx ~line
+55) through the serverless proxy api/ocr.js, using OCR_SYS from
+src/ocrPrompt.js and a model picker persisted in localStorage.
+
+TASK:
+1. Add ESTIMATE_SYS to src/ocrPrompt.js (keep OCR_SYS untouched; one file
+   remains the single source of truth for every prompt). Schema:
+   { workshop, estimate_ref, date, vehicle, make, model,
+     lines: [{ part_name, part_number, qty, quoted_price,
+               line_kind: "part"|"labour"|"paint"|"other" }],
+     parts_subtotal }.
+   Prompt rules mirror the bill prompt's discipline: verbatim part numbers,
+   blank over guessed, exclude struck-through lines, JSON only.
+2. Add validateEstimate(j) to src/pipeline.js modelled on validateInvoice:
+   coercible problems -> warnings fixed on a copy; structural problems
+   (no lines, a line with neither name nor number, no price) -> errors.
+   Reconcile the sum of part-kind lines against parts_subtotal when printed
+   (reuse the S$1 / 0.5% tolerance rule; expose the existing tolerance as a
+   shared helper rather than copy-pasting it).
+3. Assess tab UI: an "Upload estimate (PDF/image)" button beside the
+   textarea. Flow: file -> ocrFile with ESTIMATE_SYS and the selected model
+   -> validateEstimate -> an editable preview grid (name, number, qty, price,
+   line_kind; labour/paint/other rows shown but unticked by default) ->
+   "Use N lines" writes the ticked lines into the existing textarea format
+   and runs the existing parse, so matchLine, the variance table and the
+   dispute pack are untouched downstream. Show validation warnings above the
+   grid; a reconciliation mismatch shows the same amber treatment as the
+   Ingest review queue but does NOT block (the human is the review queue
+   here — they can edit lines in the grid).
+4. IMPORTANT interaction with P3 (proxy hardening), if it has landed: the
+   proxy forces the system prompt server-side. Extend that mechanism to a
+   named-prompt id — the client sends promptId "bill" | "estimate", the
+   server maps it to OCR_SYS | ESTIMATE_SYS from src/ocrPrompt.js and still
+   never accepts free-text system prompts. If P3 has NOT landed, pass
+   ESTIMATE_SYS as today's code passes OCR_SYS, and leave a TODO referencing
+   P3.
+5. Selftests: validateEstimate happy path, each structural error, coercions,
+   the reconciliation tolerance boundaries, and a fixture with mixed
+   line_kinds asserting only "part" lines are pre-ticked (test the pure
+   selection helper, not the DOM).
+6. Docs: MANUAL.md §5 Assess bullet (new flow), OCR_PROMPT.md gains a short
+   "Estimate prompt" section, README feature list, CHANGELOG.md. Minor
+   version bump. npm run test:tools and npm run build must pass.
+```
+
+### P9 — F2: chassis/VIN-aware make & model enrichment
+
+```
+You are working on PartsIndex (v1.8+). Read Fable.md §F2 first. The OCR
+prompt already extracts vehicle and chassis per invoice (src/ocrPrompt.js
+lines 17–18) but enrichPart (src/pipeline.js) drops them — no per-line
+chassis survives into the dataset. Make inference is inferMake(): printed
+make, else the MAKE_PREFIX part-number map. Model separation uses free-text
+modelKey().
+
+TASK:
+1. Carry the fields: enrichPart and upgradePart gain vehicle and chassis
+   (default ""); parseExcel (src/PartsIndex.jsx) learns optional
+   Chassis/Vehicle columns; tools/batch-ocr.mjs writes the two columns into
+   PartsIndex_import.xlsx (values are already in its per-invoice JSON) so
+   the 200-run output round-trips losslessly. Add the fields to
+   datasetFingerprint ONLY if you conclude they affect benchmarks (they do,
+   via the model key below — so include chassis; state this reasoning in a
+   comment).
+2. Add to src/pipeline.js, all pure and selftested:
+   - isVin(s): true for 17 chars, alphanumeric, no I/O/Q (standard VIN
+     alphabet) — SG bills sometimes print a registration plate in the
+     chassis field and that must not decode.
+   - WMI_MAP: ordered [prefix, make] table covering at minimum Toyota
+     (JT, MR0), Honda (JHM, MRH), Mercedes-Benz (WDB, WDD, W1K), BMW
+     (WBA, WBS), Audi (WAU), Volkswagen (WVW), Hyundai (KMH), Kia (KNA),
+     Mazda (JM0, JM7), Nissan (JN1, SJN), Mitsubishi (JMB), Subaru (JF1).
+     Keep it data, like MAKE_PREFIX and GST_SCHEDULE.
+   - inferMakeFromChassis(chassis): WMI lookup, "" when not a VIN or
+     unknown prefix.
+   - Update inferMake precedence: printed make -> WMI decode -> part-number
+     prefix -> Unknown. Existing selftests must still pass unchanged (no
+     VIN in them).
+   - chassisModelKey(p): when p.chassis is a VIN, return its first 8 chars
+     (WMI+VDS) as an exact model-discriminator key; else "".
+3. Wire chassisModelKey into buildClusters and fuzzyAgglomerate: when
+   cfg.sameModel is on and BOTH candidates have a VIN key, compare those
+   keys instead of modelKey(); if either lacks a VIN, fall back to today's
+   modelKey comparison exactly. Never DISPLAY a decoded model from VDS —
+   the key separates, it does not name (comment this; it is a correctness
+   boundary from Fable.md).
+4. Surface: Parts Ledger full-record drill-down shows Vehicle and Chassis;
+   the dispute-pack Evidence sheet gains a Chassis column.
+5. Selftests: isVin (valid VIN, plate, 16 chars, I/O/Q letters), WMI
+   decode per make, precedence order, chassisModelKey separation (two parts,
+   same free-text model, different VIN VDS -> not merged when sameModel on;
+   same VIN prefix -> merge allowed), fallback when one side has no VIN.
+6. Docs: MANUAL.md §2 step 2 (new precedence) and the §9 make/model
+   limitation (soften it), README pipeline bullet, CHANGELOG.md. Minor
+   bump; tests and build pass.
+```
+
+### P10 — F3: recency-aware benchmarks (date window + time-decay weighting)
+
+```
+You are working on PartsIndex (post-200-invoice run). Read Fable.md §F3
+first. PRECONDITION: P5 must have landed (hardened parseDate accepting
+slash/dot/dash/ISO). Benchmarks currently give a 2018 quote and a 2025
+quote equal weight in the median. cfg lives in src/PartsIndex.jsx
+(useState ~line 116) and is hashed into snapshots via configFingerprint —
+any new cfg key is picked up automatically.
+
+TASK:
+1. Pure functions in src/pipeline.js, all taking an explicit asOf (never
+   calling new Date() internally — reproducibility requires the effective
+   date to live in cfg):
+   - ageMonths(dateStr, asOf): whole+fractional months; null for
+     unparseable dates.
+   - recencyWeight(dateStr, halfLifeMonths, asOf): 0.5^(age/halfLife);
+     for unparseable dates return null (caller decides).
+   - weightedMedian(values, weights): sort by value, walk cumulative
+     weight to 50% of total; interpolate at an exact 50% boundary the same
+     way median() averages the two middle values. Guard: zero total weight
+     -> plain median fallback.
+2. cfg additions (defaults preserve today's numbers exactly):
+   windowMonths: 0 (off; options 12/24/36), decayHalfLife: 0 (off; e.g.
+   24), asOf: null (when either feature is enabled, set to today's ISO
+   date at the moment the user enables it, shown and editable in the UI —
+   and therefore hashed into the snapshot id).
+3. buildClusters/makeCluster:
+   - windowMonths > 0: quotes older than the window are EXCLUDED from med/
+     avg/dispersion but kept on the cluster as members with an
+     outOfWindow flag so drill-downs can grey them out, not hide them.
+     A cluster whose quotes are all out of window is dropped from the
+     benchmark (same as having no usable quotes).
+   - decayHalfLife > 0: med becomes weightedMedian over in-window quotes;
+     keep medRaw (unweighted) on the cluster. Unparseable-date quotes get
+     the minimum weight observed in the cluster and a dateFlag.
+   - Dispersion (IQR/SD/CV, Tukey fences) stays UNWEIGHTED over in-window
+     quotes — Excel-reconcilable and legally defensible; comment why.
+4. UI (Benchmark tab config card): a window select, a half-life select, and
+   when either is active an "as of" date input + a caption line stating the
+   basis; the dispute-pack Summary gains "Recency basis" rows; drill-downs
+   show weighted vs raw median when they differ and grey out-of-window
+   quotes with their age.
+5. Selftests: ageMonths across year boundaries; recencyWeight at 0, one and
+   two half-lives; weightedMedian fixtures incl. the 50%-boundary
+   interpolation and zero-weight fallback; window exclusion end-to-end
+   through buildClusters; snapshot id changes when windowMonths,
+   decayHalfLife or asOf change; defaults produce byte-identical clusters
+   to v1.8 fixtures.
+6. Docs: MANUAL.md — new "Recency" subsection under Data quality &
+   validation; delete the recency half of the §9 comparability limitation
+   (P5 removed the GST half); README feature list; Method Notes text;
+   CHANGELOG.md. Minor bump; tests and build pass.
+```
+
+### P11 — F4: supplier scorecards (Analytics view 09)
+
+```
+You are working on PartsIndex (post-200-invoice run). Read Fable.md §F4
+first. The Analytics tab (src/PartsIndex.jsx) has eight numbered views
+(M1–M8 components) selected via method state; every row drills down to its
+evidence — follow that house style exactly.
+
+TASK:
+1. Pure function supplierScorecards(clusters, opts = { minLines: 5 }) in
+   src/pipeline.js:
+   - Consider only clusters with reliable:true AND >= 2 distinct suppliers.
+   - For each quote in such a cluster, its baseline is the median of the
+     OTHER suppliers' unit prices in that cluster (leave-own-out; if the
+     others' set is empty, skip the quote). Deviation = (unit - baseline)
+     / baseline * 100.
+   - Per supplier return: { supplier, lines (total dataset lines),
+     compared (deviation count), premiumPct (median of deviations, 1dp),
+     premiumIqr (IQR of deviations), gradeMix ({grade:count}), makes,
+     cats, advisory: compared < opts.minLines, evidence: [{ clusterKey,
+     clusterLabel, unit, baseline, devPct, bill_no, bill_date }] }.
+   - Sorted by |premiumPct| desc, advisory rows last.
+2. UI: add "09 Supplier scorecard" to the Analytics selector. Columns:
+   Supplier, Lines, Compared, Premium % (colour-banded: |x|<5 neutral,
+   5–15 amber, >15 red — reuse the CV band palette), Consistency (IQR),
+   Grade mix, Makes. Advisory rows carry the same * treatment as thin
+   clusters. Row drill-down lists the evidence triples (cluster, this
+   supplier's price, others' median, deviation) with bill provenance —
+   every index one click from its quotes.
+3. Method Notes: add the 09 entry — what the premium index is, why
+   leave-own-out (a dominant supplier must not be graded against itself),
+   and the explicit caution that grade/recency differences can explain a
+   premium; this view raises questions, not verdicts.
+4. Selftests: a fixture with three suppliers where the answer is
+   hand-computable; leave-own-out correctness (dominant supplier); the
+   empty-others skip; advisory threshold; unreliable and single-supplier
+   clusters ignored.
+5. Docs: MANUAL.md §4 table gains row 09; README "eight live analytics"
+   wording becomes nine (check Coverage/Method Notes phrasing too);
+   CHANGELOG.md. Minor bump; tests and build pass.
+```
+
+### P12 — F5: matched triples & measured inflation (Claim Outcomes)
+
+```
+You are working on PartsIndex (post-200-invoice run). Read Fable.md §F5
+first — it is the POC#2 deliverable (success criterion (b)). Today an
+Assess a Claim run produces a dispute pack (buildDisputePack in
+src/pipeline.js) and is then lost; nothing records what the claim settled
+at, so measured inflation and benchmark accuracy are uncomputable.
+
+TASK:
+1. Refactor-without-behaviour-change first: extract the row/meta shaping
+   shared by buildDisputePack into a helper, then add buildCase(rows, cfg,
+   meta) returning { id, claimRef, createdAt, snapshotId, appVersion,
+   cfg, lines: [{ pn, name, quoted, bench, over, flagged, aboveFence,
+   clusterKey, clusterLabel }], totals: { quoted, bench, over },
+   outcome: null }. Keep it lean — no cluster members (the snapshot id is
+   the link to full evidence).
+2. Outcome shape: { finalTotal, settledDate, disposition:
+   "negotiated"|"paid-as-quoted"|"disputed", perLine?: [{ idx, final }],
+   note }. Pure caseOutcomeStats(c): measured inflation (estimate -
+   final, S$ and %), benchmark accuracy (|benchTotal - final| / final %),
+   realised saving (max(0, estimate - final)), and — only when perLine
+   exists — flag calibration: of flagged/aboveFence lines, the share
+   negotiated down. Pure portfolioReport(cases): aggregates over closed
+   cases, grouped by snapshotId, with advisory: true when closed < 10.
+3. Storage: if P7 (IndexedDB) has landed, add a "cases" store; else a
+   partsindex_cases_v1 localStorage key routed through the P4 storage
+   module (or matching its quota-failure banner pattern if P4 is absent).
+   Cases are small; cap at 200 with oldest-evicted.
+4. UI: "Save as case" button on Assess beside the dispute-pack export
+   (prompts for claim ref if empty). New Cases panel (a small new tab or a
+   section under Assess): list (ref, date, status open/closed, totals),
+   per-case detail with an add/edit-outcome form (totals-only is the
+   common path; per-line entry optional), and a Portfolio report view
+   showing portfolioReport with the advisory watermark and a per-snapshot
+   grouping note. Export the portfolio report to a one-sheet Excel.
+5. Honesty rules (enforce in code, not just docs): realised saving only
+   when final < estimate; never present "PartsIndex saved S$X" — the
+   label is "estimate vs final variance on assessed claims"; cases
+   assessed under different snapshot ids never merge into one accuracy
+   figure.
+6. Selftests: buildCase shape; caseOutcomeStats totals-only and per-line
+   fixtures (hand-computed); calibration maths; portfolioReport grouping,
+   advisory flag, eviction policy.
+7. Docs: MANUAL.md — new section "Claim outcomes (POC#2)" + update the
+   §9 accuracy limitation to describe the mechanism; README feature list
+   + limitations; CHANGELOG.md. Minor bump; tests and build pass.
+```
+
+### P13 — F6: the PartsIndex Price Index (quarterly chained index)
+
+```
+You are working on PartsIndex (post-200-invoice run). Read Fable.md §F6
+first. PRECONDITIONS: P5 (ex-GST prices + hardened parseDate) strongly
+recommended; P10/F3 provides date helpers you should reuse. The Trend view
+(05) shows per-category scatter strips only — no aggregate market index.
+
+TASK:
+1. Pure functions in src/pipeline.js:
+   - quarterKey(dateStr): "2025-Q3" | null.
+   - clusterQuarterMedians(clusters, { exGst }): per cluster per quarter,
+     the median unit (ex-GST when enabled and available) with count.
+   - chainedIndex(cqm, { minMatched: 5, segmentOf }): for each segment
+     (default segmentOf = category + "·" + grade band), for each adjacent
+     quarter pair take clusters with a reliable median in BOTH quarters
+     (the matched sample — this is the mix-shift defence), median of the
+     per-cluster ratios, chain from base 100 at the first quarter with
+     >= minMatched matched clusters. Quarters below minMatched carry the
+     previous value with thin: true. Return per segment: [{ quarter,
+     index, matched, thin, ratios: [{clusterKey, ratio}] }].
+2. UI: an Index panel on the Trend view (or a tenth Analytics view — pick
+   whichever reads better with the existing selector, and say why in the
+   PR description): segment picker, a dependency-free inline SVG line
+   chart (no charting library — respect the no-new-deps discipline; jspdf's
+   lazy-import is the only precedent for heavy deps and it is not needed
+   here), a quarterly table (index, matched count, thin flag), and
+   per-quarter drill-down to the contributing cluster ratios in the house
+   evidence style. Caption states the price basis (ex-GST or as billed)
+   and minMatched.
+3. Export: one-sheet Excel — segments x quarters with counts, basis,
+   snapshot id, generated date.
+4. Selftests: quarterKey; a hand-built fixture where the chained index is
+   computable by hand; the mix-shift trap (a cheap cluster entering the
+   sample mid-series must not move the index — assert it); thin-quarter
+   carry-forward; base-quarter selection.
+5. Docs: MANUAL.md §4 (or a new subsection) describing the methodology in
+   stakeholder language — matched sample, chaining, why thin quarters
+   carry forward; README feature list; Method Notes entry; CHANGELOG.md.
+   Minor bump; tests and build pass.
+```
+
+### P14 — F7: shareable read-only benchmark bundle
+
+```
+You are working on PartsIndex (post-200-invoice run). Read Fable.md §F7
+first. The benchmark currently lives only in the ingesting browser; the
+Demo tab is the stakeholder-facing lookup but cannot travel. P7
+(snapshots) is conceptually related but NOT a precondition.
+
+TASK:
+1. Pure functions in src/pipeline.js:
+   - exportBundle(clusters, cfg, meta, { includeEvidence = false }):
+     { bundleVersion: 1, generatedAt, appVersion, snapshotId, cfg,
+       clusters: [...] } where each cluster keeps label, names, pns, make,
+       model/models/modelMixed, cat, grade, unit_basis, n, suppliers
+       (count only unless includeEvidence), med/avg/min/max, q1/q3/iqr/sd/
+       cv, reliable, bridged — and members (supplier, bill_no, bill_date,
+       grade, unit, src) ONLY when includeEvidence.
+   - validateBundle(json): version check, structural errors vs coercible
+     warnings, same discipline as validateInvoice.
+2. Export UI: a "Share benchmark bundle" action on the Demo tab (or beside
+   Export .xlsx on Ingest) with an includeEvidence checkbox whose label
+   states the privacy consequence verbatim from Fable.md §F7: without
+   evidence the bundle is aggregate-only; with evidence it embeds
+   supplier/bill-level quotes and should be shared like a dispute pack.
+   Download as partsindex_bundle_<snapshotId>.json.
+3. Viewer mode: the app accepts a bundle two ways — drop/upload on the
+   Demo tab, and a ?bundle=<url> query param fetched on load (same-origin
+   or CORS-permitting hosts only; handle fetch failure with a clear
+   message). In bundle mode: a persistent banner "Viewing benchmark bundle
+   PIX-… (read-only) · generated <date> · <n> benchmarks"; only Demo (and
+   its Worklist, exports included — they already resolve through cluster
+   objects) is available; Ingest/Assess/config mutation hidden; the live
+   localStorage dataset is NEVER touched; an "Exit bundle" action returns
+   to the live dataset.
+4. Evidence-less bundles: QuoteLines drill-down shows "evidence not
+   included in this bundle (n quotes, m suppliers)" instead of rows;
+   Worklist Excel/PDF exports degrade the same way.
+5. Selftests: exportBundle with/without evidence (assert members absent);
+   validateBundle version mismatch, structural errors, coercions;
+   round-trip export -> validate -> cluster fields intact.
+6. Docs: MANUAL.md §5 Demo bullet + a "Sharing the benchmark" subsection;
+   README feature list; CHANGELOG.md. Minor bump; tests and build pass.
 ```

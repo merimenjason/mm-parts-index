@@ -251,6 +251,9 @@ the productised site → Postgres for multi-tenant concurrency.**
 partsindex/
 ├─ README.md                      ← this file
 ├─ MANUAL.md                      ← full manual + project journey
+├─ HANDOVER.md                    ← onboarding handover for a new developer
+├─ Fable.md                       ← feature roadmap (F1–F7, elaborated)
+├─ OPUS_PROMPTS.md                ← ready-to-run implementation prompts (P1–P14)
 ├─ OCR_PROMPT.md                  ← tuned prompt for OCR-ing the 200 invoices
 ├─ index.html
 ├─ vite.config.js                 ← base path via VITE_BASE
@@ -299,4 +302,7 @@ partsindex/
 
 See **[`MANUAL.md`](./MANUAL.md)** for the full manual and the step-by-step
 project history, and **[`CHANGELOG.md`](./CHANGELOG.md)** for the version
-history.
+history. New to the project? Start with **[`HANDOVER.md`](./HANDOVER.md)**.
+Planned work: the feature roadmap is **[`Fable.md`](./Fable.md)** and every
+item — known fixes and new features alike — has a ready-to-run
+implementation prompt in **[`OPUS_PROMPTS.md`](./OPUS_PROMPTS.md)**.

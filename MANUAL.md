@@ -3,7 +3,10 @@
 Full manual for the Parts Pricing Reference tool: how it works, how to use every
 feature, the analytics it computes, and the project history. For install &
 deployment see [`README.md`](./README.md); for OCR-ing invoices see
-[`OCR_PROMPT.md`](./OCR_PROMPT.md).
+[`OCR_PROMPT.md`](./OCR_PROMPT.md). New developers should start with
+[`HANDOVER.md`](./HANDOVER.md); planned features are elaborated in
+[`Fable.md`](./Fable.md) with implementation prompts in
+[`OPUS_PROMPTS.md`](./OPUS_PROMPTS.md).
 
 ## Contents
 
@@ -334,6 +337,14 @@ the median but the quotes that produced it.
 ---
 
 ## 9. Limitations & next steps
+
+> Every limitation below that has a planned fix maps to a ready-to-run
+> implementation prompt in [`OPUS_PROMPTS.md`](./OPUS_PROMPTS.md) (P1–P7).
+> **New features** beyond fixing limitations — estimate OCR intake,
+> chassis/VIN enrichment, recency-weighted benchmarks, supplier scorecards,
+> the POC#2 claim-outcomes module, a quarterly price index, and shareable
+> benchmark bundles — are elaborated in [`Fable.md`](./Fable.md) (F1–F7)
+> with prompts P8–P14.
 
 - **Sample size.** Benchmarks firm up only as the same part recurs across bills; the 18-bill demo is illustrative, the incoming **200** invoices are what make it real. With strict (PN-only) matching most demo parts are single-quote — turn on bridging to see medians form.
 - **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The Assess tab compares an estimate to the benchmark; feeding it real final-offer data closes the loop.
