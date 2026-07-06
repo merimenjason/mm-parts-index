@@ -91,8 +91,8 @@ All live under the **Analytics** tab, selectable via the numbered buttons.
 |---|---|---|
 | 01 | **Median benchmark** | Median unit price per fuzzy cluster (average shown for skew). The core reference. |
 | 02 | **Inflation flagging** | Each quoted line vs its cluster median; a **configurable %** threshold flags outliers for negotiation. |
-| 03 | **Confidence scoring** | 0–100 per benchmark from quote depth (40%), supplier diversity (35%) and recency (25%), banded High/Medium/Low. |
-| 04 | **Supplier dispersion** | Price spread of the same part across suppliers — flags grade differences or a mispriced supplier. |
+| 03 | **Confidence scoring** | 0–100 per benchmark from quote depth (40%), supplier diversity (35%) and recency (25%), banded High/Medium/Low. A separate **Price spread (CV)** column shows how much the quotes behind a confident median actually agree (tight / moderate / wide) — surfacing the case where a high score still hides quotes that disagree on price. The 0–100 score itself is unchanged. |
+| 04 | **Supplier dispersion** | Price spread of the same part across suppliers — flags grade differences or a mispriced supplier. Reports the raw min–max spread alongside robust measures: the **IQR band** (Q1–Q3, middle 50% of quotes), sample **standard deviation**, and the **coefficient of variation** (SD ÷ mean, %) so spread is comparable across cheap and expensive parts (<10% tight, >25% wide). |
 | 05 | **Price trend** | Unit price by bill date per category (scatter strips) — separates genuine drift from one-off spikes. |
 | 06 | **Cross-source agreement** | Same part from 2+ independent suppliers within 10% — the credibility signal for insurers/courts. |
 | 07 | **Accuracy validation** | List-vs-net margins inside repairer estimates + cross-source identical-PN matches. Full inflation needs matched triples per claim. |
@@ -107,10 +107,11 @@ grows.
 ## 5. Tabs & how to use them
 
 - **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
+- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel.
 - **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
 - **Parts Ledger** — every enriched line; search + filter by make / line-type.
-- **Benchmark** — the matching configuration (§3) + the clustered median table with a Basis column; click a row to reveal its quotes.
-- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line); each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the threshold flagged. The inverse of building the reference — putting it to work on a live claim.
+- **Benchmark** — the matching configuration (§3) + the clustered median table with a Basis column. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (3–8, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the dispute pack. Click a row to reveal its quotes.
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line); each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The exported dispute pack records the IQR band, the statistical upper bound and the above-bound flag per line. The inverse of building the reference — putting it to work on a live claim.
 - **Analytics** — the 8 methods (§4); the median-benchmark view is also click-to-expand.
 - **Coverage** — make & category coverage vs the success criteria.
 - **Method Notes** — short reference for each analytic + the matching rationale.
@@ -254,6 +255,40 @@ below the 0.65 threshold"), turning a dead "no match" into an actionable one.
 expand into their underlying part lines. Ingest needed nothing: its review
 queue already lists every held line inline.
 
+**Step 14 — Dispersion measures (IQR / SD / CV) + configurable reliability
+floor.** Added three pure functions to `src/pipeline.js` — `quantile` (R-7 /
+Excel `PERCENTILE.INC`), `stdev` (sample, n−1, matching `STDEV.S`) and
+`dispersion` — and folded them into `makeCluster`, so every cluster now carries
+`q1/q3/iqr/sd/cv` plus Tukey `lowerFence/upperFence` and a `reliable` flag. The
+Excel-consistent formulas are deliberate: every figure the app shows reconciles
+against a stakeholder's spreadsheet of the same quotes. These surface as an
+**IQR band** column on the Benchmark tab, full IQR/SD/CV columns on the
+Analytics dispersion view, a companion **Price spread (CV)** column on
+confidence scoring (score unchanged), and — the piece with teeth — an
+**ABOVE BOUND** flag in Assess for any estimate line above a cluster's Tukey
+upper fence, a defensible outlier call rather than a bare percentage. The
+reliability floor (minimum quotes before spread is trusted and a fence is
+applied) is a **Min quotes for reliable spread** slider (3–8, default 4) that
+threads through `cfg.minQuotes` and, because it changes which lines are flagged,
+is folded into the reproducibility snapshot and the dispute pack. A single
+quote correctly returns `sd`/`cv` as `NaN` and `reliable:false`, so it can never
+masquerade as zero-variance / perfect agreement. Fourteen new self-test
+assertions cover the quartile values against Excel references, the small-sample
+guards, the fences and end-to-end propagation through the floor.
+
+**Step 15 — Demo lookup tab.** Added a stakeholder-facing **Demo** tab: a
+plain-language benchmark search over the same clusters the rest of the app uses.
+Filter by make and a make-dependent model list, by *part name contains* /
+*part number contains* (the PN filter is normalisation-aware, so `52119` finds
+`T52119-06971`), or with a global search across name / number / make / model /
+category / grade at once. Each match shows the **median** and **mean** unit
+price with the same reliability marker; clicking a row reveals every underlying
+supplier quote with full provenance — supplier, bill number, date, grade, price,
+and whether the line was read by **Claude OCR** or imported from **Excel** (the
+shared `QuoteLines` drill-down gained an opt-in source line, leaving the other
+tabs untouched). Results sort by quote depth so the most defensible benchmarks
+lead.
+
 ---
 
 ## 9. Limitations & next steps
@@ -307,3 +342,25 @@ Labeling policy, worked example and the two issues it already found (a positiona
 stopword bug causing a permanent false merge, and headroom to raise the default
 threshold) are documented in `eval/README.md`. Re-run the score after **any**
 matcher change — it is the regression test for the heart of the product.
+
+### Dispersion measures & the reliability floor
+Each benchmark reports, beyond median and mean, the **interquartile range**
+(Q1–Q3), the sample **standard deviation** and the **coefficient of variation**
+(SD ÷ mean, %). The choices are deliberate. Parts pricing is right-skewed — a few
+inflated quotes drag the mean and SD up — so IQR and the median are the robust
+core, and the Tukey **upper fence** (Q3 + 1.5 × IQR) gives a defensible outlier
+bound for claim assessment rather than an arguable percentage. Raw SD is
+misleading across parts at very different price points, so spread is reported as
+CV (%) for comparability (a rule of thumb: under 10% tight, over 25% wide).
+Quantiles use Excel's `PERCENTILE.INC` (R-7) and SD uses `STDEV.S` (n−1) so every
+figure reconciles against a spreadsheet a non-technical stakeholder can build. A
+cluster with a single quote returns SD/CV as `NaN`, never 0 — one quote has no
+measurable spread and must not read as perfect agreement.
+
+Because the middle-50% band and fences are only meaningful with enough
+observations, a **reliability floor** (the *Min quotes for reliable spread*
+slider, default 4) marks thin clusters as advisory (a `*` on the median) and
+withholds the statistical outlier bound from them. The floor is configurable
+because the right value depends on real volume; it is hashed into the benchmark
+snapshot id and recorded in the dispute pack, so a figure quoted in a negotiation
+stays reproducible even after the floor is retuned.

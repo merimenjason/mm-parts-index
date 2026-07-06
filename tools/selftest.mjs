@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -136,5 +136,52 @@ console.log("batch runner helpers");
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+console.log("dispersion stats (IQR / SD / CV)");
+{
+  const approx = (a, b, eps = 0.01) => Math.abs(a - b) <= eps;
+  // R-7 / Excel PERCENTILE.INC reference values for [1..10]:
+  ok(approx(quantile([1,2,3,4,5,6,7,8,9,10], 0.25), 3.25), "Q1 matches Excel PERCENTILE.INC");
+  ok(approx(quantile([1,2,3,4,5,6,7,8,9,10], 0.5), 5.5), "median (p=0.5) matches");
+  ok(approx(quantile([1,2,3,4,5,6,7,8,9,10], 0.75), 7.75), "Q3 matches Excel PERCENTILE.INC");
+  ok(approx(quantile([42], 0.25), 42) && approx(quantile([42], 0.75), 42), "single value: all quantiles equal it");
+  // Sample SD (n-1) of [2,4,4,4,5,5,7,9] is exactly 2.13809...
+  ok(approx(stdev([2,4,4,4,5,5,7,9]), 2.138, 0.005), "sample stdev (n-1) matches STDEV.S");
+  ok(Number.isNaN(stdev([5])), "stdev of one value is NaN, not 0");
+
+  const d = dispersion([100, 100, 100, 200, 300]); // n=5 → reliable
+  ok(d.q1 === 100 && d.q3 === 200 && d.iqr === 100, "dispersion computes IQR from quartiles");
+  ok(approx(d.upperFence, 350) && approx(d.lowerFence, -50), "Tukey fences = Q ± 1.5·IQR");
+  ok(d.reliable === true, "5 quotes → reliable");
+  ok(Number.isFinite(d.cv) && d.cv > 0, "CV is a positive percentage when SD is defined");
+
+  const thin = dispersion([100, 120, 140]); // n=3 → advisory
+  ok(thin.reliable === false, "fewer than 4 quotes → reliable:false");
+
+  const one = dispersion([250]);
+  ok(Number.isNaN(one.sd) && Number.isNaN(one.cv) && one.reliable === false, "single quote: SD/CV NaN, not reliable");
+  ok(dispersion([]) === null, "empty group → null");
+
+  // Cluster objects carry the measures end-to-end.
+  const parts = [
+    { part_name: "HEADLAMP RH", part_number: "AA-1", qty: 1, unit_cost: 100, total_cost: 100, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B1" },
+    { part_name: "HEADLAMP RH", part_number: "AA-1", qty: 1, unit_cost: 140, total_cost: 140, doc_type: "Tax Invoice", supplier: "S2", bill_no: "B2" },
+    { part_name: "HEADLAMP RH", part_number: "AA-1", qty: 1, unit_cost: 120, total_cost: 120, doc_type: "Tax Invoice", supplier: "S3", bill_no: "B3" },
+    { part_name: "HEADLAMP RH", part_number: "AA-1", qty: 1, unit_cost: 130, total_cost: 130, doc_type: "Tax Invoice", supplier: "S4", bill_no: "B4" },
+  ].map(enrichPart);
+  const [cl] = buildClusters(parts, { mode: "exact-pn" });
+  ok(cl && typeof cl.iqr === "number" && typeof cl.upperFence === "number" && cl.reliable === true,
+     "makeCluster surfaces iqr / upperFence / reliable on the cluster");
+
+  // Configurable reliability floor threads from cfg → dispersion.
+  const three = parts.slice(0, 3);
+  const [c4] = buildClusters(three, { mode: "exact-pn" });                 // default floor 4
+  ok(c4.n === 3 && c4.reliable === false, "3 quotes with default floor (4) → not reliable");
+  const [c3] = buildClusters(three, { mode: "exact-pn", minQuotes: 3 });   // floor lowered to 3
+  ok(c3.n === 3 && c3.reliable === true, "3 quotes with floor lowered to 3 → reliable");
+  const [c5] = buildClusters(parts, { mode: "exact-pn", minQuotes: 5 });   // floor raised to 5
+  ok(c5.n === 4 && c5.reliable === false, "4 quotes with floor raised to 5 → not reliable");
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");
 process.exit(failures ? 1 : 0);
+
