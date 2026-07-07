@@ -10,6 +10,38 @@ There are two ways to run it manually. **Option A** (structured JSON, then conve
 
 ---
 
+## Token economy (prompt v1.8.1)
+
+Output tokens are the expensive and slow part of an OCR call — they cost **5×**
+input on every current Claude model, and generation time is roughly
+proportional to output length. Since v1.8.1 the prompt therefore instructs a
+**token-lean output format**:
+
+- **Minified JSON** — one line, no indentation or padding spaces.
+- **Omit-default fields** — `unit_cost` is omitted when no unit price is
+  printed, `grade` when the bill doesn't mark one, `unit_basis` for ordinary
+  per-each lines. `part_name`, `part_number`, `qty`, `total_cost` and every
+  invoice-level field are always emitted.
+
+Together these cut roughly **35–45% of output tokens** per invoice (most real
+bill lines are unmarked-grade, per-each, total-only), with the same
+proportional speed-up per call. It is safe because **both ingest paths already
+treat omission as the old defaults**: `validateInvoice` coerces a missing
+`grade`/`unit_basis`/`unit_cost` to `Unknown`/`each`/`0` with zero warnings
+(the batch-runner path), and `enrichPart` infers the same defaults directly
+(the app's live-OCR path). The runner's `PartsIndex_import.xlsx` is unchanged —
+defaults are materialised before the workbook is written, so the Excel
+round-trip is identical. Self-tests cover the omitted-field path end to end
+(`npm run test:tools`).
+
+Two levers this file does *not* change, noted for completeness: the **Message
+Batches API** (`--mode batch`) remains the single biggest cost lever at 50%
+off everything, and the ~800-token system prompt is deliberately **not**
+trimmed — its rule redundancy is load-bearing for extraction accuracy, and the
+whole prompt costs well under a dollar across a 200-invoice run.
+
+---
+
 ## Target columns (what the app reads)
 
 The importer matches columns flexibly, but these are the canonical headers. One **row per part line**; bill-level fields repeat down the rows of the same invoice.
@@ -69,29 +101,39 @@ Schema:
       "part_name": string,        // verbatim description
       "part_number": string,      // verbatim; keep spaces and dashes
       "qty": number,
-      "unit_cost": number,        // 0 if not printed (will be derived)
+      "unit_cost": number,        // OMIT this key if no unit price is printed
+                                  // (the app derives unit = total / qty)
       "total_cost": number,
-      "grade": "OEM Genuine" | "OES" | "Aftermarket" | "Used/Recon" | "Unknown",
+      "grade": "OEM Genuine" | "OES" | "Aftermarket" | "Used/Recon",
+                                  // OMIT this key when the grade is not marked
+                                  // (treated as Unknown).
                                   // "OEM Genuine" only if marked original/genuine;
                                   // "Aftermarket" if marked replacement/copy/(TW)/APM;
                                   // "Used/Recon" if used/recon/secondhand.
-                                  // NEVER guess — default "Unknown". Grade is the
-                                  // single largest legitimate price driver, so a
-                                  // wrong grade is worse than no grade.
-      "unit_basis": "each" | "pair" | "set"
-                                  // "pair" if the line prices two sides together
-                                  // (LH/RH, pair); "set" for kits; else "each"
+                                  // NEVER guess. Grade is the single largest
+                                  // legitimate price driver, so a wrong grade is
+                                  // worse than no grade.
+      "unit_basis": "pair" | "set"
+                                  // OMIT this key for normal per-each lines
+                                  // (each is the default). "pair" if the line
+                                  // prices two sides together (LH/RH, pair);
+                                  // "set" for kits.
     }
   ]
 }
 
 Rules:
+- OUTPUT FORMAT: emit MINIFIED JSON — a single line, no indentation, no spaces
+  after ":" or ",". To save tokens, OMIT the key entirely (never emit null)
+  for: unit_cost when no unit price is printed; grade when the bill does not
+  mark one; unit_basis for normal per-each lines. ALWAYS emit part_name,
+  part_number, qty and total_cost on every line, and every invoice-level field.
 - Extract EVERY part line, top to bottom, including lines continued on later pages.
 - If a table is split across pages, stitch the pages into one parts array.
 - EXCLUDE any line that is struck through, or marked returned / "take back" /
   "workshop take back" / refunded. Do not include labour, GST, sub-total,
   discount, or sundry rows as parts.
-- If unit_cost is not printed, set it to 0 — do not guess; the app computes
+- Do not guess a missing unit_cost — omit it; the app computes
   unit = total / qty.
 - Read handwriting and faint fax copy as best you can; if a value is unreadable,
   use "" for text or 0 for numbers rather than inventing one.
@@ -154,6 +196,16 @@ Paste the resulting tables into one sheet (or save as CSV) and upload via **Bulk
 
 ## Tips for the 200-invoice run
 
+- **Model choice.** **Sonnet 4.6 in batch mode** is the recommended setting for
+  the run — batch halves the cost and Sonnet's edge on faint fax and
+  handwriting (where extraction errors cluster) is worth far more than the
+  small saving from a cheaper first pass at this volume. Re-run whatever fails
+  validation or reconciliation with `--retry-failed --model claude-opus-4-8`.
+  At production volume (thousands of bills/month) flip to a tiered ladder —
+  Haiku 4.5 batch first pass, Sonnet escalation on failures — which the
+  runner's manifest + `--retry-failed` already support; note the reconciliation
+  gate catches missed/misread **amounts** but not a misread part *number* with
+  a correct price, so the eyeball sample below stays mandatory at any tier.
 - **Batch, don't merge.** One document per OCR call keeps part lines from bleeding across invoices — the batch runner does this automatically, dedupes on supplier + bill number across runs, and a totals mismatch lands the bill in the review queue instead of the benchmark.
 - **Trial first.** `--dry-run` shows the plan; `--limit 5` runs a five-invoice trial so the extraction quality is confirmed before committing the full folder (and, in batch mode, before paying for it).
 - **Multi-page bills.** If a single invoice runs to many pages and the parts list is long, split it and OCR in chunks — output token limits can truncate very large tables (the runner's reconciliation gate will catch a truncated table as a totals mismatch). Stitch the chunks into one sheet before upload.

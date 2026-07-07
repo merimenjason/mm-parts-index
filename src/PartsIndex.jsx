@@ -24,7 +24,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 
-const APP_VERSION = "1.8.0";
+const APP_VERSION = "1.8.1";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;

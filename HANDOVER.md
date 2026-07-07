@@ -202,7 +202,7 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.8.0.** Working: full ingest (Excel + live OCR + batch runner),
+**Version 1.8.1.** Working: full ingest (Excel + live OCR + batch runner),
 hybrid matcher with grade/basis/model guards, nine tabs including the
 stakeholder Demo lookup with Worklist and Excel/PDF export, eight analytics
 views, Assess a Claim with Tukey-fence flags and the dispute pack, drill-down

@@ -2,22 +2,26 @@
 
 Versions reconstructed from the development history (dates approximate).
 
-## Unreleased — documentation only (7 July 2026)
-- **`Fable.md`**: feature roadmap — seven elaborated proposals (F1 estimate
-  OCR intake for Assess, F2 chassis/VIN make-model enrichment, F3
-  recency-aware benchmarks, F4 supplier scorecards, F5 matched-triples claim
-  outcomes / POC#2, F6 quarterly chained price index, F7 shareable read-only
-  benchmark bundles) with sequencing relative to the 200-invoice run.
-- **`OPUS_PROMPTS.md`**: gained P8–P14, one implementation prompt per
-  Fable.md feature, in the existing prompt house style (real file
-  touchpoints, selftest + docs + version-bump requirements, cross-prompt
-  dependency notes, e.g. P8's named-prompt-id interaction with P3).
-- **`HANDOVER.md`**: onboarding handover for a new developer — domain
-  context, repo tour, the five core concepts (pipeline, clustering,
-  statistics, trust machinery, eval harness), house rules, common tasks,
-  known warts, glossary.
-- `README.md` and `MANUAL.md` link the new docs; no code changed, version
-  unchanged.
+## 1.8.1 — 7 July 2026
+- **Token-lean OCR output**: the shared OCR prompt (`src/ocrPrompt.js`) now
+  instructs **minified JSON** and **omits default-valued fields** — `unit_cost`
+  when no unit price is printed, `grade` when unmarked, `unit_basis` for
+  per-each lines — cutting roughly 35–45% of output tokens per invoice and the
+  same share of per-call latency (output generation dominates OCR wall time).
+  Safe by construction: `validateInvoice` already coerced omitted fields to the
+  identical defaults with zero warnings (batch-runner path), and `enrichPart`
+  infers the same defaults directly (app live-OCR path, which skips the
+  validator) — plus a one-line hardening so an omitted `unit_cost` with no
+  line total stays `0`, never `NaN`. Six new self-test assertions cover the
+  omitted-field path through both ingest routes; `OCR_PROMPT.md` documents the
+  format and the rationale (including why the system prompt itself is
+  deliberately *not* trimmed).
+- **Documentation set**: added `Fable.md` (feature roadmap F1–F7: estimate OCR
+  intake, chassis/VIN enrichment, recency-aware benchmarks, supplier
+  scorecards, matched-triples claim outcomes / POC#2, quarterly price index,
+  shareable benchmark bundles), `HANDOVER.md` (new-developer handover), and
+  `OPUS_PROMPTS.md` P8–P14 (one implementation prompt per roadmap feature);
+  README and MANUAL link the new docs.
 
 ## 1.8.0 — July 2026
 - **Demo lookup tab**: stakeholder-facing benchmark search — make/model filters,

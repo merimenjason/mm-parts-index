@@ -34,6 +34,28 @@ console.log("validateInvoice");
   ok(validateInvoice("not an object").ok === false, "non-object input rejected");
 }
 
+console.log("token-lean OCR output (omitted default fields — prompt v1.8.1)");
+{
+  // The OCR prompt omits grade (when unmarked), unit_basis (when each) and
+  // unit_cost (when not printed). Both ingest paths must treat omission
+  // exactly like the old explicit defaults, with ZERO warnings.
+  const lean = validateInvoice({ ...GOOD_INV, parts: [
+    { part_name: "FR BUMPER COVER", part_number: "T52119-02M50", qty: 1, total_cost: 200 },
+  ]});
+  ok(lean.ok, "invoice with omitted grade/unit_basis/unit_cost passes validation");
+  ok(lean.warnings.length === 0, "omitted default fields produce zero warnings");
+  ok(lean.invoice.parts[0].grade === "Unknown" && lean.invoice.parts[0].unit_basis === "each" && lean.invoice.parts[0].unit_cost === 0,
+     "omitted fields coerce to the exact old defaults (Unknown / each / 0)");
+  // App live-OCR path skips validateInvoice — enrichPart must be equally safe.
+  const e = enrichPart({ part_name: "FR BUMPER COVER", part_number: "T52119-02M50", qty: 2, total_cost: 400,
+    supplier: "X", bill_no: "B1", bill_date: "01/02/2025", doc_type: "Tax Invoice" });
+  ok(e.unit === 200, "enrichPart derives unit from total when unit_cost is omitted");
+  ok(e.grade === "Unknown" && e.unit_basis === "each", "enrichPart infers defaults when grade/unit_basis are omitted");
+  const noTotals = enrichPart({ part_name: "THING", part_number: "P1", qty: 1,
+    supplier: "X", bill_no: "B1", bill_date: "01/02/2025", doc_type: "Tax Invoice" });
+  ok(noTotals.unit === 0 && noTotals.total === 0, "omitted unit_cost with no total stays 0, never NaN");
+}
+
 console.log("extractJson");
 {
   ok(extractJson('```json\n{"a":1}\n```').a === 1, "strips code fences");

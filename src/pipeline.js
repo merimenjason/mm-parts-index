@@ -80,7 +80,9 @@ export function inferUnitBasis(name = "", provided = "") {
 }
 export function enrichPart(raw) {
   const qty = Number(raw.qty) || 1;
-  let unit = Number(raw.unit_cost);
+  // `|| 0`: the OCR prompt OMITS unit_cost when no unit price is printed (token
+  // economy) — Number(undefined) is NaN and must behave exactly like the old 0.
+  let unit = Number(raw.unit_cost) || 0;
   const total = Number(raw.total_cost) || (unit ? unit * qty : 0);
   if (!unit && total && qty) unit = +(total / qty).toFixed(2);
   const cat = categorise(raw.part_name);

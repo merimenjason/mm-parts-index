@@ -132,9 +132,14 @@ See **[`OCR_PROMPT.md`](./OCR_PROMPT.md)**. In short: use the structured-JSON
 prompt, one document per call, extract every part line, stitch page-splits,
 exclude struck-through/returned/labour/GST rows, keep part numbers **verbatim**
 (the app normalises them), and leave make/model or unit cost **blank rather than
-guessed**. Output columns map onto: `Supplier, Bill No, Bill Date, Make, Model,
-Doc Type, Part Name, Part Number, Qty, Unit Cost, Total Cost`. Upload via *Bulk
-upload*, or use the app's *OCR invoices* button which does the JSON step for you.
+guessed**. Since v1.8.1 the prompt requests a **token-lean output** — minified
+JSON with default-valued fields omitted (unmarked grade, per-each basis,
+unprinted unit cost) — which both ingest paths coerce back to the same defaults;
+it cuts roughly 35–45% of output tokens and per-call latency with no change to
+what lands in the dataset. Output columns map onto: `Supplier, Bill No, Bill
+Date, Make, Model, Doc Type, Part Name, Part Number, Qty, Unit Cost, Total
+Cost`. Upload via *Bulk upload*, or use the app's *OCR invoices* button which
+does the JSON step for you.
 
 ---
 

@@ -1,4 +1,4 @@
-# PartsIndex v1.8.0 — Opus implementation prompts
+# PartsIndex v1.8.x — Opus implementation prompts
 
 Paste each prompt into Opus **run from the repo root** so it can read the real
 files. Standing conventions it must follow (already true of the codebase): pure

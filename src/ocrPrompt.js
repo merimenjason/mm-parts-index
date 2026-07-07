@@ -28,23 +28,24 @@ Schema:
       "part_name": string,        // verbatim description
       "part_number": string,      // verbatim; keep spaces and dashes
       "qty": number,
-      "unit_cost": number,        // 0 if not printed (will be derived)
+      "unit_cost": number,        // OMIT this key if no unit price is printed (the app derives unit = total / qty)
       "total_cost": number,
-      "grade": "OEM Genuine" | "OES" | "Aftermarket" | "Used/Recon" | "Unknown",
-      "unit_basis": "each" | "pair" | "set"
+      "grade": "OEM Genuine" | "OES" | "Aftermarket" | "Used/Recon",  // OMIT this key when the grade is not marked (treated as Unknown)
+      "unit_basis": "pair" | "set"   // OMIT this key for normal per-each lines (each is the default)
     }
   ]
 }
 
 Rules:
+- OUTPUT FORMAT: emit MINIFIED JSON — a single line, no indentation, no spaces after ":" or ",". To save tokens, OMIT the key entirely (never emit null) for: unit_cost when no unit price is printed; grade when the bill does not mark one; unit_basis for normal per-each lines. ALWAYS emit part_name, part_number, qty and total_cost on every line, and every invoice-level field.
 - Extract EVERY part line, top to bottom, including lines continued on later pages. If a table is split across pages, stitch the pages into one parts array.
 - EXCLUDE any line that is struck through, or marked returned / "take back" / "workshop take back" / refunded. Do not include labour, GST, sub-total, discount, or sundry rows as parts.
-- If unit_cost is not printed, set it to 0 — do not guess; the app computes unit = total / qty.
+- Do not guess a missing unit_cost — omit it; the app computes unit = total / qty.
 - Read handwriting and faint fax copy as best you can; if a value is unreadable, use "" for text or 0 for numbers rather than inventing one.
 - doc_type = "Repair Estimate" ONLY when the document is a repairer's estimate (shows labour lines and/or a list-price discount column). A plain parts supplier tax invoice is "Tax Invoice".
 - make/model: fill only when printed or unambiguous from chassis or part-number prefix (e.g. MBA = Mercedes, T##### = Toyota, 8R/8K = Audi, HY = Hyundai); otherwise leave "".
-- grade: "OEM Genuine" only if marked original/genuine; "Aftermarket" if marked replacement/copy/(TW)/APM; "Used/Recon" if used/recon/secondhand. NEVER guess — default "Unknown". Grade is the single largest legitimate price driver, so a wrong grade is worse than no grade.
-- unit_basis: "pair" if the line prices two sides together (LH/RH, pair); "set" for kits; else "each".
+- grade: "OEM Genuine" only if marked original/genuine; "Aftermarket" if marked replacement/copy/(TW)/APM; "Used/Recon" if used/recon/secondhand. NEVER guess — when unmarked, omit the key. Grade is the single largest legitimate price driver, so a wrong grade is worse than no grade.
+- unit_basis: "pair" if the line prices two sides together (LH/RH, pair); "set" for kits; omit for each.
 - parts_subtotal / invoice_total: extract the printed figures exactly — they verify no line was missed or misread.
 - Return one object per document. Do not merge two invoices into one object.`;
 
