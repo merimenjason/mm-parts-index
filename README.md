@@ -28,7 +28,7 @@ bills** (174 part lines) so you can explore it immediately.
 - **Quote drill-down everywhere** — click any benchmark part (Dashboard, Benchmark tab) and **any row in any of the eight Analytics views** to expand the evidence behind the number: inflation flags open the offending bill plus the full cluster, confidence scores open a component-by-component breakdown (depth / diversity / recency bars), dispersion opens the cheapest-vs-dearest gap with a grade caution, trend strips list their lines in date order, agreement rows show the verdict arithmetic, accuracy signals expand to line-level list-vs-net and per-bill provenance, and normalisation rows reveal every raw spelling that was merged. The same applies outside Analytics: **Parts Ledger** lines open their full record (GST, grade, basis, normalised PN, source, bill context) plus the benchmark they feed; **Assess a Claim** rows open the match evidence — or, for unmatched lines, the closest rejected candidate and why it fell short; **Coverage** makes/categories and the Dashboard coverage bars expand into their part lines.
 - **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
 - **Coverage report** — by make and category, against the project's success criteria.
-- **Loads on open + persists** — the 18-bill demo dataset loads automatically on first visit; uploads persist to the browser and reload next session; export the enriched DB + benchmark to `.xlsx`.
+- **Loads on open + persists** — in the browser-only build the 18-bill demo dataset loads automatically on first visit and uploads persist to the browser for next session; with the shared Turso backend the app starts empty and reads/writes one shared dataset. Export the enriched DB + benchmark to `.xlsx` either way.
 
 ### How matching works
 
@@ -86,9 +86,11 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Open the app — the **18-bill demo dataset loads automatically** on first run, so
-the dashboard, benchmark and analytics are populated immediately. `npm run build`
-produces a static site in `dist/`.
+Open the app — in the default browser-only build the **18-bill demo dataset
+loads automatically** on first run, so the dashboard, benchmark and analytics are
+populated immediately. (With the shared Turso backend enabled the app starts
+**empty** instead — see [Data model & persistence](#data-model--persistence).)
+`npm run build` produces a static site in `dist/`.
 
 > **Live OCR note.** The Excel-upload path, enrichment, benchmark, analytics and
 > export all run **fully in the browser** — no server needed. The **"OCR
@@ -147,9 +149,13 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 | **Coverage** | Make & category coverage vs the success criteria |
 | **Method Notes** | What each analytic computes and why |
 
-The **18-bill demo loads automatically** on first visit. Uploaded data persists
-and is shown on return; an explicit **Clear dataset** stays cleared across
-reloads (it won't re-seed the demo).
+In the browser-only build the **18-bill demo loads automatically** on first
+visit. Uploaded data persists and is shown on return; an explicit **Clear
+dataset** stays cleared across reloads (it won't re-seed the demo). With the
+shared Turso backend (`VITE_DATA_BACKEND=api`) the app instead **starts empty** —
+the demo is never auto-written to the shared database; seed it deliberately with
+`npm run db:seed` or the **Load demo** button, and uploads are written to the
+libSQL database via `/api/parts`.
 
 ### Ingesting the real invoices
 

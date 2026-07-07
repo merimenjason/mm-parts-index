@@ -6,7 +6,10 @@ import * as XLSX from "xlsx";
    Merimen / Fermion brand palette (petrol-teal + lime accent).
    Benchmark uses CONFIGURABLE FUZZY NAME MATCHING (not exact PN).
    All 8 analysis methods are computed and viewable under Analytics.
-   Persists via window.storage. Demo = initial 18 supplier bills.
+   Persistence: browser localStorage by default, or a shared Turso/libSQL DB
+   via /api/parts when VITE_DATA_BACKEND=api (see src/datasource.js). The 18-bill
+   demo auto-seeds only in the localStorage build; the shared backend starts
+   empty (seed it deliberately with `npm run db:seed` or the Load-demo button).
    ============================================================ */
 
 /* ---------- Merimen "Fermion" brand palette ---------- */
@@ -23,9 +26,9 @@ import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
-import { loadDataset, saveDataset } from "./datasource.js";
+import { loadDataset, saveDataset, usingSharedBackend } from "./datasource.js";
 
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "1.9.1";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -131,9 +134,29 @@ export default function App() {
         // since (grade, unit basis, GST, review) so stale lines don't render empty
         // badges or dodge the grade/basis merge guards. Existing values always win.
         const upgraded = { ...stored, parts: stored.parts.map(upgradePart) };
-        setDs(upgraded); saveDS(upgraded);
+        setDs(upgraded);
+        // Re-persist the migration only for localStorage. With the shared DB the
+        // server is the source of truth, so we don't re-POST the whole dataset on
+        // every page load (wasteful, and a needless write to the shared reference).
+        if (!usingSharedBackend) saveDS(upgraded);
+      } else if (usingSharedBackend) {
+        // Shared DB (Turso) is empty → start EMPTY. Never auto-seed the demo into a
+        // shared dataset: those 174 rows would pollute the reference every other
+        // user queries. Real data added via upload/OCR is written to the libSQL DB
+        // through saveDS (POST /api/parts). Seed the demo deliberately instead —
+        // `npm run db:seed`, or the "Load demo" button on the Ingest tab.
+        setDs({ parts: [] });
+      } else {
+        // Browser-only build (localStorage): seed the 18-bill demo on first run so
+        // the dashboard/benchmark are populated immediately for stakeholders.
+        const seeded = { parts: DEMO_18.map(enrichPart) };
+        setDs(seeded); saveDS(seeded);
       }
-      else { const seeded = { parts: DEMO_18.map(enrichPart) }; setDs(seeded); saveDS(seeded); } // first run -> demo
+    }).catch((e) => {
+      // A shared-backend load can fail (network / endpoint down). Start empty and
+      // log rather than leaving the app in a broken half-loaded state.
+      console.error("dataset load failed:", e);
+      setDs({ parts: [] });
     });
   }, []);
   const commit = useCallback((next) => { setDs(next); saveDS(next); }, []);

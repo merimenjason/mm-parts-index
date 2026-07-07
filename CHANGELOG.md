@@ -2,6 +2,21 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.9.1 — 7 July 2026
+- **Shared backend starts empty; no demo auto-seed.** With `VITE_DATA_BACKEND=api`
+  the app no longer seeds the 18-bill demo when the database is empty — that path
+  previously would have POSTed 174 demo rows into the shared reference on the
+  first browser to load it. The demo now auto-seeds **only** in the browser-only
+  (localStorage) build; on the shared backend it is seeded deliberately via
+  `npm run db:seed` or the in-app **Load demo** button. Real uploads/OCR continue
+  to persist to libSQL through `/api/parts`.
+- On the shared backend the app also no longer re-POSTs the whole dataset on
+  every page load (the migration re-save is localStorage-only; the server is the
+  source of truth), and a failed dataset load starts empty and logs instead of
+  half-loading.
+- Docs (README quickstart/features/usage, MANUAL §5/§7) updated to state the
+  auto-seed is browser-only and the shared backend starts empty.
+
 ## 1.9.0 — 7 July 2026
 - **Optional shared database backend (Turso / libSQL over HTTP)**. The dataset
   can now live in a shared SQLite-compatible database instead of per-browser

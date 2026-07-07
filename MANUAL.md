@@ -110,7 +110,7 @@ grows.
 
 ## 5. Tabs & how to use them
 
-- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. The 18-bill demo **loads automatically on first visit**, so this is populated immediately. **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
+- **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. In the browser-only build the 18-bill demo **loads automatically on first visit**, so this is populated immediately (with the shared Turso backend the app starts empty until you upload or seed — see §7). **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
 - **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** on any result adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
 - **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
 - **Parts Ledger** — every enriched line with **Make** and **Model** columns; search + filter by make / line-type.
@@ -120,9 +120,12 @@ grows.
 - **Coverage** — make & category coverage vs the success criteria.
 - **Method Notes** — short reference for each analytic + the matching rationale.
 
-> **Persistence behaviour.** First visit seeds the demo. Uploaded data persists
-> and is shown on return. An explicit **Clear dataset** stays cleared across
-> reloads (it will not re-seed the demo).
+> **Persistence behaviour.** In the browser-only build, first visit seeds the
+> demo, uploaded data persists and is shown on return, and an explicit **Clear
+> dataset** stays cleared across reloads (it will not re-seed the demo). With the
+> shared Turso backend the app **starts empty** — the demo is never auto-seeded
+> into the shared database; uploads are written to libSQL via `/api/parts`
+> (see §7).
 
 ---
 
@@ -188,6 +191,14 @@ Vercel dashboard), then `npm run db:init` (schema) or `npm run db:seed` (schema
 + 18-bill demo). For local dev without Turso at all, point it at a file:
 `TURSO_DATABASE_URL=file:local.db npm run db:seed`. Full walkthrough and the DDL
 are in the [README](./README.md#data-model--persistence).
+
+**Seeding is deliberate on the shared backend.** In the browser-only build the
+demo auto-seeds on first run for a populated stakeholder demo. With the shared
+backend the app **starts empty** and never auto-writes the demo — otherwise every
+fresh browser hitting an empty shared database would push 174 demo rows into the
+reference everyone queries. Seed it on purpose (`npm run db:seed` server-side, or
+the **Load demo** button in-app), and real uploads/OCR are written to libSQL via
+`/api/parts`.
 
 Move to **Postgres** (Vercel Marketplace: Neon / Supabase / Prisma Postgres)
 only when many insurers write concurrently or you need role-based multi-tenant
