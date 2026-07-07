@@ -28,7 +28,8 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend } from "./datasource.js";
 
-const APP_VERSION = "1.9.2";
+const APP_VERSION = "1.10.0";
+const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -237,7 +238,13 @@ export default function App() {
         <div style={{ flex: 1 }} />
         {loading
           ? <div style={{ fontSize: 12, color: LIME, display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: 8, background: LIME, animation: "pulse 1s infinite" }} />{loading}</div>
-          : <div style={{ fontSize: 11, color: "#BFE6EF", textAlign: "right" }}>Powered by Merimen Claims Data<br /><span style={{ opacity: .7 }}>fuzzy-matched median benchmark</span></div>}
+          : <div style={{ fontSize: 11, color: "#BFE6EF", textAlign: "right" }}>Powered by Merimen Claims Data<br /><span style={{ opacity: .7 }}>fuzzy-matched median benchmark</span>
+              <div style={{ marginTop: 5, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                <a href={REPO_URL} target="Github Repository" rel="noopener noreferrer" style={{ color: LIME, textDecoration: "none", fontWeight: 600, fontSize: 11, letterSpacing: ".01em" }}>Github Repository</a>
+                <a href={REPO_URL} target="Github Repository" rel="noopener noreferrer" aria-label="Github Repository" title="Github Repository" style={{ display: "inline-flex", alignItems: "center", color: "#BFE6EF" }}>
+                  <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" clipRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
+                </a>
+              </div></div>}
       </div>
       <div style={{ background: TEAL, padding: "0 calc(var(--pi-gutter) - 4px)", display: "flex", gap: 2, flexWrap: "wrap" }}>
         <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Demo" /><Tab id="upload" label="Ingest" />
@@ -248,7 +255,7 @@ export default function App() {
 
       <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
-        {tab === "demo" && <DemoLookup {...{ clusters, parts }} />}
+        {tab === "demo" && <DemoLookup {...{ clusters, parts, cfg, setCfg }} />}
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
@@ -294,7 +301,7 @@ function QuoteLines({ c, showSource }) {
 }
 
 /* ---------- Demo: look up a part's benchmark by make/model + name/number + global search ---------- */
-function DemoLookup({ clusters, parts }) {
+function DemoLookup({ clusters, parts, cfg, setCfg }) {
   const [g, setG] = useState("");          // global search
   const [fMake, setFMake] = useState("All");
   const [fModel, setFModel] = useState("All");
@@ -429,8 +436,11 @@ function DemoLookup({ clusters, parts }) {
         <label style={{ fontSize: 11.5, color: MUTE }}>Part number contains<br />
           <input value={fPN} onChange={(e) => setFPN(e.target.value)} placeholder="e.g. 52119" style={{ ...inp("100%"), fontFamily: "ui-monospace,monospace" }} /></label>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <span style={{ fontSize: 12.5, color: MUTE }}><b style={{ color: results.length ? LIME : MUTE }}>{results.length}</b> benchmark{results.length === 1 ? "" : "s"} match{anyFilter ? " your filters" : ""}</span>
+        {setCfg && cfg && <label style={{ fontSize: 12, color: MUTE, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }} title="A cluster with fewer quotes than this shows its median with a * and its spread as advisory. Shared with the Benchmark tab. Raise it to be stricter about thin data, lower it to treat small clusters as reliable.">
+          Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b>
+          <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => setCfg({ ...cfg, minQuotes: +e.target.value })} style={{ width: 130 }} /></label>}
         <div style={{ flex: 1 }} />
         {results.length > 0 && <button onClick={addAllShown} style={{ ...btn("transparent", LIME), marginTop: 0, padding: "8px 12px", border: `1px solid ${LIME}` }}>+ Add all shown</button>}
         {anyFilter && <button onClick={clear} style={{ ...btn(ICE, TEAL_D), marginTop: 0, padding: "8px 14px" }}>Clear</button>}
@@ -477,10 +487,13 @@ function DemoLookup({ clusters, parts }) {
 
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 16 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}>{["Part","Make","Model","Category","Grade","Quotes","Suppliers","Median S$","Mean S$","Range S$"].map((h, i) => <th key={h} style={{ ...th, textAlign: i >= 5 ? "right" : "left" }}>{h}</th>)}<th style={{ ...th, textAlign: "center" }}>Add</th></tr></thead>
+        <thead><tr style={{ background: PANEL }}><th style={{ ...th, textAlign: "center" }}>Add</th>{["Part","Make","Model","Category","Grade","Quotes","Suppliers","Median S$","Mean S$","Range S$"].map((h, i) => <th key={h} style={{ ...th, textAlign: i >= 5 ? "right" : "left" }}>{h}</th>)}</tr></thead>
         <tbody>{results.slice(0, 300).map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
             <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.10)" : "transparent" }}>
+              <td style={{ ...td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                <button onClick={(e) => { e.stopPropagation(); toggleWork(c); }} title={inWork(c) ? "In worklist — click to remove" : "Add to worklist"}
+                  style={{ width: 24, height: 24, borderRadius: 6, cursor: "pointer", fontSize: 14, lineHeight: 1, fontWeight: 700, border: `1px solid ${inWork(c) ? LIME : LINE}`, background: inWork(c) ? LIME : "transparent", color: inWork(c) ? TEAL_D : LIME }}>{inWork(c) ? "✓" : "+"}</button></td>
               <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
               <td style={td}>{c.make}</td><td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...td, color: MUTE }}>{c.cat}</td>
               <td style={td}>{c.grade !== "Unknown" ? <span style={{ fontSize: 10, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER }}>{c.gradeMixed ? "Mixed" : c.grade}</span> : <span style={{ color: MUTE }}>—</span>}</td>
@@ -488,10 +501,7 @@ function DemoLookup({ clusters, parts }) {
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.suppliers.length}</td>
               <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}{c.n > 1 && !c.reliable ? <span title="Fewer quotes than the reliability floor — indicative only" style={{ color: MUTE }}>*</span> : ""}</td>
               <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
-              <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}–{c.max}</td>
-              <td style={{ ...td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                <button onClick={(e) => { e.stopPropagation(); toggleWork(c); }} title={inWork(c) ? "In worklist — click to remove" : "Add to worklist"}
-                  style={{ width: 24, height: 24, borderRadius: 6, cursor: "pointer", fontSize: 14, lineHeight: 1, fontWeight: 700, border: `1px solid ${inWork(c) ? LIME : LINE}`, background: inWork(c) ? LIME : "transparent", color: inWork(c) ? TEAL_D : LIME }}>{inWork(c) ? "✓" : "+"}</button></td></tr>
+              <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}–{c.max}</td></tr>
             {isOpen && <tr style={{ background: "#082430" }}><td colSpan={11} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
               <div style={{ marginBottom: 8, lineHeight: 1.7 }}>
                 <b style={{ color: TEXT }}>{c.label}</b> · {c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""} — <b style={{ color: LIME }}>median S${c.med}</b>, mean S${c.avg}, from <b style={{ color: TEXT }}>{c.n}</b> quote{c.n > 1 ? "s" : ""} across {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}. Range S${c.min}–{c.max}{c.n > 1 ? <> · IQR band S${c.q1}–S${c.q3}{Number.isFinite(c.cv) ? ` · CV ${c.cv}%` : ""}</> : ""}.
@@ -801,7 +811,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
         <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }} title="Never merge an OEM-genuine quote with an aftermarket one — the single largest source of legitimate price variance. Unknown grades are never blocked.">
           <input type="checkbox" checked={cfg.sepGrade !== false} onChange={(e) => set("sepGrade", e.target.checked)} /> Separate grades (OEM vs aftermarket)</label>
         <label style={{ fontSize: 12.5 }} title="A cluster with fewer quotes than this shows its IQR band as advisory (marked *), and Assess a Claim will not apply the statistical outlier bound (Q3 + 1.5×IQR) to it. Raise it to be stricter about thin data, lower it to surface bounds sooner.">Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b><br />
-          <input type="range" min="3" max="8" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
+          <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
       </div>
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Fuzzy part name</b> (the default) clusters parts whose names are similar — good for forming multi-quote medians on a small dataset. <b>Hybrid</b> is the more conservative option: it groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack — and only bridges different part numbers by name when you turn bridging on (bridged rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column). Use <b>Same make</b>/<b>Same model</b> to stop, say, a Camry headlamp merging with a Hilux one, and the similarity/token sliders to tune name matching. As real volume builds and identical part numbers recur, prefer Hybrid for the most defensible number.</p>
     </Card>

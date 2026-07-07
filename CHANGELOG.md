@@ -2,6 +2,28 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.10.0 — 7 July 2026
+- **Wider reliability floor range.** The *Min quotes for reliable spread* slider
+  on the **Benchmark** tab now runs **1–30** (was 3–8); default is unchanged (4).
+  1 treats every cluster with ≥1 quote as reliable; higher values are stricter
+  about thin data. Only the input bounds changed — `dispersion()`'s `n >= minN`
+  test and the snapshot fingerprint are untouched, so existing snapshots and the
+  statistical-bound behaviour are unaffected.
+- **Reliability floor is now configurable on the Demo tab too.** Added the same
+  *Min quotes for reliable spread* slider (1–30, default 4) to the Demo search
+  card. It writes the shared `cfg.minQuotes`, so adjusting it on Demo or Benchmark
+  moves the `*` advisory markers, the IQR reliability, and the Assess statistical
+  bound together — one floor across the whole app.
+- **Add control moved to the leftmost column** of the Demo results table (parts
+  section). The `+` / `✓` worklist toggle is now the first column instead of the
+  last, so it reads before the part it acts on. Column count is unchanged (11),
+  so drill-down `colSpan` values are untouched.
+- **GitHub repository link in the header.** Added a *Github Repository* link with
+  a GitHub mark icon in the top-right masthead, directly under *fuzzy-matched
+  median benchmark*. Both the text link and the icon open
+  `https://github.com/merimenjason/mm-parts-index` in a new page named
+  "Github Repository" (`rel="noopener noreferrer"`).
+
 ## 1.9.2 — 7 July 2026
 - **No more page-level horizontal scrolling.** Reduced the content gutter and
   made it responsive (`--pi-gutter`: 26px desktop → 14px ≤900px → 10px ≤560px),

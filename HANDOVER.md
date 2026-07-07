@@ -124,7 +124,8 @@ SD is the *sample* SD (n−1, `STDEV.S`) — so a non-technical stakeholder can
 reproduce every figure in a spreadsheet. And a single-quote cluster returns
 SD/CV as `NaN`, **never 0** — one quote must not masquerade as perfect
 agreement. Clusters below the **reliability floor** (`cfg.minQuotes`,
-default 4) are marked advisory (`*`) and get no fence.
+default 4, adjustable 1–30 via the slider on **both** the Benchmark and Demo
+tabs) are marked advisory (`*`) and get no fence.
 
 ### 4.4 Trust machinery (review, dedupe, snapshots)
 - **Reconciliation gate**: the sum of an invoice's extracted line totals is
@@ -196,17 +197,20 @@ reproduce it in Node: `pipeline.js` is importable directly
 `selftest.mjs`, then re-run `npm run eval:score` and compare precision/recall
 before vs after. Never ship a matcher change without the eval numbers.
 
-**Deploy** — push to GitHub, import into Vercel, set `ANTHROPIC_API_KEY` in
+**Deploy** — push to GitHub (repo: <https://github.com/merimenjason/mm-parts-index>),
+import into Vercel, set `ANTHROPIC_API_KEY` in
 project settings. GitHub Pages also works (CI workflow included) but the OCR
 button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.8.1.** Working: full ingest (Excel + live OCR + batch runner),
+**Version 1.10.0.** Working: full ingest (Excel + live OCR + batch runner),
 hybrid matcher with grade/basis/model guards, nine tabs including the
-stakeholder Demo lookup with Worklist and Excel/PDF export, eight analytics
-views, Assess a Claim with Tukey-fence flags and the dispute pack, drill-down
-everywhere, self-tests, eval harness.
+stakeholder Demo lookup (with a shared *Min quotes* floor slider and a
+leftmost-column `+` add control) with Worklist and Excel/PDF export, eight
+analytics views, Assess a Claim with Tukey-fence flags and the dispute pack,
+drill-down everywhere, a masthead *Github Repository* link, self-tests, eval
+harness.
 
 **The near-term milestone is the 200-invoice OCR run.** The pre-run
 checklist is in `MANUAL.md` §9; in short: fix the front/rear stopword bug in
@@ -246,7 +250,7 @@ rationale and the honesty rules live there.
 | Bridging | In hybrid mode, merging different part numbers by name similarity (flagged `≈`) |
 | Grade | OEM Genuine / OES / Aftermarket / Used-Recon — the biggest legitimate price driver |
 | Unit basis | each / pair / set — per-pair prices never join per-each medians |
-| Reliability floor | Min quotes (default 4) before spread stats and fences are trusted |
+| Reliability floor | Min quotes (range 1–30, default 4; slider on Benchmark and Demo tabs) before spread stats and fences are trusted |
 | Tukey fence | Q3 + 1.5·IQR — the statistical outlier bound behind "ABOVE BOUND" |
 | Snapshot id | `PIX-<dataHash>-<cfgHash>` — reproducibility stamp on every export |
 | Review queue | Bills failing totals reconciliation, held out of all benchmarks |
