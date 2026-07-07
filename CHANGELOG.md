@@ -2,6 +2,15 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.11.1 — 8 July 2026
+- **Ingest layout: Activity and Dataset actions now share a row.** The persistent
+  activity log dropped its full-width (`span="1 / -1"`) treatment and moved up to
+  sit in the **left** column of the Ingest `.pi-2col` grid, with **Dataset
+  actions** (Load demo / Export / Clear) now to its **right** on the same row.
+  Below 760px the two-column grid still collapses to a single column (activity
+  above dataset actions), so the change is desktop-only. No behavioural change to
+  either panel.
+
 ## 1.11.0 — 8 July 2026
 - **Persistent, drill-downable activity log.** The Ingest tab's *Activity* panel
   is no longer an ephemeral in-memory list wiped on reload. Every ingest, OCR,

@@ -28,7 +28,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent } from "./datasource.js";
 
-const APP_VERSION = "1.11.0";
+const APP_VERSION = "1.11.1";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -855,13 +855,13 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
       <input ref={invRef} type="file" accept=".pdf,image/*" multiple onChange={onInvoice} style={{ display: "none" }} />
       <div><button onClick={() => invRef.current.click()} style={btn(TEAL_L, "#fff")}>Choose invoices to OCR</button></div>
       <p style={{ color: MUTE, fontSize: 11, marginTop: 10 }}>The choice persists in this browser and applies to this button; the batch runner takes the same choice via <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>--model {ocrModel}</span>. In a deployed static site, route this through a serverless proxy so the API key stays server-side.</p></Card>
+    <Card title="Activity"><ActivityLog events={events} /></Card>
     <Card title="Dataset actions">
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button onClick={loadDemo} style={btn(ICE, TEAL_D)}>Load demo (18 bills)</button>
         <button onClick={exportXlsx} style={btn("#123E4D", TEXT)} disabled={!parts.length}>Export .xlsx</button>
         <button onClick={clearAll} style={btn("#3A2226", "#F3B4B0")} disabled={!parts.length}>Clear dataset</button></div>
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 12 }}>Saved to persistent storage; reloads automatically next session.</p></Card>
-    <Card title="Activity" span="1 / -1"><ActivityLog events={events} /></Card>
   </div>);
 }
 
