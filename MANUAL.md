@@ -185,6 +185,29 @@ they came from `localStorage` or a `SELECT`. The statistics stay in JS on
 purpose — pushing median/IQR into SQL would break the Excel-reconcilable
 `PERCENTILE.INC` guarantee (§4).
 
+**The activity log persists the same way.** Every ingest, OCR, review and dataset
+action on the Ingest tab is recorded as a **structured event** — an ISO
+timestamp (date **and** time), a `kind` (ingest / ocr / review / dataset /
+error), a status, the affected line count, the originating file/bill, and a JSON
+`detail` blob — and written through the *same* backend switch: `loadEvents()` /
+`appendEvent()` in `src/datasource.js` go to a `localStorage` key
+(`partsindex_activity_v1`, a rolling 500 events) by default, or to a new
+`activity` table via `GET`/`POST /api/activity` (served by `api/activity.js`,
+backed by `getActivity` / `appendActivity` in `api/_db.js`) when
+`VITE_DATA_BACKEND=api`. So the Ingest history now **survives a reload**, and on
+the shared backend it is one audit trail every user sees. Adding the table bumped
+`SCHEMA_VERSION` to 2; `npm run db:init` creates it (`CREATE TABLE IF NOT EXISTS`,
+so it is safe to re-run against an existing 1.9-era database). In the app each log
+row **expands** to its full detail — for an OCR event that is the Claude model
+used and the totals-reconciliation outcome (extracted sum vs printed total, basis
+and difference); for an import, the suppliers/makes/bills touched — and the list
+can be filtered by kind.
+
+**Sortable tables.** Independently of persistence, every data table across the
+app now sorts on any column — click a header for A→Z, again for Z→A (a shared
+`useSort`/`SortTh` layer with a numeric-aware comparator, so `S$`/`%` sort as
+numbers). It is pure view state and touches neither the dataset nor the stats.
+
 **Enabling it.** Create a Turso database, set `TURSO_DATABASE_URL` +
 `TURSO_AUTH_TOKEN` + `VITE_DATA_BACKEND=api` (locally in `.env`, in prod via the
 Vercel dashboard), then `npm run db:init` (schema) or `npm run db:seed` (schema

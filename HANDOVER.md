@@ -40,8 +40,10 @@ npm run build        # must also pass before any commit
 
 On first load the app seeds itself with an embedded **demo dataset** (18 real
 supplier bills, 174 part lines) so every tab is populated immediately. Data
-persists in your browser's `localStorage`; "Clear dataset" on the Ingest tab
-wipes it (and stays cleared — it won't re-seed).
+persists in your browser's `localStorage` (or a shared Turso/libSQL DB when
+`VITE_DATA_BACKEND=api`); "Clear dataset" on the Ingest tab wipes it (and stays
+cleared — it won't re-seed). The Ingest tab's **activity log** persists the same
+way (see §4) and every data table is **click-to-sort** on any column.
 
 The **"OCR invoices"** button will *not* work locally with plain `vite`,
 because it calls a serverless function (`api/ocr.js`) that only exists on a
@@ -58,13 +60,21 @@ src/pipeline.js     ← THE most important file. All pure logic: enrichment,
                        No browser APIs. Imported by the app, the eval
                        harness AND the batch runner — change it and you
                        change all three.
-src/PartsIndex.jsx  ← The entire React UI (~1,230 lines): all tabs, state,
-                       localStorage glue, Excel parsing, OCR fetch.
+src/PartsIndex.jsx  ← The entire React UI (~1,330 lines): all tabs, state,
+                       persistence glue, Excel parsing, OCR fetch. Also the
+                       shared useSort/SortTh table-sort layer and the persistent
+                       activity log (logEvent + ActivityLog/ActivityDetail).
+src/datasource.js   ← Backend switch (VITE_DATA_BACKEND): loadDataset/saveDataset
+                       AND loadEvents/appendEvent — localStorage ↔ /api/*.
 src/ocrPrompt.js    ← The OCR system prompt. Single source of truth — the
                        in-app OCR button and the batch runner both import it.
 src/demoData.js     ← The embedded 174-line demo dataset.
 api/ocr.js          ← Vercel serverless proxy: forwards OCR requests to the
                        Anthropic API so the key never reaches the browser.
+api/parts.js        ← Dataset endpoint (GET/POST → shared DB).
+api/activity.js     ← Activity-log endpoint (GET/POST → shared DB).
+api/_db.js          ← libSQL/Turso client + schema (parts + activity tables) +
+                       read/upsert. Server-only; holds TURSO_AUTH_TOKEN.
 tools/batch-ocr.mjs ← Bulk OCR runner for the 200-invoice run (resumable,
                        validating, dedupe-ing). Run with npm run ocr:batch.
 tools/selftest.mjs  ← The test suite (npm run test:tools). Plain Node
@@ -80,7 +90,7 @@ including the project history and current limitations in §9),
 `OPUS_PROMPTS.md` (ready-to-run implementation prompts for planned work),
 `Fable.md` (the feature roadmap those prompts implement).
 
-## 4. The five concepts you must understand
+## 4. The six concepts you must understand
 
 ### 4.1 The pipeline (a part line's life)
 Every ingested line — whether from an OCR'd PDF or an uploaded Excel — passes
@@ -155,6 +165,27 @@ the labels and prints precision/recall across thresholds. The row that
 matters is "dispute-grade": max recall at ≥95% precision — because a **false
 merge** (wrong median used against a claim) is far worse than a **false
 split** (thin median). Re-run this after *any* matcher change.
+
+### 4.6 Persistence & the activity log
+Two things persist, both through one switch in `src/datasource.js`
+(`VITE_DATA_BACKEND`: `local` → `localStorage`, `api` → the shared Turso/libSQL
+DB): the **dataset** (`loadDataset`/`saveDataset` → `/api/parts`) and the
+**activity log** (`loadEvents`/`appendEvent` → `/api/activity`). The log is an
+append-only stream of structured events — `logEvent(kind, message, extra)` in the
+app builds `{ id, ts, kind, action, message, source, count, status, detail }`,
+updates in-memory state and fire-and-forget-persists it; the Ingest tab renders it
+via `ActivityLog`/`ActivityDetail`, where each row expands to its `detail` blob
+(OCR model, reconciliation figures, suppliers/makes/bills touched…). Server side,
+`api/_db.js` holds both tables (`parts`, `activity`); adding `activity` bumped
+`SCHEMA_VERSION` to 2, and `ensureSchema()` is `CREATE TABLE IF NOT EXISTS`, so it
+migrates an older DB in place. **Consequence for you:** a new logged action just
+calls `logEvent(...)` — never write to `localStorage` or the DB directly. Keep
+`ACTIVITY_COLUMNS` (in `api/_db.js`) in lockstep with the event object.
+
+**Table sorting** is a separate, view-only concern: the shared `useSort` hook +
+`SortTh` header + `sortRows` comparator (numeric-aware — it sees through `S$` /
+`%` / `+` / `≈`) give every table click-to-sort. It never touches `cfg`, the
+dataset or the stats, so it needs no snapshot bookkeeping.
 
 ## 5. House rules (the conventions everything follows)
 

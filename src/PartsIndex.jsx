@@ -26,9 +26,9 @@ import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
-import { loadDataset, saveDataset, usingSharedBackend } from "./datasource.js";
+import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent } from "./datasource.js";
 
-const APP_VERSION = "1.10.0";
+const APP_VERSION = "1.11.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -42,6 +42,21 @@ const OCR_MODELS = [
   ["claude-fable-5", "Fable 5 — most capable, highest cost"],
 ];
 const MODEL_KEY = "partsindex_ocr_model";
+
+/* ================= activity log =================
+   The Ingest tab's activity history is a persistent, append-only stream of
+   structured events. Each event carries a machine timestamp (ISO), a kind, a
+   status, and a `detail` blob that the UI expands for drill-down. Persistence
+   goes through src/datasource.js (localStorage by default, shared Turso DB when
+   VITE_DATA_BACKEND=api), so history survives reloads. */
+const KIND_LABEL = { ingest: "Ingest", ocr: "OCR", review: "Review", dataset: "Dataset", error: "Error", info: "Info" };
+const STATUS_COLOR = { ok: LIME, warn: AMBER, error: RED, info: TEAL_L };
+const ACTIVITY_CAP = 500;
+const newEventId = () => {
+  try { if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID(); } catch {}
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+const fmtEventTs = (ts) => { const d = new Date(ts); return isNaN(d) ? String(ts || "") : d.toLocaleString("en-SG", { year: "2-digit", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }); };
 
 /* ================= persistence =================
    Backed by src/datasource.js, which switches between browser localStorage
@@ -116,7 +131,7 @@ export default function App() {
   const [ds, setDs] = useState({ parts: [] });
   const [tab, setTab] = useState("dashboard");
   const [loading, setLoading] = useState(null);
-  const [log, setLog] = useState([]);
+  const [events, setEvents] = useState([]);   // persistent activity log
   const [q, setQ] = useState(""), [fMake, setFMake] = useState("All"), [fType, setFType] = useState("All");
   const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true, minQuotes: 4 });
   const [method, setMethod] = useState("benchmark");
@@ -160,14 +175,56 @@ export default function App() {
       setDs({ parts: [] });
     });
   }, []);
+  // Load the persisted activity log once on mount. A failure (e.g. shared
+  // backend unreachable) leaves the log empty rather than blocking the app.
+  useEffect(() => {
+    loadEvents().then((evs) => { if (Array.isArray(evs)) setEvents(evs.slice(0, ACTIVITY_CAP)); })
+      .catch((e) => console.error("activity load failed:", e));
+  }, []);
+
   const commit = useCallback((next) => { setDs(next); saveDS(next); }, []);
-  const addLog = (m) => setLog((L) => [`${new Date().toLocaleTimeString()}  ${m}`, ...L].slice(0, 40));
-  const addRaw = (raws, label) => { const enr = raws.map(enrichPart); commit({ parts: [...ds.parts, ...enr] }); addLog(`+${enr.length} parts from ${label}`); };
+
+  /* Record a structured activity event: update the in-memory log immediately and
+     persist it (fire-and-forget) to the same backend as the dataset. `extra`
+     may carry action/source/count/status and a `detail` object for drill-down. */
+  const logEvent = useCallback((kind, message, extra = {}) => {
+    const ev = {
+      id: newEventId(),
+      ts: new Date().toISOString(),
+      kind,
+      action: extra.action || KIND_LABEL[kind] || kind,
+      message,
+      source: extra.source || "",
+      count: extra.count ?? 0,
+      status: extra.status || (kind === "error" ? "error" : kind === "warn" ? "warn" : "ok"),
+      detail: extra.detail || null,
+    };
+    setEvents((E) => [ev, ...E].slice(0, ACTIVITY_CAP));
+    appendEvent(ev).catch((e) => console.error("activity persist failed:", e));
+    return ev;
+  }, []);
+
+  const addRaw = (raws, label, extra = {}) => {
+    const enr = raws.map(enrichPart);
+    commit({ parts: [...ds.parts, ...enr] });
+    const uniq = (xs) => [...new Set(xs.filter(Boolean))];
+    const detail = {
+      ...(extra.detail || {}),
+      lines: enr.length,
+      suppliers: uniq(enr.map((p) => p.supplier)),
+      makes: uniq(enr.map((p) => p.make)),
+      bills: uniq(enr.map((p) => p.bill_no)),
+    };
+    logEvent(extra.kind || "ingest", `+${enr.length} parts from ${label}${extra.note ? ` · ${extra.note}` : ""}`, {
+      action: extra.action || (extra.kind === "ocr" ? "OCR invoice" : "Excel import"),
+      source: label, count: enr.length, status: extra.status || "ok", detail,
+    });
+  };
 
   const onExcel = async (e) => {
     const files = [...e.target.files]; if (!files.length) return; setLoading("Reading spreadsheets…");
-    try { for (const f of files) { const wb = XLSX.read(await f.arrayBuffer(), { type: "array" }); addRaw(parseExcel(wb), f.name); } }
-    catch (err) { addLog(`Excel error: ${err.message}`); } setLoading(null); e.target.value = "";
+    try { for (const f of files) { const wb = XLSX.read(await f.arrayBuffer(), { type: "array" }); addRaw(parseExcel(wb), f.name, { kind: "ingest", action: "Excel import" }); } }
+    catch (err) { logEvent("error", `Excel error: ${err.message}`, { action: "Excel error", status: "error", detail: { error: err.message } }); } setLoading(null); e.target.value = "";
   };
   const onInvoice = async (e) => {
     const files = [...e.target.files]; if (!files.length) return;
@@ -177,7 +234,9 @@ export default function App() {
         // Dedup gate: the same supplier+bill_no must never be ingested twice, or its quotes double-count and skew medians.
         const dupKey = `${(j.supplier_name || "").trim().toLowerCase()}|${(j.bill_no || "").trim().toLowerCase()}`;
         if (j.bill_no && ds.parts.some((p) => `${p.supplier.trim().toLowerCase()}|${p.bill_no.trim().toLowerCase()}` === dupKey)) {
-          addLog(`Skipped ${f.name}: bill ${j.bill_no} from ${j.supplier_name} is already in the dataset (duplicate)`); continue;
+          logEvent("ingest", `Skipped ${f.name}: bill ${j.bill_no} from ${j.supplier_name} is already in the dataset (duplicate)`,
+            { action: "Duplicate skipped", source: f.name, status: "warn", detail: { bill_no: j.bill_no, supplier: j.supplier_name, model: ocrModel } });
+          continue;
         }
         // Reconciliation gate: extracted line sum vs the invoice's own printed subtotal/total.
         const rec = reconcileInvoice(j.parts || [], j);
@@ -185,18 +244,25 @@ export default function App() {
         const meta = { supplier: j.supplier_name, bill_no: j.bill_no, bill_date: j.bill_date, make: j.make, model: j.model,
           doc_type: j.doc_type, gst: j.gst_treatment,
           review: flagged, review_reason: flagged ? `Extracted lines sum S$${rec.sum} but printed ${rec.basis} is S$${rec.stated} (diff S$${rec.diff}) — lines may be missing or misread` : "" };
-        addRaw((j.parts || []).map((p) => ({ ...p, ...meta, src: "ocr" })), f.name);
-        if (flagged) addLog(`⚠ ${f.name}: totals do not reconcile (extracted S$${rec.sum} vs printed S$${rec.stated}) — held for review, excluded from benchmarks`);
-        else if (rec.ok === null) addLog(`${f.name}: no printed subtotal/total to reconcile against — spot-check advised`);
-        else addLog(`${f.name}: totals reconcile ✓ (S$${rec.sum} vs printed ${rec.basis})`);
-      } catch (err) { addLog(`OCR failed for ${f.name}: ${err.message}`); } }
+        const note = flagged
+          ? `⚠ totals do not reconcile (extracted S$${rec.sum} vs printed S$${rec.stated}) — held for review`
+          : rec.ok === null
+            ? "no printed subtotal/total to reconcile against — spot-check advised"
+            : `totals reconcile ✓ (S$${rec.sum} vs printed ${rec.basis})`;
+        addRaw((j.parts || []).map((p) => ({ ...p, ...meta, src: "ocr" })), f.name, {
+          kind: "ocr", action: "OCR invoice", status: flagged ? "warn" : rec.ok === null ? "info" : "ok", note,
+          detail: { model: ocrModel, bill_no: j.bill_no, supplier: j.supplier_name, vehicle_make: j.make, vehicle_model: j.model,
+            doc_type: j.doc_type, gst: j.gst_treatment, reconcile: flagged ? "mismatch" : rec.ok === null ? "no basis" : "ok",
+            extracted_sum: rec.sum, printed_total: rec.stated, reconcile_basis: rec.basis, reconcile_diff: rec.diff, held_for_review: flagged },
+        });
+      } catch (err) { logEvent("error", `OCR failed for ${f.name}: ${err.message}`, { action: "OCR failed", source: f.name, status: "error", detail: { model: ocrModel, error: err.message } }); } }
     setLoading(null); e.target.value = "";
   };
   // Review workflow: accept clears the flag (lines join the benchmark); discard removes the bill's lines.
-  const acceptBill = (billNo) => { commit({ parts: ds.parts.map((p) => p.bill_no === billNo ? { ...p, review: false, review_reason: "" } : p) }); addLog(`Accepted bill ${billNo} after review`); };
-  const discardBill = (billNo) => { commit({ parts: ds.parts.filter((p) => p.bill_no !== billNo) }); addLog(`Discarded bill ${billNo}`); };
-  const loadDemo = () => { commit({ parts: DEMO_18.map(enrichPart) }); addLog("Loaded demo: 18 sample bills (174 lines)"); };
-  const clearAll = () => { if (window.confirm("Remove all stored parts?")) { commit({ parts: [] }); addLog("Dataset cleared"); } };
+  const acceptBill = (billNo) => { const n = ds.parts.filter((p) => p.bill_no === billNo).length; commit({ parts: ds.parts.map((p) => p.bill_no === billNo ? { ...p, review: false, review_reason: "" } : p) }); logEvent("review", `Accepted bill ${billNo} after review`, { action: "Accept bill", source: `bill ${billNo}`, count: n, status: "ok", detail: { bill_no: billNo, lines: n } }); };
+  const discardBill = (billNo) => { const n = ds.parts.filter((p) => p.bill_no === billNo).length; commit({ parts: ds.parts.filter((p) => p.bill_no !== billNo) }); logEvent("review", `Discarded bill ${billNo}`, { action: "Discard bill", source: `bill ${billNo}`, count: n, status: "warn", detail: { bill_no: billNo, lines: n } }); };
+  const loadDemo = () => { const seeded = DEMO_18.map(enrichPart); commit({ parts: seeded }); logEvent("dataset", "Loaded demo: 18 sample bills (174 lines)", { action: "Load demo", count: seeded.length, status: "ok", detail: { lines: seeded.length } }); };
+  const clearAll = () => { if (window.confirm("Remove all stored parts?")) { const n = ds.parts.length; commit({ parts: [] }); logEvent("dataset", "Dataset cleared", { action: "Clear dataset", count: n, status: "warn", detail: { removed: n } }); } };
 
   const parts = ds.parts;
   const clusters = useMemo(() => buildClusters(parts, cfg), [parts, cfg]);
@@ -256,7 +322,7 @@ export default function App() {
       <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
         {tab === "demo" && <DemoLookup {...{ clusters, parts, cfg, setCfg }} />}
-        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }} />}
+        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
         {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct }} />}
@@ -282,6 +348,48 @@ const td = { padding: "8px 10px", whiteSpace: "nowrap" };
    page sideways. display:block + overflow-x:auto makes each table scroll WITHIN
    its own card, so the page itself never scrolls horizontally. */
 const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 12, display: "block", overflowX: "auto", WebkitOverflowScrolling: "touch" };
+
+/* ================= sortable table headers =================
+   A tiny, reusable sort layer used by every data table. useSort() holds the
+   {key, dir} state and a toggle() that cycles asc→desc on the active column;
+   sortRows() returns a sorted COPY (original order preserved when no column is
+   chosen, so tables that arrive pre-sorted keep their default until clicked).
+   SortTh renders a clickable <th> with a direction indicator. */
+function numify(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v !== "string") return null;
+  const s = v.replace(/[,\sS$]/g, "").replace(/^[+≈~]/, "");
+  const m = s.match(/^-?\d*\.?\d+/);
+  return m ? parseFloat(m[0]) : null;
+}
+function cmpVals(a, b) {
+  const na = numify(a), nb = numify(b);
+  if (na != null && nb != null) return na - nb;      // both numeric → numeric order
+  if (na != null) return -1;                         // numbers sort before text
+  if (nb != null) return 1;
+  return String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+}
+function useSort(initialKey = null, initialDir = "asc") {
+  const [sort, setSort] = useState({ key: initialKey, dir: initialDir });
+  const toggle = useCallback((key) => setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }), []);
+  return { sort, toggle, setSort };
+}
+function sortRows(rows, sort, accessors) {
+  if (!sort || !sort.key) return rows;
+  const get = accessors && accessors[sort.key] ? accessors[sort.key] : (r) => (r ? r[sort.key] : undefined);
+  const out = [...rows].sort((a, b) => cmpVals(get(a), get(b)));
+  return sort.dir === "desc" ? out.reverse() : out;
+}
+function SortTh({ label, sortKey, sort, toggle, align = "left", style }) {
+  const active = sort.key === sortKey;
+  return (
+    <th onClick={() => toggle(sortKey)} title={`Sort by ${label}`}
+      style={{ ...th, textAlign: align, cursor: "pointer", userSelect: "none", ...style }}>
+      {label}<span style={{ marginLeft: 5, fontSize: 9, color: active ? LIME : "#4B6F80" }}>{active ? (sort.dir === "asc" ? "▲" : "▼") : "⇅"}</span>
+    </th>
+  );
+}
+
 function Card({ title, children, span }) {
   return <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "16px 14px", gridColumn: span, minWidth: 0 }}>
     {title && <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#fff" }}>{title}</div>}{children}</div>;
@@ -301,6 +409,10 @@ function QuoteLines({ c, showSource }) {
 }
 
 /* ---------- Demo: look up a part's benchmark by make/model + name/number + global search ---------- */
+const DEMO_RESULT_COLS = [["Part","left","label"],["Make","left","make"],["Model","left","model"],["Category","left","cat"],["Grade","left","grade"],["Quotes","right","n"],["Suppliers","right","sup"],["Median S$","right","med"],["Mean S$","right","avg"],["Range S$","right","range"]];
+const DEMO_RESULT_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, grade: (c) => c.grade, n: (c) => c.n, sup: (c) => c.suppliers.length, med: (c) => c.med, avg: (c) => c.avg, range: (c) => c.min };
+const DEMO_WORK_COLS = [["Part","left","label"],["Make","left","make"],["Model","left","model"],["Category","left","cat"],["Quotes","right","n"],["Median S$","right","med"],["Mean S$","right","avg"]];
+const DEMO_WORK_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, n: (c) => c.n, med: (c) => c.med, avg: (c) => c.avg };
 function DemoLookup({ clusters, parts, cfg, setCfg }) {
   const [g, setG] = useState("");          // global search
   const [fMake, setFMake] = useState("All");
@@ -308,6 +420,8 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
   const [fName, setFName] = useState("");  // part name contains
   const [fPN, setFPN] = useState("");      // part number contains
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();                       // results table
+  const onSort = (k) => { setOpen(null); toggle(k); };
 
   const makes = useMemo(() => ["All", ...[...new Set(clusters.map((c) => c.make).filter(Boolean))].sort()], [clusters]);
   const models = useMemo(() => {
@@ -338,6 +452,8 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
   // Worklist: a user-built shortlist of benchmarks to check, exportable to Excel/PDF.
   const [work, setWork] = useState([]); // ordered cluster keys
   const [openWork, setOpenWork] = useState(null); // expanded worklist row
+  const { sort: wsort, toggle: wtoggle } = useSort(); // worklist table
+  const onWSort = (k) => { setOpenWork(null); wtoggle(k); };
   const inWork = (c) => work.includes(c.key);
   const toggleWork = (c) => setWork((w) => w.includes(c.key) ? w.filter((k) => k !== c.key) : [...w, c.key]);
   const addAllShown = () => setWork((w) => [...new Set([...w, ...results.map((c) => c.key)])]);
@@ -461,8 +577,8 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
         ? <p style={{ color: MUTE, fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>Build a shortlist of parts to benchmark: click the <b style={{ color: LIME }}>+</b> on any result below to add it here, then export the list to <b>Excel</b> or <b>PDF</b>. Nothing added yet.</p>
         : <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
             <table style={tableStyle}>
-              <thead><tr style={{ background: INK }}>{["#", "Part", "Make", "Model", "Category", "Quotes", "Median S$", "Mean S$", ""].map((h, i) => <th key={i} style={{ ...th, textAlign: i >= 5 && i <= 7 ? "right" : "left" }}>{h}</th>)}</tr></thead>
-              <tbody>{workItems.map((c, i) => { const wid = c.key + i, wopen = openWork === wid; return (
+              <thead><tr style={{ background: INK }}><th style={th}>#</th>{DEMO_WORK_COLS.map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={wsort} toggle={onWSort} align={a} />)}<th style={th} /></tr></thead>
+              <tbody>{sortRows(workItems, wsort, DEMO_WORK_ACC).map((c, i) => { const wid = c.key + i, wopen = openWork === wid; return (
                 <React.Fragment key={wid}>
                   <tr onClick={() => setOpenWork(wopen ? null : wid)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer" }}>
                     <td style={{ ...td, color: MUTE }}>{i + 1}</td>
@@ -487,8 +603,8 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
 
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 16 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}><th style={{ ...th, textAlign: "center" }}>Add</th>{["Part","Make","Model","Category","Grade","Quotes","Suppliers","Median S$","Mean S$","Range S$"].map((h, i) => <th key={h} style={{ ...th, textAlign: i >= 5 ? "right" : "left" }}>{h}</th>)}</tr></thead>
-        <tbody>{results.slice(0, 300).map((c, i) => { const id = c.key + i, isOpen = open === id; return (
+        <thead><tr style={{ background: PANEL }}><th style={{ ...th, textAlign: "center" }}>Add</th>{DEMO_RESULT_COLS.map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
+        <tbody>{sortRows(results, sort, DEMO_RESULT_ACC).slice(0, 300).map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
             <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.10)" : "transparent" }}>
               <td style={{ ...td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
@@ -586,13 +702,18 @@ function PartLines({ items }) {
     </div>))}</>);
 }
 // Table whose rows expand to reveal their member part lines (or custom detail).
+// Headers are click-to-sort (asc/desc); sorting a column collapses any open row
+// so the expanded detail always matches the row above it.
 function ExpandTable({ cols, rows, colSpan }) {
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpen(null); toggle(k); };
+  const sorted = useMemo(() => sortRows(rows, sort), [rows, sort]);
   return (
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: INK }}>{cols.map((c) => <th key={c.k} style={{ ...th, textAlign: c.a || "left" }}>{c.h}</th>)}</tr></thead>
-        <tbody>{rows.map((r, i) => { const isOpen = open === i; return (
+        <thead><tr style={{ background: INK }}>{cols.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={onSort} align={c.a || "left"} />)}</tr></thead>
+        <tbody>{sorted.map((r, i) => { const isOpen = open === i; return (
           <React.Fragment key={i}>
             <tr onClick={() => setOpen(isOpen ? null : i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r._bg || "transparent" }}>
               {cols.map((c, ci) => <td key={c.k} style={{ ...td, textAlign: c.a || "left", color: r["_c" + c.k] || (c.mut ? MUTE : TEXT), fontFamily: c.mono ? "ui-monospace,monospace" : "inherit", fontWeight: c.b ? 700 : 400 }}>
@@ -603,8 +724,19 @@ function ExpandTable({ cols, rows, colSpan }) {
   );
 }
 
+const READY_COLS = [
+  { h: "Benchmark part", k: "label", a: "left", get: (c) => c.label },
+  { h: "Make", k: "make", a: "left", get: (c) => c.make },
+  { h: "Model", k: "model", a: "left", get: (c) => modelLabel(c) },
+  { h: "Quotes", k: "n", a: "center", get: (c) => c.n },
+  { h: "Suppliers", k: "sup", a: "center", get: (c) => c.suppliers.length },
+  { h: "Median S$", k: "med", a: "right", get: (c) => c.med },
+  { h: "Range S$", k: "range", a: "right", get: (c) => c.min },
+];
 function KpiDetail({ kpi, parts, clusters, onClose }) {
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpen(null); toggle(k); };
   const usable = parts.filter((p) => p.ltype === "Supplier Part");
   const TITLES = { invoices: "Invoices / bills in the dataset", lines: "Part lines by type",
     usable: "Usable supplier parts by category", clusters: "Fuzzy cluster sizes",
@@ -655,11 +787,12 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
     body = <ExpandTable cols={[{k:"make",h:"Make"},{k:"parts",h:"Usable parts",a:"center"},{k:"clusters",h:"Clusters",a:"center"},{k:"ready",h:"Benchmark-ready",a:"center",b:1}]} rows={rows} />;
     note = `${mk.length} makes represented. Click a make to see its parts.`;
   } else if (kpi === "ready") {
-    const ready = clusters.filter((c) => c.n > 1);
+    const readyAcc = Object.fromEntries(READY_COLS.map((c) => [c.k, c.get]));
+    const ready = sortRows(clusters.filter((c) => c.n > 1), sort, readyAcc);
     body = (
       <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
         <table style={tableStyle}>
-          <thead><tr style={{ background: INK }}>{[["Benchmark part","left"],["Make","left"],["Model","left"],["Quotes","center"],["Suppliers","center"],["Median S$","right"],["Range S$","right"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
+          <thead><tr style={{ background: INK }}>{READY_COLS.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={onSort} align={c.a} />)}</tr></thead>
           <tbody>{ready.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
             <React.Fragment key={id}>
               <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: "rgba(195,215,0,.10)" }}>
@@ -686,7 +819,7 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
     </div>
   );
 }
-function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }) {
+function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel }) {
   // Group flagged lines by bill for the review queue.
   const flaggedBills = useMemo(() => {
     const g = {};
@@ -728,14 +861,80 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
         <button onClick={exportXlsx} style={btn("#123E4D", TEXT)} disabled={!parts.length}>Export .xlsx</button>
         <button onClick={clearAll} style={btn("#3A2226", "#F3B4B0")} disabled={!parts.length}>Clear dataset</button></div>
       <p style={{ color: MUTE, fontSize: 11.5, marginTop: 12 }}>Saved to persistent storage; reloads automatically next session.</p></Card>
-    <Card title="Activity">
-      <div style={{ maxHeight: 180, overflow: "auto", fontSize: 11.5, fontFamily: "ui-monospace,monospace", color: MUTE }}>
-        {log.length ? log.map((l, i) => <div key={i} style={{ padding: "2px 0" }}>{l}</div>) : <span>No activity yet.</span>}</div></Card>
+    <Card title="Activity" span="1 / -1"><ActivityLog events={events} /></Card>
   </div>);
 }
 
+/* Persistent, drill-downable activity log. Each event expands to reveal its full
+   timestamp, source, counts, status and a JSON detail blob (reconciliation,
+   model used, suppliers/makes/bills touched, …). Persisted via src/datasource.js
+   so the history survives reloads and is shared on the Turso backend. */
+function ActivityLog({ events }) {
+  const [open, setOpen] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const kinds = useMemo(() => ["all", ...[...new Set((events || []).map((e) => e.kind))].filter(Boolean)], [events]);
+  const shown = (events || []).filter((e) => filter === "all" || e.kind === filter);
+  const chip = (k) => ({ padding: "3px 9px", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: filter === k ? 700 : 500,
+    background: filter === k ? LIME : "#0F3543", color: filter === k ? TEAL_D : MUTE, border: `1px solid ${filter === k ? LIME : LINE}` });
+  return (<div>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+      {kinds.map((k) => <span key={k} onClick={() => setFilter(k)} style={chip(k)}>{k === "all" ? `All (${events?.length || 0})` : (KIND_LABEL[k] || k)}</span>)}
+      <div style={{ flex: 1 }} />
+      <span style={{ fontSize: 11, color: MUTE }} title="This log is saved and reloads on your next visit; on the shared backend it is visible to every user.">persistent · click a row to drill in</span>
+    </div>
+    <div style={{ maxHeight: 320, overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
+      {shown.length ? shown.map((e, i) => { const id = e.id || i; const isOpen = open === id; const c = STATUS_COLOR[e.status] || MUTE;
+        return (<div key={id} style={{ borderTop: i ? `1px solid ${LINE}` : "none" }}>
+          <div onClick={() => setOpen(isOpen ? null : id)} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "6px 10px", cursor: "pointer", fontSize: 11.5 }}>
+            <span style={{ color: LIME, width: 10, flexShrink: 0 }}>{isOpen ? "▾" : "▸"}</span>
+            <span style={{ fontFamily: "ui-monospace,monospace", color: MUTE, whiteSpace: "nowrap", flexShrink: 0 }}>{fmtEventTs(e.ts)}</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: c, border: `1px solid ${c}`, borderRadius: 4, padding: "0 5px", whiteSpace: "nowrap", flexShrink: 0 }}>{(e.action || KIND_LABEL[e.kind] || e.kind || "").toUpperCase()}</span>
+            <span style={{ color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.message}</span>
+          </div>
+          {isOpen && <div style={{ padding: "2px 10px 10px 28px", fontSize: 11, color: MUTE }}><ActivityDetail e={e} /></div>}
+        </div>); })
+        : <div style={{ padding: 14, fontSize: 12, color: MUTE }}>No activity{filter === "all" ? " yet" : ` of type "${KIND_LABEL[filter] || filter}"`}.</div>}
+    </div>
+  </div>);
+}
+
+// Key/value drill-down for one activity event.
+function ActivityDetail({ e }) {
+  const d = new Date(e.ts);
+  const Row = ({ k, v }) => (<div style={{ display: "flex", gap: 8, padding: "1px 0", lineHeight: 1.6 }}>
+    <span style={{ color: MUTE, width: 130, flexShrink: 0 }}>{k}</span>
+    <span style={{ color: TEXT, wordBreak: "break-word" }}>{v}</span></div>);
+  const det = e.detail && typeof e.detail === "object" ? e.detail : {};
+  return (<div>
+    <Row k="Date & time" v={isNaN(d) ? String(e.ts) : d.toLocaleString("en-SG", { hour12: false })} />
+    <Row k="Event" v={`${e.action || KIND_LABEL[e.kind] || e.kind}${e.kind ? ` (${e.kind})` : ""}`} />
+    <Row k="Status" v={<span style={{ color: STATUS_COLOR[e.status] || MUTE, fontWeight: 700 }}>{e.status}</span>} />
+    {e.source ? <Row k="Source" v={e.source} /> : null}
+    <Row k="Parts affected" v={e.count ?? 0} />
+    {Object.entries(det).map(([k, v]) => (
+      <Row key={k} k={k.replace(/_/g, " ")} v={Array.isArray(v) ? (v.length ? v.join(", ") : "—") : (v === null || v === undefined || v === "" ? "—" : String(v))} />
+    ))}
+  </div>);
+}
+
+const LEDGER_COLS = [
+  { h: "Make", k: "make", get: (p) => p.make },
+  { h: "Model", k: "model", get: (p) => (p.model && p.model !== "—" ? p.model : "") },
+  { h: "Category", k: "cat", get: (p) => p.cat },
+  { h: "Part name", k: "part_name", get: (p) => p.part_name },
+  { h: "Part no", k: "part_number", get: (p) => p.part_number },
+  { h: "Grade", k: "grade", get: (p) => p.grade },
+  { h: "Qty", k: "qty", a: "center", get: (p) => p.qty },
+  { h: "Unit S$", k: "unit", a: "right", get: (p) => p.unit },
+  { h: "Total S$", k: "total", a: "right", get: (p) => p.total },
+  { h: "Line type", k: "ltype", get: (p) => p.ltype },
+  { h: "Supplier", k: "supplier", get: (p) => p.supplier },
+];
 function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }) {
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const ledgerAcc = useMemo(() => Object.fromEntries(LEDGER_COLS.map((c) => [c.k, c.get])), []);
+  const sortedFiltered = useMemo(() => sortRows(filtered, sort, ledgerAcc), [filtered, sort, ledgerAcc]);
   return (<>
     <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
       <input placeholder="Search part / number / supplier" value={q} onChange={(e) => setQ(e.target.value)} style={inp(240)} />
@@ -745,8 +944,8 @@ function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, pa
       <span style={{ color: MUTE, fontSize: 12.5, alignSelf: "center" }}>{filtered.length} rows · click a line for its full record</span></div>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}>{["Make","Model","Category","Part name","Part no","Grade","Qty","Unit S$","Total S$","Line type","Supplier"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-        <tbody>{filtered.slice(0, 400).map((p) => { const isOpen = open === p.id; return (
+        <thead><tr style={{ background: PANEL }}>{LEDGER_COLS.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={toggle} align={c.a || "left"} />)}</tr></thead>
+        <tbody>{sortedFiltered.slice(0, 400).map((p) => { const isOpen = open === p.id; return (
           <React.Fragment key={p.id}>
             <tr onClick={() => setOpen(isOpen ? null : p.id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: p.review ? "rgba(232,163,61,.12)" : p.ltype === "Repair Estimate" ? "#3A2226" : p.ltype.startsWith("Consumable") ? "#0C2E3A" : "transparent" }} title={p.review ? p.review_reason : undefined}>
               <td style={td}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{p.make}</td><td style={{ ...td, color: MUTE }}>{p.model && p.model !== "—" ? p.model : "—"}</td><td style={td}>{p.cat}</td><td style={{ ...td, fontWeight: 600 }}>{p.review && <span style={{ color: AMBER, marginRight: 5 }} title={p.review_reason}>⚠</span>}{p.part_name}</td>
@@ -783,8 +982,27 @@ function LedgerDetail({ p, parts, clusters }) {
 }
 
 /* ---------- Benchmark with configurable fuzzy matcher ---------- */
+const BENCH_COLS = [
+  { h: "Benchmark part", k: "label", get: (c) => c.label },
+  { h: "Make", k: "make", get: (c) => c.make },
+  { h: "Model", k: "model", get: (c) => modelLabel(c) },
+  { h: "Category", k: "cat", get: (c) => c.cat },
+  { h: "Basis", k: "basis", a: "center", get: (c) => c.pns.length },
+  { h: "Quotes", k: "n", a: "center", get: (c) => c.n },
+  { h: "Suppliers", k: "suppliers", a: "center", get: (c) => c.suppliers.length },
+  { h: "Min", k: "min", a: "right", get: (c) => c.min },
+  { h: "Median", k: "med", a: "right", get: (c) => c.med },
+  { h: "Avg", k: "avg", a: "right", get: (c) => c.avg },
+  { h: "Max", k: "max", a: "right", get: (c) => c.max },
+  { h: "Spread", k: "spread", a: "right", get: (c) => c.spread },
+  { h: "IQR band", k: "iqr", a: "right", get: (c) => (c.n > 1 ? c.q1 : null) },
+];
 function Benchmark({ cfg, setCfg, clusters }) {
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpen(null); toggle(k); };
+  const benchAcc = useMemo(() => Object.fromEntries(BENCH_COLS.map((c) => [c.k, c.get])), []);
+  const sortedClusters = useMemo(() => sortRows(clusters, sort, benchAcc), [clusters, sort, benchAcc]);
   const set = (k, v) => setCfg({ ...cfg, [k]: v });
   return (<>
     <Card title="Matching configuration">
@@ -818,8 +1036,8 @@ function Benchmark({ cfg, setCfg, clusters }) {
     <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. The <b>IQR band</b> is the middle 50% of quotes (Q1–Q3) — a tight band means the median is well-supported, a wide one means quotes disagree; a <b>*</b> marks a thin cluster (fewer than {cfg.minQuotes ?? 4} quotes) where the spread is only advisory. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}>{["Benchmark part","Make","Model","Category","Basis","Quotes","Suppliers","Min","Median","Avg","Max","Spread","IQR band"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-        <tbody>{clusters.slice(0, 400).map((c, i) => (
+        <thead><tr style={{ background: PANEL }}>{BENCH_COLS.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={onSort} align={c.a || "left"} />)}</tr></thead>
+        <tbody>{sortedClusters.slice(0, 400).map((c, i) => (
           <React.Fragment key={c.key + i}>
             <tr onClick={() => setOpen(open === c.key + i ? null : c.key + i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.12)" : "transparent" }}>
               <td style={{ ...td, fontWeight: 600 }}>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}
@@ -867,15 +1085,26 @@ function Analytics({ parts, clusters, cfg, method, setMethod, inflPct, setInflPc
   </>);
 }
 function Head({ children }) { return <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.65, marginBottom: 14, maxWidth: 780 }}>{children}</p>; }
+const MBENCH_COLS = [
+  { h: "Benchmark part", k: "label", a: "left", get: (c) => c.label },
+  { h: "Make", k: "make", a: "left", get: (c) => c.make },
+  { h: "Quotes", k: "n", a: "center", get: (c) => c.n },
+  { h: "Median S$", k: "med", a: "right", get: (c) => c.med },
+  { h: "Avg S$", k: "avg", a: "right", get: (c) => c.avg },
+  { h: "Range S$", k: "range", a: "right", get: (c) => c.min },
+];
 function MBenchmark({ clusters }) {
   const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpen(null); toggle(k); };
   const ready = clusters.filter((c) => c.n > 1);
-  const rows = ready.length ? ready : clusters.slice(0, 25);
-  const heads = [["Benchmark part","left"],["Make","left"],["Quotes","center"],["Median S$","right"],["Avg S$","right"],["Range S$","right"]];
+  const base = ready.length ? ready : clusters.slice(0, 25);
+  const acc = useMemo(() => Object.fromEntries(MBENCH_COLS.map((c) => [c.k, c.get])), []);
+  const rows = useMemo(() => sortRows(base, sort, acc), [base, sort, acc]);
   return (<><Head>The core reference: median unit price per fuzzy-matched part cluster. Median resists a single inflated bill; average is shown so reviewers can see skew. Only clusters with 2+ quotes give a defensible benchmark. Click a part to see its quotes — each line reads <i>part name · part number · supplier · unit price · bill date</i>, followed by up to two tags: a <b style={{ color: AMBER }}>grade</b> tag (OEM Genuine / OES / Aftermarket / Used-Recon — shown only when the bill states it or a name tag implies it; different known grades never merge into one benchmark) and a <b style={{ color: TEAL_L }}>per pair / per set</b> tag (the line prices two sides or a kit together, so it's kept out of per-each medians). No tags means grade unknown and priced per unit.</Head>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}>{heads.map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
+        <thead><tr style={{ background: PANEL }}>{MBENCH_COLS.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={onSort} align={c.a} />)}</tr></thead>
         <tbody>{rows.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
             <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.10)" : "transparent" }}>
@@ -1093,10 +1322,12 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
   const [rows, setRows] = useState(null);
   const [claimRef, setClaimRef] = useState("");
   const [openRow, setOpenRow] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpenRow(null); toggle(k); };
 
   const run = (raw) => {
     const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    const out = lines.map((l) => {
+    const out = lines.map((l, idx) => {
       // accept "part_no, name, price" or "part_no | name | price" (make optional 4th)
       const parts = l.split(/\s*[|,\t]\s*/);
       let [pn, name, price, make] = parts;
@@ -1112,7 +1343,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
       // Only meaningful on a reliable cluster (n ≥ the configurable floor, cfg.minQuotes).
       const uf = m.cluster && m.cluster.reliable && Number.isFinite(m.cluster.upperFence) ? m.cluster.upperFence : null;
       const aboveFence = uf != null && quoted > uf;
-      return { pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score, near: m.near || null,
+      return { _id: idx, pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score, near: m.near || null,
         n: m.cluster ? m.cluster.n : 0, flagged, uf, aboveFence, cluster: m.cluster };
     });
     setRows(out);
@@ -1176,10 +1407,10 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
       </div>
       <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
         <table style={tableStyle}>
-          <thead><tr style={{ background: PANEL }}>{[["Part no","left"],["Description","left"],["Matched via","left"],["Quotes","center"],["Quoted S$","right"],["Benchmark S$","right"],["Variance S$","right"],["Variance %","right"],["Stat. bound","center"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
-          <tbody>{rows.map((r, i) => { const isOpen = openRow === i; return (
-            <React.Fragment key={i}>
-              <tr onClick={() => setOpenRow(isOpen ? null : i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
+          <thead><tr style={{ background: PANEL }}>{[["Part no","left","pn"],["Description","left","name"],["Matched via","left","how"],["Quotes","center","n"],["Quoted S$","right","quoted"],["Benchmark S$","right","bench"],["Variance S$","right","over"],["Variance %","right","overPct"],["Stat. bound","center","aboveFence"]].map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
+          <tbody>{sortRows(rows, sort).map((r) => { const isOpen = openRow === r._id; return (
+            <React.Fragment key={r._id}>
+              <tr onClick={() => setOpenRow(isOpen ? null : r._id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
                 <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
                 <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
                 <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>

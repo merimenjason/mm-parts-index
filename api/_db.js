@@ -44,7 +44,15 @@ export const PART_COLUMNS = [
   "review", "review_reason",
 ];
 
-export const SCHEMA_VERSION = 1;
+/* Columns for the append-only activity/ingest log. One row per event, with an
+   ISO-8601 timestamp and a JSON `detail` blob the UI expands for drill-down.
+   Keep in lockstep with the event object built in src/PartsIndex.jsx (logEvent)
+   and the activity backend in src/datasource.js. */
+export const ACTIVITY_COLUMNS = [
+  "id", "ts", "kind", "action", "message", "source", "count", "status", "detail",
+];
+
+export const SCHEMA_VERSION = 2;
 
 let _client = null;
 
@@ -93,10 +101,25 @@ export async function ensureSchema() {
        review       INTEGER,        -- 0 / 1
        review_reason TEXT
      )`,
-    // Indexes for the app's common lookups (make filter, PN search, dedup).
+    // Append-only activity/ingest log — persisted so the Ingest tab's history
+    // survives reloads and (on the shared backend) is shared across users.
+    `CREATE TABLE IF NOT EXISTS activity (
+       id       TEXT PRIMARY KEY,
+       ts       TEXT,            -- ISO-8601 date+time the event occurred
+       kind     TEXT,            -- ingest | ocr | review | dataset | error | info
+       action   TEXT,            -- short label, e.g. "OCR invoice"
+       message  TEXT,            -- human-readable summary
+       source   TEXT,            -- originating file / bill, when applicable
+       count    INTEGER,         -- part lines affected
+       status   TEXT,            -- ok | warn | error | info
+       detail   TEXT             -- JSON blob of extra fields for drill-down
+     )`,
+    // Indexes for the app's common lookups (make filter, PN search, dedup) and
+    // the activity log's newest-first read.
     `CREATE INDEX IF NOT EXISTS idx_parts_make ON parts(make)`,
     `CREATE INDEX IF NOT EXISTS idx_parts_npn  ON parts(npn)`,
     `CREATE INDEX IF NOT EXISTS idx_parts_bill ON parts(supplier, bill_no)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_ts ON activity(ts)`,
     { sql: `INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)`, args: [String(SCHEMA_VERSION)] },
   ], "write");
 }
@@ -154,4 +177,41 @@ export async function replaceDataset(parts) {
   }
   await db().batch(stmts, "write");
   return (parts || []).length;
+}
+
+/* ---- activity log ---- */
+
+/* Turn a stored activity row back into the event object the app renders, parsing
+   the JSON detail blob (tolerating a malformed one rather than throwing). */
+function rowToEvent(row) {
+  let detail = null;
+  if (row.detail) { try { detail = JSON.parse(row.detail); } catch { detail = { raw: String(row.detail) }; } }
+  return {
+    id: row.id, ts: row.ts, kind: row.kind || "info", action: row.action || "",
+    message: row.message || "", source: row.source || "", count: Number(row.count) || 0,
+    status: row.status || "info", detail,
+  };
+}
+
+/* Read the most recent events, newest first. A small LIMIT keeps the payload
+   light — the log is a rolling history, not an unbounded audit archive. */
+export async function getActivity(limit = 500) {
+  const n = Math.max(1, Math.min(5000, Number(limit) || 500));
+  const res = await db().execute({ sql: "SELECT * FROM activity ORDER BY ts DESC LIMIT ?", args: [n] });
+  return res.rows.map(rowToEvent);
+}
+
+/* Append one event. Idempotent on id (INSERT OR REPLACE) so a retried POST can't
+   duplicate a row. The detail object is JSON-stringified into the text column. */
+export async function appendActivity(ev) {
+  if (!ev || typeof ev !== "object") return 0;
+  const placeholders = ACTIVITY_COLUMNS.map(() => "?").join(", ");
+  const sql = `INSERT OR REPLACE INTO activity (${ACTIVITY_COLUMNS.join(", ")}) VALUES (${placeholders})`;
+  const args = ACTIVITY_COLUMNS.map((c) => {
+    if (c === "detail") return ev.detail == null ? null : JSON.stringify(ev.detail);
+    if (c === "count") return Number(ev.count) || 0;
+    return ev[c] ?? null;
+  });
+  await db().execute({ sql, args });
+  return 1;
 }
