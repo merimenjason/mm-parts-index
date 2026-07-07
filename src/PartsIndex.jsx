@@ -28,7 +28,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend } from "./datasource.js";
 
-const APP_VERSION = "1.9.1";
+const APP_VERSION = "1.9.2";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -223,14 +223,14 @@ export default function App() {
   };
 
   const Tab = ({ id, label }) => (
-    <button onClick={() => setTab(id)} style={{ padding: "12px 18px", background: "none", border: "none", cursor: "pointer",
+    <button onClick={() => setTab(id)} style={{ padding: "12px 15px", background: "none", border: "none", cursor: "pointer",
       color: tab === id ? "#fff" : MUTE, fontWeight: tab === id ? 700 : 500, fontSize: 13,
       borderBottom: tab === id ? `3px solid ${LIME}` : "3px solid transparent", letterSpacing: ".02em" }}>{label}</button>
   );
 
   return (
     <div style={{ minHeight: "100vh", background: INK, color: TEXT, fontFamily: "'Inter',system-ui,sans-serif" }}>
-      <div style={{ background: TEAL_D, padding: "16px 26px", display: "flex", alignItems: "center", gap: 15 }}>
+      <div style={{ background: TEAL_D, padding: "16px var(--pi-gutter)", display: "flex", alignItems: "center", gap: 15 }}>
         <img src={LOGO} alt="Merimen" width={34} height={34} style={{ borderRadius: 9, display: "block" }} />
         <div><div style={{ fontSize: 18, fontWeight: 800 }}>PartsIndex</div>
           <div style={{ fontSize: 11, color: "#BFE6EF" }}>Parts Pricing Reference for SG Motor Third-Party Claims</div></div>
@@ -239,14 +239,14 @@ export default function App() {
           ? <div style={{ fontSize: 12, color: LIME, display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: 8, background: LIME, animation: "pulse 1s infinite" }} />{loading}</div>
           : <div style={{ fontSize: 11, color: "#BFE6EF", textAlign: "right" }}>Powered by Merimen Claims Data<br /><span style={{ opacity: .7 }}>fuzzy-matched median benchmark</span></div>}
       </div>
-      <div style={{ background: TEAL, padding: "0 18px", display: "flex", gap: 2, flexWrap: "wrap" }}>
+      <div style={{ background: TEAL, padding: "0 calc(var(--pi-gutter) - 4px)", display: "flex", gap: 2, flexWrap: "wrap" }}>
         <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Demo" /><Tab id="upload" label="Ingest" />
         <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Benchmark" />
         <Tab id="assess" label="Assess a Claim" /><Tab id="analytics" label="Analytics" />
         <Tab id="coverage" label="Coverage" /><Tab id="methods" label="Method Notes" />
       </div>
 
-      <div style={{ padding: 26, maxWidth: 1240, margin: "0 auto" }}>
+      <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
         {tab === "demo" && <DemoLookup {...{ clusters, parts }} />}
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, log, acceptBill, discardBill, ocrModel, setOcrModel }} />}
@@ -269,10 +269,14 @@ const btn = (bg, fg) => ({ marginTop: 14, padding: "10px 16px", background: bg, 
 const modelLabel = (c) => (!c.model || c.model === "—") ? "—" : (c.modelMixed ? `${c.model} +${c.models.length - 1}` : c.model);
 const modelTitle = (c) => c.modelMixed ? `Spans models: ${c.models.join(", ")}` : undefined;
 const inp = (w) => ({ width: w, padding: "9px 11px", background: "#082430", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12.5, outline: "none" });
-const th = { textAlign: "left", padding: "10px 12px", fontSize: 11, color: MUTE, fontWeight: 700, whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: ".04em" };
-const td = { padding: "8px 12px", whiteSpace: "nowrap" };
+const th = { textAlign: "left", padding: "9px 10px", fontSize: 11, color: MUTE, fontWeight: 700, whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: ".04em" };
+const td = { padding: "8px 10px", whiteSpace: "nowrap" };
+/* Tables carry many nowrap columns; on narrow screens that would push the whole
+   page sideways. display:block + overflow-x:auto makes each table scroll WITHIN
+   its own card, so the page itself never scrolls horizontally. */
+const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 12, display: "block", overflowX: "auto", WebkitOverflowScrolling: "touch" };
 function Card({ title, children, span }) {
-  return <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 18, gridColumn: span }}>
+  return <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "16px 14px", gridColumn: span, minWidth: 0 }}>
     {title && <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "#fff" }}>{title}</div>}{children}</div>;
 }
 // Shared drill-down: lists the individual quotes behind a benchmark cluster.
@@ -446,7 +450,7 @@ function DemoLookup({ clusters, parts }) {
       {workItems.length === 0
         ? <p style={{ color: MUTE, fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>Build a shortlist of parts to benchmark: click the <b style={{ color: LIME }}>+</b> on any result below to add it here, then export the list to <b>Excel</b> or <b>PDF</b>. Nothing added yet.</p>
         : <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table style={tableStyle}>
               <thead><tr style={{ background: INK }}>{["#", "Part", "Make", "Model", "Category", "Quotes", "Median S$", "Mean S$", ""].map((h, i) => <th key={i} style={{ ...th, textAlign: i >= 5 && i <= 7 ? "right" : "left" }}>{h}</th>)}</tr></thead>
               <tbody>{workItems.map((c, i) => { const wid = c.key + i, wopen = openWork === wid; return (
                 <React.Fragment key={wid}>
@@ -472,7 +476,7 @@ function DemoLookup({ clusters, parts }) {
     </div>
 
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 16 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{["Part","Make","Model","Category","Grade","Quotes","Suppliers","Median S$","Mean S$","Range S$"].map((h, i) => <th key={h} style={{ ...th, textAlign: i >= 5 ? "right" : "left" }}>{h}</th>)}<th style={{ ...th, textAlign: "center" }}>Add</th></tr></thead>
         <tbody>{results.slice(0, 300).map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
@@ -532,7 +536,7 @@ function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
           <button onClick={onDemo} style={btn(ICE, TEAL_D)}>Load demo (18 bills)</button></div>
       </div>
     ) : (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="pi-2col">
         <Card title="Coverage vs common SG makes · click a make">
           {SG_MAKES.map((m) => { const items = parts.filter((p) => p.make === m && p.ltype === "Supplier Part"); const n = items.length; const isOpen = openMake === m;
             return (<div key={m}>
@@ -576,7 +580,7 @@ function ExpandTable({ cols, rows, colSpan }) {
   const [open, setOpen] = useState(null);
   return (
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={tableStyle}>
         <thead><tr style={{ background: INK }}>{cols.map((c) => <th key={c.k} style={{ ...th, textAlign: c.a || "left" }}>{c.h}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => { const isOpen = open === i; return (
           <React.Fragment key={i}>
@@ -644,7 +648,7 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
     const ready = clusters.filter((c) => c.n > 1);
     body = (
       <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <table style={tableStyle}>
           <thead><tr style={{ background: INK }}>{[["Benchmark part","left"],["Make","left"],["Model","left"],["Quotes","center"],["Suppliers","center"],["Median S$","right"],["Range S$","right"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
           <tbody>{ready.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
             <React.Fragment key={id}>
@@ -679,7 +683,7 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
     parts.filter((p) => p.review).forEach((p) => { (g[p.bill_no] ||= { bill_no: p.bill_no, supplier: p.supplier, reason: p.review_reason, lines: [] }).lines.push(p); });
     return Object.values(g);
   }, [parts]);
-  return (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+  return (<div className="pi-2col">
     {flaggedBills.length > 0 && (
       <Card title={`Needs review — ${flaggedBills.length} bill${flaggedBills.length > 1 ? "s" : ""} held back`} span="1 / -1">
         <p style={{ color: MUTE, fontSize: 12, lineHeight: 1.6 }}>These OCR'd bills failed the totals-reconciliation check: the sum of extracted lines does not match the invoice's own printed subtotal. They are <b style={{ color: AMBER }}>excluded from all benchmarks</b> until you accept or discard them. Check the lines against the original PDF, then decide.</p>
@@ -730,7 +734,7 @@ function Ledger({ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, pa
         {["All", "Supplier Part", "Consumable / Fastener", "Repair Estimate", "Labour"].map((t) => <option key={t}>{t}</option>)}</select>
       <span style={{ color: MUTE, fontSize: 12.5, alignSelf: "center" }}>{filtered.length} rows · click a line for its full record</span></div>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{["Make","Model","Category","Part name","Part no","Grade","Qty","Unit S$","Total S$","Line type","Supplier"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>{filtered.slice(0, 400).map((p) => { const isOpen = open === p.id; return (
           <React.Fragment key={p.id}>
@@ -803,7 +807,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
     </Card>
     <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. The <b>IQR band</b> is the middle 50% of quotes (Q1–Q3) — a tight band means the median is well-supported, a wide one means quotes disagree; a <b>*</b> marks a thin cluster (fewer than {cfg.minQuotes ?? 4} quotes) where the spread is only advisory. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{["Benchmark part","Make","Model","Category","Basis","Quotes","Suppliers","Min","Median","Avg","Max","Spread","IQR band"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>{clusters.slice(0, 400).map((c, i) => (
           <React.Fragment key={c.key + i}>
@@ -860,7 +864,7 @@ function MBenchmark({ clusters }) {
   const heads = [["Benchmark part","left"],["Make","left"],["Quotes","center"],["Median S$","right"],["Avg S$","right"],["Range S$","right"]];
   return (<><Head>The core reference: median unit price per fuzzy-matched part cluster. Median resists a single inflated bill; average is shown so reviewers can see skew. Only clusters with 2+ quotes give a defensible benchmark. Click a part to see its quotes — each line reads <i>part name · part number · supplier · unit price · bill date</i>, followed by up to two tags: a <b style={{ color: AMBER }}>grade</b> tag (OEM Genuine / OES / Aftermarket / Used-Recon — shown only when the bill states it or a name tag implies it; different known grades never merge into one benchmark) and a <b style={{ color: TEAL_L }}>per pair / per set</b> tag (the line prices two sides or a kit together, so it's kept out of per-each medians). No tags means grade unknown and priced per unit.</Head>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{heads.map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
         <tbody>{rows.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
@@ -1161,7 +1165,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
             <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
       </div>
       <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <table style={tableStyle}>
           <thead><tr style={{ background: PANEL }}>{[["Part no","left"],["Description","left"],["Matched via","left"],["Quotes","center"],["Quoted S$","right"],["Benchmark S$","right"],["Variance S$","right"],["Variance %","right"],["Stat. bound","center"]].map(([h,a]) => <th key={h} style={{ ...th, textAlign: a }}>{h}</th>)}</tr></thead>
           <tbody>{rows.map((r, i) => { const isOpen = openRow === i; return (
             <React.Fragment key={i}>
@@ -1205,7 +1209,7 @@ function Coverage({ parts, clusters }) {
   const cats = Object.entries(catMap).sort((a, b) => b[1].length - a[1].length);
   const covered = new Set(usable.map((p) => p.make));
   const hit = SG_MAKES.filter((m) => covered.has(m)).length;
-  return (<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+  return (<div className="pi-2col">
     <Card title={`Make coverage · ${hit}/${SG_MAKES.length} common SG makes · click a make for its parts`}>
       {SG_MAKES.map((m) => { const items = usable.filter((p) => p.make === m); const n = items.length; const isOpen = openMake === m;
         return (<div key={m} style={{ borderBottom: `1px solid ${LINE}` }}>
@@ -1240,7 +1244,7 @@ function MethodNotes() {
   ];
   return (<div>
     <Head>Each method is live under the Analytics tab. These notes summarise what each computes and why it matters for an insurer-grade reference. Every view drills down: click any row (or trend strip) to open the evidence behind the number — the individual quotes with supplier, bill, date, grade and price — because a reference an adjuster can't verify is a reference they won't defend.</Head>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+    <div className="pi-2col" style={{ gap: 14 }}>
       {items.map(([t, d], i) => (<div key={i} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 18 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 8 }}>
           <span style={{ color: LIME, fontWeight: 800, fontSize: 12, fontFamily: "ui-monospace,monospace" }}>{String(i + 1).padStart(2, "0")}</span>

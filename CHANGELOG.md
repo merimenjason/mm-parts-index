@@ -2,6 +2,19 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.9.2 — 7 July 2026
+- **No more page-level horizontal scrolling.** Reduced the content gutter and
+  made it responsive (`--pi-gutter`: 26px desktop → 14px ≤900px → 10px ≤560px),
+  trimmed `Card` and tab padding, and — the main fix — wide data tables now
+  scroll **within their own card** (`display:block; overflow-x:auto`) instead of
+  stretching the whole page. The page body is pinned with `overflow-x:hidden`.
+  Fixed two-column layouts (`1fr 1fr`) collapse to a single column below 760px
+  via a new `.pi-2col` class, and grid/flex children get `min-width:0` so they
+  can shrink below their content width. Verified with a headless render: zero
+  page overflow across all nine tabs at 360 / 414 / 768 / 1024px, with the wide
+  Ledger/Benchmark/Analytics tables remaining fully readable via contained
+  in-card scroll.
+
 ## 1.9.1 — 7 July 2026
 - **Shared backend starts empty; no demo auto-seed.** With `VITE_DATA_BACKEND=api`
   the app no longer seeds the 18-bill demo when the database is empty — that path

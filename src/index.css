@@ -3,3 +3,23 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 body { margin: 0; background: #0A2733; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+
+/* Never let the page itself scroll sideways — wide tables scroll inside their
+   own card instead (see .pi-scroll below). */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Responsive gutter for the main content column. Tight on phones so nothing is
+   pushed off-screen, roomier on desktop. Consumed by the main container. */
+:root { --pi-gutter: 26px; }
+@media (max-width: 900px) { :root { --pi-gutter: 14px; } }
+@media (max-width: 560px) { :root { --pi-gutter: 10px; } }
+
+/* Any wide/tabular block wraps in this: it caps at the card width and scrolls
+   horizontally within itself rather than stretching the layout. */
+.pi-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Two-column layout that collapses to a single column on narrow screens so the
+   two halves never force the page wider than the viewport. */
+.pi-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pi-2col > * { min-width: 0; }
+@media (max-width: 760px) { .pi-2col { grid-template-columns: 1fr; } }
