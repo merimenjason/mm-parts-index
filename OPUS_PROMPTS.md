@@ -16,6 +16,10 @@ P8–P14 implement the **new features** elaborated in [`Fable.md`](./Fable.md)
 carries the rationale and design constraints the prompt assumes). Suggested
 sequencing across both sets is the table at the end of Fable.md.
 
+P15 hardens the shared database backend that shipped in v1.9.0 (Turso/libSQL —
+`api/_db.js`, `api/parts.js`, `src/datasource.js`). It is optional and only
+relevant once the shared backend is actually in use.
+
 ---
 
 ## PRE-RUN
@@ -648,4 +652,72 @@ TASK:
    round-trip export -> validate -> cluster fields intact.
 6. Docs: MANUAL.md §5 Demo bullet + a "Sharing the benchmark" subsection;
    README feature list; CHANGELOG.md. Minor bump; tests and build pass.
+```
+
+---
+
+### P15 — Harden the shared database backend (Turso/libSQL)
+
+```
+You are working on PartsIndex v1.9.0. An optional shared-DB backend shipped:
+api/_db.js (libSQL client + schema + getDataset/upsertParts/replaceDataset),
+api/parts.js (GET returns {parts:[…]}; POST replace|append), src/datasource.js
+(loadDataset/saveDataset, switched by VITE_DATA_BACKEND), tools/db-init.mjs
+(npm run db:init / db:seed). It works but is intentionally minimal — the POC
+level. This prompt makes it safe for a shared, non-trivial deployment WITHOUT
+changing the data model or moving stats into SQL (median/IQR must stay in
+src/pipeline.js for the Excel-consistent PERCENTILE.INC guarantee).
+
+CONTEXT TO RESPECT:
+- The browser must NEVER hold TURSO_AUTH_TOKEN; it only ever calls same-origin
+  /api/parts. Keep that boundary.
+- The default localStorage build (VITE_DATA_BACKEND unset/"local") and the
+  static GitHub Pages deploy must keep working untouched.
+- Vercel serverless is ephemeral: no per-instance state you rely on for
+  correctness. libSQL over HTTP is the persistence layer.
+
+TASK:
+1. AUTH on /api/parts. POST currently accepts anyone who can reach the URL —
+   i.e. anyone who can load the app — and lets them replace the whole dataset.
+   Add a shared-secret gate mirroring the P3 proxy pattern: require
+   x-partsindex-key === PARTSINDEX_WRITE_KEY (constant-time compare) on POST;
+   GET may stay open (read-only reference) or be gated by a separate flag —
+   make that configurable via an env var (READS_REQUIRE_KEY=0/1). The frontend
+   sends the key from a field persisted like the OCR proxy key. Document
+   plainly that a browser-visible shared secret is a deterrent, not real auth;
+   name per-user auth as the production path.
+2. CONCURRENCY. replaceDataset() is DELETE-all + bulk INSERT: two near-
+   simultaneous saves can interleave or clobber. Add optimistic concurrency —
+   store a dataset version/updated_at in the meta table, return it from GET,
+   require the client to echo it on POST replace, and reject with 409 if it
+   moved (last-writer-does-not-silently-win). The app shows a "dataset changed
+   underneath you — reload before saving" banner on 409. Keep append mode
+   (idempotent upsert by id) exempt.
+3. SIZE + SHAPE guards on POST: validate each part against the known
+   PART_COLUMNS shape and types server-side (reuse a light check; the heavy
+   validateInvoice runs upstream at OCR time, but the endpoint must not trust
+   arbitrary bodies). Reject unknown fields or bad types with a 400 naming the
+   offending row. Keep the existing MAX_PARTS/MAX_BODY_BYTES caps.
+4. MIGRATIONS. The meta table records schema_version. Add a tiny forward-only
+   migration runner in api/_db.js (array of {version, sql}) applied on
+   ensureSchema when the stored version is behind, so future columns don't
+   require a manual ALTER. Selftest the version-compare logic as a pure
+   function.
+5. BACKUPS/EXPORT. Add npm run db:dump (tools/db-init.mjs --dump or a sibling)
+   that writes the whole parts table to a timestamped JSON next to the repo —
+   a trivial backup given Turso's own docs advise keeping independent backups.
+   Note it in the README.
+6. OBSERVABILITY. On DB errors, return the existing clean 500 but also log
+   (server-side only) the failing operation and part count; never leak the
+   connection string or token in any response.
+7. TESTS: extend tools/selftest.mjs for the pure helpers only (shape/type
+   validator, schema-version compare, migration selection) — they must not
+   require a live DB. For anything needing a DB, use file:local.db in a
+   temp dir and tear it down; guard so CI without libSQL still passes the
+   pure tests.
+8. DOCS: README data-model section (new env vars: PARTSINDEX_WRITE_KEY,
+   READS_REQUIRE_KEY; concurrency note; db:dump), MANUAL §7, .env.example,
+   CHANGELOG.md. Minor version bump. npm run test:tools and npm run build
+   (both default and VITE_DATA_BACKEND=api) must pass, and the api-mode client
+   bundle must contain zero libSQL/token references (grep dist/assets).
 ```

@@ -42,16 +42,6 @@ whole prompt costs well under a dollar across a 200-invoice run.
 
 ---
 
-## Model recommendation
-
-Current pricing: Haiku 4.5 at $1/$5, Sonnet 4.6 at $3/$15, Opus 4.8 at $5/$25 per MTok, and Fable 5 at $10/$50. Rough run cost at ~0.7M input / 0.18M output tokens for 200 invoices: Haiku ≈ $1.60, Sonnet ≈ $4.80, Opus ≈ $8 — halved in batch mode.
-
-**For this 200-invoice run: Sonnet 4.6 in batch mode (~$2.50 total).** Your current default is right. The entire run costs less than a coffee, so optimising model choice below Sonnet buys you ~$1.60 while spending your attention — and Sonnet's advantage on faint fax and handwriting (where your errors will cluster) is worth far more than that in avoided review-queue time. Reserve Opus 4.8 for a --retry-failed --model claude-opus-4-8 second pass on whatever fails validation or reconciliation; Fable 5 is overkill for extraction and I'd keep it out of the ladder entirely.
-
-**If this scales to production volume**, flip to the tiered pattern your infrastructure already supports almost by accident: Haiku 4.5 first pass in batch mode ($0.50/$2.50 effective — extraction is exactly its stated sweet spot), because your safety nets (validateInvoice, the reconciliation gate, the review queue, the manifest) convert bad extractions into flagged failures rather than silent corruption — then escalate failures to Sonnet via --retry-failed --model. One honest caveat to document if you do: the reconciliation gate catches missed or misread amounts, but a misread part number with a correct price sails through — so the 5% eyeball sample in OCR_PROMPT.md stays mandatory regardless of model, and matters more the cheaper the first-pass model. 
-
----
-
 ## Target columns (what the app reads)
 
 The importer matches columns flexibly, but these are the canonical headers. One **row per part line**; bill-level fields repeat down the rows of the same invoice.

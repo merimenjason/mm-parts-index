@@ -16,7 +16,7 @@ deployment see [`README.md`](./README.md); for OCR-ing invoices see
 4. [The eight analytics](#4-the-eight-analytics)
 5. [Tabs & how to use them](#5-tabs--how-to-use-them)
 6. [OCR-ing the 200 invoices](#6-ocr-ing-the-200-invoices)
-7. [Persistence & SQLite](#7-persistence--sqlite)
+7. [Persistence & the shared database](#7-persistence--the-shared-database)
 8. [Project journey — what was done](#8-project-journey--what-was-done)
 9. [Limitations & next steps](#9-limitations--next-steps)
 
@@ -143,13 +143,56 @@ does the JSON step for you.
 
 ---
 
-## 7. Persistence & SQLite
+## 7. Persistence & the shared database
 
-This app persists to the browser's `localStorage` — zero setup, survives across
-sessions. **For a productised, multi-user service, SQLite is recommended**: a
-single-file DB is genuinely self-sustaining at this scale (no server to
-administer, trivial backups) and supports every query here. Schema and the
-`localStorage → SQLite → Postgres` progression are in the [README](./README.md#data-model--persistence).
+By default the app persists the dataset to the browser's `localStorage` — zero
+setup, per-browser, fine for the POC and for the static GitHub Pages build. The
+whole dataset is the single object `{ parts: [ …enriched lines ] }`.
+
+When the benchmark needs to be **one shared reference** that every user queries
+(not a private copy per browser), the app ships an optional server-backed store
+built on **Turso / libSQL — SQLite over HTTP**. It is off unless configured, and
+turning it on changes no component code.
+
+**Why not a plain SQLite file.** On Vercel, serverless functions have an
+ephemeral, effectively read-only filesystem — only `/tmp` is writable, it is
+discarded between invocations, and concurrent instances don't share it — so a
+file-based `.db` cannot persist writes. libSQL is Turso's SQLite fork spoken
+**over HTTP**: same SQL, same schema, but stateless per-request calls to a
+remote database, which suits ephemeral serverless (no always-on pool). The only
+local↔prod difference is the URL: `file:local.db` locally, `libsql://<db>.turso.io`
+(with `TURSO_AUTH_TOKEN`) in production.
+
+**Shape of it.** Three small pieces, mirroring how `api/ocr.js` keeps the Claude
+key server-side:
+
+- `api/_db.js` — the libSQL client, the `parts` table schema (one row per
+  enriched line, the exact 21-field object the app already holds), and
+  `getDataset` / `upsertParts` / `replaceDataset`. **Server-only**; it reads
+  `TURSO_AUTH_TOKEN`, which never reaches the browser.
+- `api/parts.js` — the endpoint. `GET /api/parts` → `{ parts: [...] }`;
+  `POST /api/parts` with `{ mode:"replace"|"append", parts:[...] }` writes.
+- `src/datasource.js` — `loadDataset()` / `saveDataset()` used by the app. A
+  build-time flag `VITE_DATA_BACKEND` picks `local` (localStorage, default) or
+  `api` (the shared DB). In `api` mode the browser only ever fetches the
+  same-origin endpoint.
+
+`src/pipeline.js` is untouched: it works on plain arrays, indifferent to whether
+they came from `localStorage` or a `SELECT`. The statistics stay in JS on
+purpose — pushing median/IQR into SQL would break the Excel-reconcilable
+`PERCENTILE.INC` guarantee (§4).
+
+**Enabling it.** Create a Turso database, set `TURSO_DATABASE_URL` +
+`TURSO_AUTH_TOKEN` + `VITE_DATA_BACKEND=api` (locally in `.env`, in prod via the
+Vercel dashboard), then `npm run db:init` (schema) or `npm run db:seed` (schema
++ 18-bill demo). For local dev without Turso at all, point it at a file:
+`TURSO_DATABASE_URL=file:local.db npm run db:seed`. Full walkthrough and the DDL
+are in the [README](./README.md#data-model--persistence).
+
+Move to **Postgres** (Vercel Marketplace: Neon / Supabase / Prisma Postgres)
+only when many insurers write concurrently or you need role-based multi-tenant
+access. Progression: **localStorage (one user) → Turso/libSQL (shared reference)
+→ Postgres (multi-tenant concurrency)**.
 
 ---
 

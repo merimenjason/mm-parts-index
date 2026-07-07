@@ -2,6 +2,30 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.9.0 — 7 July 2026
+- **Optional shared database backend (Turso / libSQL over HTTP)**. The dataset
+  can now live in a shared SQLite-compatible database instead of per-browser
+  `localStorage`, so one benchmark reference serves every user.
+  - `api/_db.js` — libSQL client, `parts` table schema (one row per enriched
+    line), and `getDataset` / `upsertParts` / `replaceDataset`. Server-only;
+    holds `TURSO_AUTH_TOKEN`, never shipped to the browser.
+  - `api/parts.js` — `GET` returns `{ parts:[…] }`; `POST` replaces or appends.
+  - `src/datasource.js` — `loadDataset`/`saveDataset` with a build-time switch
+    `VITE_DATA_BACKEND` (`local` default → localStorage, `api` → `/api/parts`).
+    The app's `loadDS`/`saveDS` now delegate here; localStorage behaviour and
+    the GitHub Pages build are unchanged when the flag is unset.
+  - `tools/db-init.mjs` + `npm run db:init` / `db:seed` — create the schema and
+    optionally seed the 18-bill demo, against `file:local.db` locally or a
+    Turso URL in production.
+  - Chosen over a file-based SQLite `.db` because Vercel serverless has an
+    ephemeral, read-only filesystem; libSQL-over-HTTP persists writes with the
+    same SQL and schema and only a URL change between local and prod.
+  - Statistics deliberately remain in `src/pipeline.js` (not SQL) to preserve
+    the Excel-consistent `PERCENTILE.INC`/`STDEV.S` guarantees.
+  - Docs: README data-model section rewritten with the Turso path, DDL and
+    enable steps; MANUAL §7 rewritten; `.env.example` documents the three new
+    vars; `@libsql/client` added; `local.db` gitignored.
+
 ## 1.8.1 — 7 July 2026
 - **Token-lean OCR output**: the shared OCR prompt (`src/ocrPrompt.js`) now
   instructs **minified JSON** and **omits default-valued fields** — `unit_cost`

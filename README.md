@@ -224,24 +224,83 @@ Each stored line:
 }
 ```
 
-**This app** persists to the browser's `localStorage`. **For a productised,
-multi-user service, use SQLite** — a single-file DB is genuinely self-sustaining
-at this scale (no server to administer, trivial backups) and supports every query
-here (GROUP BY, window-function medians, trend-by-date). Suggested schema:
+**This app** persists to the browser's `localStorage` by default — zero setup,
+per-browser, fine for the POC. **To make the benchmark one _shared_ reference
+that every user queries, it now ships an optional server-backed store built on
+Turso / libSQL** (SQLite over HTTP). Flip it on with env vars; no component code
+changes.
 
-```sql
-CREATE TABLE suppliers  (id INTEGER PRIMARY KEY, name TEXT, coy_id TEXT, gst TEXT);
-CREATE TABLE invoices   (id INTEGER PRIMARY KEY, bill_no TEXT, bill_date TEXT,
-                         supplier_id INT, repairer TEXT, vehicle TEXT, chassis TEXT,
-                         make TEXT, model TEXT, doc_type TEXT);
-CREATE TABLE part_lines (id INTEGER PRIMARY KEY, invoice_id INT, part_name TEXT,
-                         part_number TEXT, npn TEXT, category TEXT, qty REAL,
-                         unit REAL, total REAL, line_type TEXT);
+#### Why Turso/libSQL and not a plain SQLite file
+
+A file-based SQLite database **cannot persist writes on Vercel**: serverless
+functions have an ephemeral, effectively read-only filesystem (only `/tmp` is
+writable, it is wiped between invocations, and concurrent instances don't share
+it). libSQL is Turso's SQLite fork exposed **over HTTP** — identical SQL and
+schema, but the driver makes lightweight stateless calls to a remote database,
+which is exactly what ephemeral serverless wants (no always-on connection pool).
+The only difference between local and prod is the connection URL:
+
+```
+local dev :  TURSO_DATABASE_URL=file:local.db                  # a real SQLite file
+production:  TURSO_DATABASE_URL=libsql://<db>.turso.io + TURSO_AUTH_TOKEN
 ```
 
-Move to **Postgres** only when many insurers write concurrently or you need
-role-based multi-tenant access. Rule of thumb: **localStorage now → SQLite for
-the productised site → Postgres for multi-tenant concurrency.**
+#### How it's wired
+
+The browser never holds the DB token. It calls a same-origin endpoint, exactly
+like the OCR proxy:
+
+```
+src/datasource.js   loadDataset()/saveDataset() — switches on VITE_DATA_BACKEND
+      │  fetch /api/parts
+      ▼
+api/parts.js        GET → { parts:[…] } ;  POST → replace/append
+api/_db.js          libSQL client, schema, upsert/replace  (server-only, holds the token)
+```
+
+`src/pipeline.js` is untouched — it operates on plain arrays, so it doesn't care
+whether the array came from `localStorage` or a `SELECT`. That existing
+separation is what makes this a drop-in. Heavy stats (median/IQR/clustering)
+**stay in JS on purpose**: pushing them into SQL would quietly change the numbers
+(SQLite's quantiles don't match the app's Excel-consistent `PERCENTILE.INC`).
+
+Schema (`api/_db.js` — one row per enriched supplier-part line, the exact object
+the app already holds in memory):
+
+```sql
+CREATE TABLE parts (
+  id TEXT PRIMARY KEY, bill_no TEXT, supplier TEXT, bill_date TEXT,
+  make TEXT, model TEXT, part_name TEXT, part_number TEXT, npn TEXT, cat TEXT,
+  qty REAL, unit REAL, total REAL, ltype TEXT, doc_type TEXT, src TEXT,
+  grade TEXT, unit_basis TEXT, gst TEXT, review INTEGER, review_reason TEXT
+);
+```
+
+#### Enabling it
+
+```bash
+# 1. create a Turso database (once), grab its URL + token
+#    https://turso.tech → create DB → copy the libsql:// URL and an auth token
+
+# 2. set env vars (locally in .env, in prod via the Vercel dashboard)
+TURSO_DATABASE_URL=libsql://<db>.turso.io
+TURSO_AUTH_TOKEN=<token>
+VITE_DATA_BACKEND=api          # tells the frontend to use /api/parts
+
+# 3. create the schema (and optionally seed the 18-bill demo)
+npm run db:init                # schema only
+npm run db:seed                # schema + demo dataset
+
+# local dev without Turso at all — a real on-disk SQLite file:
+TURSO_DATABASE_URL=file:local.db npm run db:seed
+```
+
+Leaving the vars unset keeps the original browser-only build (GitHub Pages, no
+server) working unchanged. Move to **Postgres** (Vercel's Marketplace offers
+Neon/Supabase/Prisma Postgres) only when many insurers write concurrently or you
+need role-based multi-tenant access. Rule of thumb: **localStorage for a single
+user → Turso/libSQL for a shared reference → Postgres for multi-tenant
+concurrency.**
 
 ---
 
@@ -260,14 +319,16 @@ partsindex/
 ├─ vercel.json
 ├─ package.json
 ├─ api/
-│  └─ ocr.js                      ← serverless OCR proxy (keeps API key server-side)
+│  ├─ ocr.js                      ← serverless OCR proxy (keeps API key server-side)
+│  ├─ parts.js                    ← serverless dataset endpoint (GET/POST → shared DB)
+│  └─ _db.js                      ← libSQL/Turso client + schema + upsert (server-only, holds the token)
 ├─ .github/workflows/
 │  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
 ├─ public/
 │  ├─ favicon.ico / favicon-32.png / favicon-128.png   ← Merimen "f" browser icon
 │  ├─ apple-touch-icon.png
 │  └─ screenshot.png             ← dashboard preview used in this README
-├─ .env.example                   ← documents ANTHROPIC_API_KEY (set in the host dashboard, never committed)
+├─ .env.example                   ← documents ANTHROPIC_API_KEY + Turso DB vars (set in the host dashboard, never committed)
 ├─ CHANGELOG.md                   ← version history
 ├─ eval/
 │  ├─ README.md                   ← gold-set labeling policy + how to read results
@@ -278,11 +339,13 @@ partsindex/
 │  └─ results.csv                 ← sweep output from the worked example (re-generate after labeling)
 ├─ tools/
 │  ├─ batch-ocr.mjs               ← bulk OCR runner for the 200-invoice run (resumable, validating)
+│  ├─ db-init.mjs                 ← npm run db:init / db:seed — create the libSQL schema, optionally seed the demo
 │  ├─ mock-server.mjs             ← local fake of the API for offline testing
 │  └─ selftest.mjs                ← npm run test:tools — validation/dedup/manifest/dispute-pack tests
 └─ src/
    ├─ main.jsx
    ├─ index.css
+   ├─ datasource.js               ← loadDataset/saveDataset — switches localStorage ↔ /api/parts (VITE_DATA_BACKEND)
    ├─ ocrPrompt.js                ← the tuned OCR prompt — single source of truth (app + runner)
    ├─ pipeline.js                 ← pure enrichment + matcher + validation + dispute pack (shared by app, eval, tools)
    ├─ demoData.js                 ← embedded 174-line demo dataset

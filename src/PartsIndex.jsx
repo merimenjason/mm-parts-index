@@ -23,8 +23,9 @@ import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
   normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
+import { loadDataset, saveDataset } from "./datasource.js";
 
-const APP_VERSION = "1.8.1";
+const APP_VERSION = "1.9.0";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
    runner takes the same choice via --model. Sonnet is the tuned default;
@@ -38,13 +39,13 @@ const OCR_MODELS = [
 ];
 const MODEL_KEY = "partsindex_ocr_model";
 
-/* ================= persistence ================= */
-const KEY = "partsindex_dataset_v3";
-// Returns null when nothing has been stored yet (first run) so the app can seed the demo.
-async function loadDS() {
-  try { const v = localStorage.getItem(KEY); return v ? JSON.parse(v) : null; } catch { return null; }
-}
-async function saveDS(ds) { try { localStorage.setItem(KEY, JSON.stringify(ds)); } catch (e) { console.error(e); } }
+/* ================= persistence =================
+   Backed by src/datasource.js, which switches between browser localStorage
+   (default) and the shared Turso DB via /api/parts, chosen at build time by
+   VITE_DATA_BACKEND. loadDS returns null on first run so the demo is seeded;
+   saveDS returns { ok } so a failed shared-backend write can be surfaced. */
+async function loadDS() { return loadDataset(); }
+async function saveDS(ds) { return saveDataset(ds); }
 
 /* ================= Claude OCR =================
    The system prompt lives in src/ocrPrompt.js — the single source of truth

@@ -1,9 +1,9 @@
 {
   "name": "partsindex",
   "private": true,
-  "version": "1.8.1",
+  "version": "1.9.0",
   "type": "module",
-  "description": "Parts pricing reference for SG motor third-party claims — fuzzy-matched median benchmark from supplier bills.",
+  "description": "Parts pricing reference for SG motor third-party claims \u2014 fuzzy-matched median benchmark from supplier bills.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,9 +12,12 @@
     "eval:pairs": "node eval/generate_pairs.mjs",
     "eval:score": "node eval/evaluate.mjs",
     "ocr:batch": "node tools/batch-ocr.mjs",
-    "test:tools": "node tools/selftest.mjs"
+    "test:tools": "node tools/selftest.mjs",
+    "db:init": "node tools/db-init.mjs",
+    "db:seed": "node tools/db-init.mjs --seed"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.15",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "react": "^18.3.1",
