@@ -2,6 +2,21 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.11.2 — 8 July 2026
+- **Make canonicalisation — "Mercedes" now shows as "Mercedes-Benz".** The make
+  inferred at ingest was trusted verbatim from the bill, so variants like
+  `Mercedes`, `MERCEDES BENZ` or `Merc` were stored as-is and never matched the
+  Dashboard/Coverage make list (which keys on the exact canonical string) — the
+  make appeared split off or absent. New `canonMake()` in `src/pipeline.js` folds
+  every make onto its canonical spelling (case/punctuation-insensitive, plus
+  aliases: Mercedes/Merc/Benz/MB → **Mercedes-Benz**, VW → Volkswagen,
+  Chevy → Chevrolet, …); `Mitsubishi` and `Mitsubishi Fuso` stay distinct, and an
+  unlisted make is returned untouched. Applied in `inferMake` (so a supplied make
+  is canonicalised, not trusted raw) **and** in `upgradePart`, so datasets already
+  persisted with a non-canonical make are **re-folded on load** (localStorage and
+  shared-DB builds alike) — and, as a bonus, a make stored as `Unknown` is
+  recovered from the part-number prefix. 13 new self-test assertions cover it.
+
 ## 1.11.1 — 8 July 2026
 - **Ingest layout: Activity and Dataset actions now share a row.** The persistent
   activity log dropped its full-width (`span="1 / -1"`) treatment and moved up to

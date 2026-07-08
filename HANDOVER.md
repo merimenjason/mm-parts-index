@@ -97,7 +97,10 @@ Every ingested line — whether from an OCR'd PDF or an uploaded Excel — passe
 through `enrichPart()`: part number **normalised** (`normPN`: uppercase, strip
 brackets/spaces/dashes and trailing `999x` filler → `T81110-25221` becomes
 `T8111025221`), **make inferred** (printed value wins, else a part-number
-prefix map), **category** assigned from name keywords, **line type**
+prefix map) and then **canonicalised** (`canonMake`: `Mercedes` / `MERCEDES
+BENZ` / `Merc` → `Mercedes-Benz`, etc.) so Dashboard/Coverage — which match on
+the exact make string — never split a make; **category** assigned from name
+keywords, **line type**
 classified (only `Supplier Part` lines feed the benchmark — estimates, labour
 and consumables are kept but excluded), and **grade / unit-basis / GST**
 attached. Enrichment happens *once at ingest* and the result is persisted —

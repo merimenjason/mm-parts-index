@@ -38,11 +38,34 @@ export const MAKE_PREFIX = [
   [/^8[RK]|^4[GHFD]|^WAUZ/, "Audi"], [/^V5C5|^VN9|^VWV/, "Volkswagen"], [/^513/, "BMW"], [/^M9\d/, "Chevrolet"],
   [/^M[KCLEBRS]\d/, "Mitsubishi Fuso"], [/^T\d{4,}/, "Toyota"],
 ];
+/* Canonical spellings for the common SG makes, plus the aliases/variants that
+   turn up on real bills (different case, punctuation or abbreviation). The
+   dashboard's make-coverage list matches on the EXACT canonical string, so a
+   bill that prints "Mercedes", "MERCEDES BENZ" or "Merc" must be folded onto
+   "Mercedes-Benz" or it shows as a separate/absent make. */
+export const CANON_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Benz","BMW","Audi",
+  "Volkswagen","Mitsubishi Fuso","Mitsubishi","Suzuki","Subaru","Lexus","Porsche","Chevrolet"];
+const MAKE_ALIASES = {
+  mercedes: "Mercedes-Benz", mercedesbenz: "Mercedes-Benz", merc: "Mercedes-Benz", benz: "Mercedes-Benz", mb: "Mercedes-Benz",
+  vw: "Volkswagen", volks: "Volkswagen", volkswagon: "Volkswagen",
+  chevy: "Chevrolet", chev: "Chevrolet",
+  bimmer: "BMW", beemer: "BMW",
+};
+// Fold any make string onto its canonical spelling. Unknown/blank stays as-is;
+// a make not in the list is returned untouched (never invents or drops a make).
+export function canonMake(make = "") {
+  const raw = String(make).trim();
+  if (!raw || raw.toLowerCase() === "unknown") return "Unknown";
+  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, "");   // "MERCEDES-BENZ" → "mercedesbenz"
+  if (MAKE_ALIASES[key]) return MAKE_ALIASES[key];
+  const hit = CANON_MAKES.find((m) => m.toLowerCase().replace(/[^a-z0-9]+/g, "") === key);
+  return hit || raw;
+}
 export function inferMake(pn = "", billMake = "") {
-  if (billMake && billMake !== "Unknown") return billMake;
+  if (billMake && billMake !== "Unknown") return canonMake(billMake);
   const p = normPN(pn);
   for (const [re, mk] of MAKE_PREFIX) if (re.test(p)) return mk;
-  return billMake || "Unknown";
+  return "Unknown";
 }
 export function lineType(docType = "", cat = "") {
   const d = String(docType).toLowerCase();
@@ -292,6 +315,10 @@ export function upgradePart(p) {
   return {
     ...p,
     id: p.id || crypto.randomUUID(),
+    // Re-fold the make onto its canonical spelling (and recover it from the part
+    // number when an older dataset stored it as Unknown) so dashboard coverage
+    // matches — e.g. a persisted "Mercedes" / "MERCEDES BENZ" becomes "Mercedes-Benz".
+    make: canonMake(p.make && p.make !== "Unknown" ? p.make : inferMake(p.part_number, "")),
     npn: p.npn != null ? p.npn : normPN(p.part_number),
     cat: p.cat || categorise(p.part_name),
     ltype: p.ltype || lineType(p.doc_type, p.cat || categorise(p.part_name)),

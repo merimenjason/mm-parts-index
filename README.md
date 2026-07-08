@@ -63,6 +63,12 @@ numbers recur, prefer Hybrid.
   tab; Unknown grades never block a merge), and per-pair prices never join per-each
   medians. Grades come from OCR/Excel when supplied, else are inferred from name
   tags like `(ORIGINAL)`, `(TW)`, `RECON` — never guessed.
+- **Make canonicalisation** — makes are folded onto a canonical spelling at ingest
+  and on load (`canonMake` in `src/pipeline.js`): case- and punctuation-insensitive,
+  with aliases (Mercedes / Merc / Benz / MB → **Mercedes-Benz**, VW → Volkswagen,
+  Chevy → Chevrolet, …), so the Dashboard and Coverage — which match on the exact
+  make string — never split `Mercedes` from `Mercedes-Benz`. `Mitsubishi` and
+  `Mitsubishi Fuso` stay distinct; an unrecognised make is left untouched.
 - **Totals-reconciliation gate** — every OCR'd invoice's extracted line sum is
   checked against the invoice's own printed parts subtotal (tolerance S$1 or 0.5%).
   Mismatched bills are **held for review and excluded from all benchmarks** until

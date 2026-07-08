@@ -28,7 +28,7 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent } from "./datasource.js";
 
-const APP_VERSION = "1.11.1";
+const APP_VERSION = "1.11.2";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch

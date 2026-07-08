@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -32,6 +32,23 @@ console.log("validateInvoice");
   const noPrice = validateInvoice({ ...GOOD_INV, parts: [{ part_name: "THING", part_number: "", qty: 1, unit_cost: 0, total_cost: 0 }] });
   ok(!noPrice.ok, "a line with no price at all is an error");
   ok(validateInvoice("not an object").ok === false, "non-object input rejected");
+}
+
+console.log("make canonicalisation (dashboard coverage)");
+{
+  ok(canonMake("Mercedes") === "Mercedes-Benz", "\"Mercedes\" folds to Mercedes-Benz");
+  ok(canonMake("MERCEDES BENZ") === "Mercedes-Benz", "\"MERCEDES BENZ\" folds to Mercedes-Benz");
+  ok(canonMake("mercedes-benz") === "Mercedes-Benz", "lower/punct variant folds to Mercedes-Benz");
+  ok(canonMake("Merc") === "Mercedes-Benz" && canonMake("Benz") === "Mercedes-Benz", "\"Merc\"/\"Benz\" aliases fold to Mercedes-Benz");
+  ok(canonMake("VW") === "Volkswagen" && canonMake("Chevy") === "Chevrolet", "VW/Chevy aliases fold");
+  ok(canonMake("toyota") === "Toyota", "case-only variant folds to canonical Toyota");
+  ok(canonMake("Mitsubishi") === "Mitsubishi" && canonMake("Mitsubishi Fuso") === "Mitsubishi Fuso", "Mitsubishi vs Mitsubishi Fuso stay distinct");
+  ok(canonMake("Perodua") === "Perodua", "an unlisted make is returned untouched");
+  ok(canonMake("") === "Unknown" && canonMake("Unknown") === "Unknown", "blank/Unknown stay Unknown");
+  ok(inferMake("MBA213 906 67 01", "MERCEDES") === "Mercedes-Benz", "a supplied make is canonicalised, not trusted verbatim");
+  ok(inferMake("MBA2139066701", "") === "Mercedes-Benz", "make still inferred from PN prefix when none supplied");
+  ok(enrichPart({ part_name: "HEADLAMP", part_number: "X", make: "Mercedes" }).make === "Mercedes-Benz", "enrichPart canonicalises the make");
+  ok(upgradePart({ part_name: "HEADLAMP", part_number: "X", make: "MERCEDES BENZ" }).make === "Mercedes-Benz", "upgradePart re-folds a persisted make on load");
 }
 
 console.log("token-lean OCR output (omitted default fields — prompt v1.8.1)");
