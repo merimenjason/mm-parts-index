@@ -2,6 +2,76 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.12.0 — 8 July 2026
+
+Full code review release: two data-loss bugs fixed, the P1 matcher false-merge
+closed, the OCR pipeline hardened end-to-end, and the repo cleaned of stale
+duplicates. 94 self-tests (was 72), clean build.
+
+- **FIXED (data loss): multi-file ingestion kept only the last file.** `addRaw`
+  and the OCR duplicate gate closed over the `ds` snapshot from the render the
+  handler was created in, so a single selection of several Excel files or
+  invoices rebuilt every commit from the SAME stale dataset — each file
+  overwrote the previous one's lines instead of appending. `commit()` now
+  accepts a functional updater resolved against a synchronously-maintained
+  `dsRef`, and both `addRaw` and the dedup gate use it. Selecting N files now
+  ingests N files.
+- **FIXED (silent data loss): failed dataset saves are now surfaced.** `commit`
+  fire-and-forgot `saveDS`; a localStorage quota failure or a failed
+  `POST /api/parts` only reached the console, leaving the app running on
+  in-memory data that vanished on refresh. A failed save now logs a visible
+  **error event** ("data shown is in memory only and will be lost on reload")
+  with the backend and cause. (The P4 storage meter remains open.)
+- **FIXED (P1): positional false merges in the matcher.** `fr/frt/front/rh/lh/l/r`
+  are stripped as stopwords before similarity scoring, so `COVER FR` vs
+  `COVER RH`-style pairs scored 1.0 and merged at every threshold. New
+  `posKey()` extracts a positional signature from the RAW name (standalone
+  tokens only — `FRAME` never reads as front), and `posConflict()` vetoes a
+  merge on any conflicting axis: **front/rear, upper/lower, inner/outer always
+  block**; **LH/RH blocking is a new opt-in** (`cfg.sepSide`, "Separate LH / RH"
+  checkbox — default off per the settled labeling policy: side counterparts are
+  price-identical and pool). Applied in the hybrid bridge loop,
+  `fuzzyAgglomerate`, AND `matchLine` (an estimate's rear part can no longer
+  match a front cluster). The dispute-pack summary discloses both settings.
+  Deviation from the P1 prompt: positional stopwords stay in STOP (spelling
+  variants like `FRT` vs `FRONT` on the same axis should still merge); the veto
+  supersedes removal. `eval/evaluate.mjs` now replays the veto before the
+  threshold, honouring its "scores the exact code the app runs" contract —
+  metrics on the worked example are unchanged because its residual false
+  positives are known-vs-unmarked pairs, which the veto deliberately leaves to
+  threshold calibration (P2).
+- **FIXED: OCR failures now say what actually failed.** `ocrFile` parsed the
+  response body without checking `res.ok` or `stop_reason`, so a proxy error or
+  an output truncated at the token ceiling surfaced as a cryptic
+  "Unexpected end of JSON input". It now throws the upstream error message,
+  detects `max_tokens` truncation explicitly (same guard added to both paths of
+  `tools/batch-ocr.mjs`), and the default output budget rises 4000 → 8192.
+- **CHANGED (policy): struck-through / returned lines follow the arithmetic.**
+  The OCR prompt excluded every struck-through/returned line; when the printed
+  subtotal still counted such a line, the reconciliation gate false-failed. The
+  rule is now: include the line if its amount is still counted in the printed
+  totals; exclude only when the totals demonstrably exclude it.
+- **HARDENED: the OCR proxy constrains what a caller can spend.** `api/ocr.js`
+  forwarded arbitrary bodies with the server's key. It now whitelists the four
+  Ingest-tab models, caps `max_tokens` at 16 384, validates the body, and
+  supports an optional `OCR_PROXY_TOKEN` / `VITE_OCR_PROXY_TOKEN` shared secret
+  (a drive-by tripwire, not real auth — P3 stays open).
+- **FIXED: Excel date cells ingested as serial numbers.** A true date cell
+  arrives from SheetJS as a serial (e.g. `45678`); it is now formatted to
+  `dd/mm/yyyy` at parse. `parseDate` additionally accepts ISO `YYYY-MM-DD`, so
+  shared-DB round-trips render evidence date ranges instead of "—".
+- **Repo hygiene.** Deleted the stale v1.5.0 duplicates at the repo root
+  (`PartsIndex.jsx`, `pipeline.js`, `demoData.js`, `ocrPrompt.js`, `main.jsx`,
+  `index.css`, root favicon/screenshot copies) — the build uses `src/` and
+  `public/`; the root copies were dead code one careless edit away from
+  shipping a regression. Removed a committed Vite timestamp artifact, added the
+  missing `.gitignore`, and created the `.env.example` and
+  `.github/workflows/deploy-pages.yml` the README documented but the repo
+  lacked.
+- Stale `---- hybrid (default) ----` comment corrected (shipped default is
+  fuzzy-name); 22 new self-test assertions (positional guard, tokenisation
+  false-positive guards, sepSide behavior, parseDate forms).
+
 ## 1.11.2 — 8 July 2026
 - **Make canonicalisation — "Mercedes" now shows as "Mercedes-Benz".** The make
   inferred at ingest was trusted verbatim from the bill, so variants like

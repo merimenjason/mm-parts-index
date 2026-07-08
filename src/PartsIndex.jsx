@@ -24,11 +24,11 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
-  normPN, similarity, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
+  normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent } from "./datasource.js";
 
-const APP_VERSION = "1.11.2";
+const APP_VERSION = "1.12.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -74,15 +74,29 @@ async function ocrFile(base64, mediaType, isPdf, model) {
     ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
     : { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
   // Routed through the serverless proxy (api/ocr.js) so the API key stays server-side.
+  const proxyToken = import.meta.env.VITE_OCR_PROXY_TOKEN; // optional shared secret, see api/ocr.js
   const res = await fetch("/api/ocr", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 4000, system: OCR_SYS,
+    method: "POST", headers: { "Content-Type": "application/json", ...(proxyToken ? { "x-ocr-token": proxyToken } : {}) },
+    body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 8192, system: OCR_SYS,
       messages: [{ role: "user", content: [docBlock, { type: "text", text: OCR_USER_TEXT }] }] }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+  // Surface the REAL failure instead of letting a proxy/API error fall through to
+  // a cryptic "Unexpected end of JSON input" from the parse below.
+  if (!res.ok) {
+    const msg = data?.error?.message || data?.error || data?.detail || `HTTP ${res.status}`;
+    throw new Error(`OCR request failed: ${typeof msg === "string" ? msg : JSON.stringify(msg)}`);
+  }
+  // A response cut off at the token ceiling is truncated JSON — reject it loudly
+  // rather than parsing a mangled fragment (or silently losing tail lines).
+  if (data.stop_reason === "max_tokens") {
+    throw new Error("OCR output hit the max_tokens ceiling — the invoice is too long for one pass; split the pages or raise the ceiling");
+  }
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1));
+  const start = clean.indexOf("{"), end = clean.lastIndexOf("}");
+  if (start < 0 || end < 0) throw new Error("OCR response contained no JSON object");
+  return JSON.parse(clean.slice(start, end + 1));
 }
 const fileToB64 = (file) => new Promise((res, rej) => {
   const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file);
@@ -117,7 +131,9 @@ function parseExcel(wb) {
       const review = iReview >= 0 && /^(y|yes|true|1)$/i.test(String(row[iReview] || "").trim());
       out.push({ part_name: name, part_number: no, qty: iQty>=0?row[iQty]:1, unit_cost: iUnit>=0?row[iUnit]:0,
         total_cost: iTot>=0?row[iTot]:0, supplier: iSup>=0?row[iSup]:(sn||""), make: iMake>=0?row[iMake]:"",
-        model: iModel>=0?row[iModel]:"", bill_no: iBill>=0?row[iBill]:"", bill_date: iDate>=0?row[iDate]:"",
+        model: iModel>=0?row[iModel]:"", bill_no: iBill>=0?row[iBill]:"",
+        // a true Excel date cell arrives as a serial number under header:1 — format it, or parseDate/date-range reads "—"
+        bill_date: iDate>=0 ? (typeof row[iDate] === "number" ? XLSX.SSF.format("dd/mm/yyyy", row[iDate]) : row[iDate]) : "",
         doc_type: iDoc>=0?row[iDoc]:"Tax Invoice", src: "excel",
         grade: iGrade>=0?row[iGrade]:"", unit_basis: iBasis>=0?row[iBasis]:"", gst: iGst>=0?row[iGst]:"",
         review, review_reason: review && iRevReason>=0 ? String(row[iRevReason]||"") : "" });
@@ -133,7 +149,7 @@ export default function App() {
   const [loading, setLoading] = useState(null);
   const [events, setEvents] = useState([]);   // persistent activity log
   const [q, setQ] = useState(""), [fMake, setFMake] = useState("All"), [fType, setFType] = useState("All");
-  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true, minQuotes: 4 });
+  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true, sepSide: false, minQuotes: 4 });
   const [method, setMethod] = useState("benchmark");
   const [inflPct, setInflPct] = useState(30);
   const [ocrModel, setOcrModelState] = useState(() => {
@@ -182,8 +198,6 @@ export default function App() {
       .catch((e) => console.error("activity load failed:", e));
   }, []);
 
-  const commit = useCallback((next) => { setDs(next); saveDS(next); }, []);
-
   /* Record a structured activity event: update the in-memory log immediately and
      persist it (fire-and-forget) to the same backend as the dataset. `extra`
      may carry action/source/count/status and a `detail` object for drill-down. */
@@ -204,9 +218,36 @@ export default function App() {
     return ev;
   }, []);
 
+  /* dsRef mirrors the latest committed dataset synchronously. Event handlers are
+     async and close over the `ds` from the render they were created in, so a loop
+     ingesting several files in ONE handler invocation would otherwise rebuild
+     every commit from the SAME stale snapshot — keeping only the last file's
+     lines. commit() therefore (a) accepts a functional updater resolved against
+     dsRef.current, and (b) checks the saveDS result: a localStorage quota failure
+     or a failed POST /api/parts is logged as an error event instead of silently
+     desynchronising memory from storage. */
+  const dsRef = useRef(null);
+  useEffect(() => { dsRef.current = ds; }, [ds]);
+  const commit = useCallback((next) => {
+    const resolved = typeof next === "function" ? next(dsRef.current || { parts: [] }) : next;
+    dsRef.current = resolved;
+    setDs(resolved);
+    saveDS(resolved).then((r) => {
+      if (r && r.ok === false) {
+        const why = r.error?.message || String(r.error || "unknown error");
+        logEvent("error", `Dataset save FAILED — the data shown is in memory only and will be lost on reload: ${why}`,
+          { action: "Save failed", status: "error", detail: { error: why, backend: usingSharedBackend ? "shared DB" : "localStorage", lines: resolved.parts?.length ?? 0 } });
+      }
+    }).catch((e) => {
+      logEvent("error", `Dataset save FAILED — the data shown is in memory only and will be lost on reload: ${e.message}`,
+        { action: "Save failed", status: "error", detail: { error: e.message } });
+    });
+  }, [logEvent]);
+
   const addRaw = (raws, label, extra = {}) => {
     const enr = raws.map(enrichPart);
-    commit({ parts: [...ds.parts, ...enr] });
+    commit((prev) => ({ ...prev, parts: [...prev.parts, ...enr] })); // functional: never builds on a stale snapshot
+
     const uniq = (xs) => [...new Set(xs.filter(Boolean))];
     const detail = {
       ...(extra.detail || {}),
@@ -233,7 +274,7 @@ export default function App() {
         const j = await ocrFile(b64, f.type || "image/png", isPdf, ocrModel);
         // Dedup gate: the same supplier+bill_no must never be ingested twice, or its quotes double-count and skew medians.
         const dupKey = `${(j.supplier_name || "").trim().toLowerCase()}|${(j.bill_no || "").trim().toLowerCase()}`;
-        if (j.bill_no && ds.parts.some((p) => `${p.supplier.trim().toLowerCase()}|${p.bill_no.trim().toLowerCase()}` === dupKey)) {
+        if (j.bill_no && (dsRef.current?.parts || []).some((p) => `${p.supplier.trim().toLowerCase()}|${p.bill_no.trim().toLowerCase()}` === dupKey)) {
           logEvent("ingest", `Skipped ${f.name}: bill ${j.bill_no} from ${j.supplier_name} is already in the dataset (duplicate)`,
             { action: "Duplicate skipped", source: f.name, status: "warn", detail: { bill_no: j.bill_no, supplier: j.supplier_name, model: ocrModel } });
           continue;
@@ -1028,6 +1069,8 @@ function Benchmark({ cfg, setCfg, clusters }) {
           <input type="checkbox" checked={cfg.sameModel} onChange={(e) => set("sameModel", e.target.checked)} /> Same model</label>
         <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }} title="Never merge an OEM-genuine quote with an aftermarket one — the single largest source of legitimate price variance. Unknown grades are never blocked.">
           <input type="checkbox" checked={cfg.sepGrade !== false} onChange={(e) => set("sepGrade", e.target.checked)} /> Separate grades (OEM vs aftermarket)</label>
+        <label style={{ fontSize: 12.5, display: "flex", gap: 6, alignItems: "center" }} title="Front and rear parts are ALWAYS kept apart. This toggle additionally keeps LH and RH counterparts in separate clusters. Default off: left/right parts are normally price-identical, so pooling them doubles the quotes behind each median.">
+          <input type="checkbox" checked={!!cfg.sepSide} onChange={(e) => set("sepSide", e.target.checked)} /> Separate LH / RH</label>
         <label style={{ fontSize: 12.5 }} title="A cluster with fewer quotes than this shows its IQR band as advisory (marked *), and Assess a Claim will not apply the statistical outlier bound (Q3 + 1.5×IQR) to it. Raise it to be stricter about thin data, lower it to surface bounds sooner.">Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b><br />
           <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
       </div>
@@ -1302,6 +1345,7 @@ function matchLine(line, clusters, cfg) {
   if (nm) {
     clusters.forEach((c) => {
       if (line.make && cfg.sameMake && c.make !== "Unknown" && line.make.toLowerCase() !== c.make.toLowerCase()) return;
+      if (posConflict(nm, c.label, cfg.sepSide)) return; // positions are stripped as stopwords before scoring, so guard them here
       const s = Math.max(...c.names.map((n) => similarity(nm, n, cfg.tokenWeight)));
       if (s > bestScore) { bestScore = s; best = c; }
     });

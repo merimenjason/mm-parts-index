@@ -39,7 +39,8 @@ Schema:
 Rules:
 - OUTPUT FORMAT: emit MINIFIED JSON — a single line, no indentation, no spaces after ":" or ",". To save tokens, OMIT the key entirely (never emit null) for: unit_cost when no unit price is printed; grade when the bill does not mark one; unit_basis for normal per-each lines. ALWAYS emit part_name, part_number, qty and total_cost on every line, and every invoice-level field.
 - Extract EVERY part line, top to bottom, including lines continued on later pages. If a table is split across pages, stitch the pages into one parts array.
-- EXCLUDE any line that is struck through, or marked returned / "take back" / "workshop take back" / refunded. Do not include labour, GST, sub-total, discount, or sundry rows as parts.
+- Struck-through / returned / "take back" / "workshop take back" / refunded lines: decide by ARITHMETIC, not by the mark. If the printed parts subtotal / total still counts the line's amount, INCLUDE the line — its price is real evidence and the reconciliation check needs it to balance. EXCLUDE it only when the printed totals demonstrably exclude its amount. When in doubt, include it.
+- Never include labour, GST, sub-total, discount, or sundry rows as parts.
 - Do not guess a missing unit_cost — omit it; the app computes unit = total / qty.
 - Read handwriting and faint fax copy as best you can; if a value is unreadable, use "" for text or 0 for numbers rather than inventing one.
 - doc_type = "Repair Estimate" ONLY when the document is a repairer's estimate (shows labour lines and/or a list-price discount column). A plain parts supplier tax invoice is "Tax Invoice".

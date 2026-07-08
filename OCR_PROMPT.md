@@ -130,8 +130,11 @@ Rules:
   part_number, qty and total_cost on every line, and every invoice-level field.
 - Extract EVERY part line, top to bottom, including lines continued on later pages.
 - If a table is split across pages, stitch the pages into one parts array.
-- EXCLUDE any line that is struck through, or marked returned / "take back" /
-  "workshop take back" / refunded. Do not include labour, GST, sub-total,
+- Struck-through / returned / "take back" / "workshop take back" / refunded
+  lines: decide by ARITHMETIC, not by the mark — INCLUDE the line when the
+  printed subtotal/total still counts its amount (the reconciliation gate needs
+  it to balance); exclude only when the printed totals demonstrably exclude it.
+  When in doubt, include. Do not include labour, GST, sub-total,
   discount, or sundry rows as parts.
 - Do not guess a missing unit_cost — omit it; the app computes
   unit = total / qty.
@@ -170,8 +173,10 @@ Supplier | Bill No | Bill Date | Make | Model | Doc Type | Part Name | Part Numb
 Rules:
 - Repeat the bill-level fields (Supplier, Bill No, Bill Date, Make, Model,
   Doc Type, GST) on every row of the same invoice.
-- Extract every part line, including across page breaks. Exclude struck-through /
-  returned lines, labour, GST, sub-totals, discounts and sundries.
+- Extract every part line, including across page breaks. Struck-through /
+  returned lines follow the arithmetic: included when the printed totals still
+  count them, excluded only when the totals exclude them. Never labour, GST,
+  sub-totals, discounts or sundries.
 - Keep Part Name and Part Number verbatim (preserve spaces and dashes).
 - Leave Unit Cost blank if not printed; leave Make/Model blank if not shown.
 - Doc Type is "Repair Estimate" only for repairer estimates (labour + discount

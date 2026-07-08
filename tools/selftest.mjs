@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -221,6 +221,57 @@ console.log("dispersion stats (IQR / SD / CV)");
   ok(c3.n === 3 && c3.reliable === true, "3 quotes with floor lowered to 3 → reliable");
   const [c5] = buildClusters(parts, { mode: "exact-pn", minQuotes: 5 });   // floor raised to 5
   ok(c5.n === 4 && c5.reliable === false, "4 quotes with floor raised to 5 → not reliable");
+}
+
+/* ---- positional guard (P1 stopword false-merge fix) ---- */
+{
+  ok(posKey("COVER FR").end === "F" && posKey("COVER RR").end === "B", "posKey reads front/rear");
+  ok(posKey("HEADLAMP LH").side === "L" && posKey("HEADLAMP RH").side === "R", "posKey reads LH/RH");
+  ok(posKey("MIRROR LH/RH PAIR").side === "" , "a pair line (both sides) has no side → never blocks");
+  ok(posKey("BUMPER COVER").side === "" && posKey("BUMPER COVER").end === "", "no positional tokens → empty key");
+
+  ok(posConflict("COVER FR", "COVER RR") === true, "front vs rear ALWAYS conflicts");
+  ok(posConflict("HEADLAMP LH", "HEADLAMP RH") === false, "LH vs RH does not conflict by default");
+  ok(posConflict("HEADLAMP LH", "HEADLAMP RH", true) === true, "LH vs RH conflicts when sepSide is on");
+  ok(posConflict("COVER FR", "COVER") === false, "unknown position never blocks a merge");
+  ok(posConflict("BUMPER FRT", "BUMPER FRONT") === false, "spelling variants on the SAME axis still merge");
+  ok(posConflict("WEATHERSTRIP HOOD", "WEATHERSTRIP HOOD FR") === false, "P1 case: FR vs unmarked does not veto (threshold decides)");
+  ok(posKey("CHASSIS FRAME").end === "" , "FRAME never reads as front (standalone tokens only)");
+  ok(posKey("T81110-FR2").end === "" , "FR inside a part-number fragment never reads as front");
+  ok(posConflict("ARM UPR", "ARM LOWER") === true, "upper vs lower conflicts");
+  ok(posConflict("BALL JOINT INR", "BALL JOINT OTR") === true, "inner vs outer conflicts");
+  ok(posConflict("DOOR PANEL FRONT", "DOOR PANEL REAR") === true, "P1 case: door panel front vs rear vetoed");
+
+  // Regression: "COVER FR" and "COVER RR" both normalise toward "cover"-ish strings once
+  // stopwords are stripped; they must land in SEPARATE clusters, not one false merge.
+  const posParts = [
+    { part_name: "BUMPER COVER FR", part_number: "PN-F1", qty: 1, unit_cost: 400, total_cost: 400, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B1", make: "Toyota" },
+    { part_name: "BUMPER COVER RR", part_number: "PN-R1", qty: 1, unit_cost: 250, total_cost: 250, doc_type: "Tax Invoice", supplier: "S2", bill_no: "B2", make: "Toyota" },
+  ].map(enrichPart);
+  const fuz = buildClusters(posParts, { mode: "fuzzy-name", threshold: 0.65, tokenWeight: 0.6, sameMake: true });
+  ok(fuz.length === 2, "fuzzy mode keeps front and rear bumper covers in separate clusters");
+  const bri = buildClusters(posParts, { mode: "hybrid", bridge: true, threshold: 0.65, tokenWeight: 0.6, sameMake: true });
+  ok(bri.length === 2, "hybrid name-bridging never bridges a front part onto a rear part");
+
+  // LH/RH still pool by default (price-identical counterparts double the quotes)…
+  const lrParts = [
+    { part_name: "HEADLAMP LH", part_number: "PN-L", qty: 1, unit_cost: 300, total_cost: 300, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B3", make: "Toyota" },
+    { part_name: "HEADLAMP RH", part_number: "PN-R", qty: 1, unit_cost: 300, total_cost: 300, doc_type: "Tax Invoice", supplier: "S2", bill_no: "B4", make: "Toyota" },
+  ].map(enrichPart);
+  const pooled = buildClusters(lrParts, { mode: "fuzzy-name", threshold: 0.65, tokenWeight: 0.6, sameMake: true });
+  ok(pooled.length === 1, "LH/RH counterparts pool into one cluster by default");
+  // …and split when the adjuster opts in.
+  const split = buildClusters(lrParts, { mode: "fuzzy-name", threshold: 0.65, tokenWeight: 0.6, sameMake: true, sepSide: true });
+  ok(split.length === 2, "sepSide:true keeps LH and RH in separate clusters");
+}
+
+/* ---- parseDate accepts both bill and ISO forms ---- */
+{
+  const a = parseDate("15/1/26");
+  ok(a && a.getFullYear() === 2026 && a.getMonth() === 0 && a.getDate() === 15, "parseDate reads D/M/YY");
+  const b = parseDate("2026-01-15");
+  ok(b && b.getFullYear() === 2026 && b.getMonth() === 0 && b.getDate() === 15, "parseDate reads ISO YYYY-MM-DD");
+  ok(parseDate("no date here") === null, "parseDate returns null for garbage");
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");

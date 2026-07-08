@@ -175,6 +175,45 @@ export function dispersion(units, minN = 4) {
 
 /* ================= fuzzy name matching ================= */
 export const STOP = new Set(["assy","assembly","unit","fr","frt","front","rh","lh","l","r","w","o","the","of","for","with","09","and"]);
+
+/* ---- positional signature (fixes the P1 stopword false-merge) ----
+   normName strips fr/frt/front/rh/lh/l/r as stopwords BEFORE similarity is
+   scored, so "COVER FR" and "COVER RH" both normalise to "cover" and merge
+   with score 1.0 even though they are different parts. The stopword strip is
+   correct for SPELLING tolerance, but position is a semantic axis and must be
+   compared separately. posKey extracts it from the RAW name (before any
+   stripping); posConflict blocks a merge when the two names explicitly
+   disagree on an axis. Unknown position never blocks (most lines carry none).
+     side: L | R | ""      (a pair line carries both sides → "" → never blocks)
+     end : F | B | ""      (front vs rear/back)
+   Front-vs-rear conflicts ALWAYS block (a front and rear bumper are different
+   parts at different prices). LH-vs-RH blocking is configurable (cfg.sepSide,
+   default OFF): left/right counterparts are normally price-identical, and the
+   gold-set LH/RH labeling policy is still an open decision for the eval. */
+export function posKey(name = "") {
+  // Split on non-alphanumerics so every test below sees standalone TOKENS only:
+  // "FRAME" is the single token "frame" and can never read as front; a code like
+  // "T81110-FR2" splits into "t81110 fr2", and "fr2" is not the token "fr".
+  const n = " " + String(name).toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+  const hasL = /\s(lh|lhs|left|l)\s/.test(n),   hasR = /\s(rh|rhs|right|r)\s/.test(n);
+  const hasF = /\s(fr|frt|front)\s/.test(n),    hasB = /\s(rr|rear|back)\s/.test(n);
+  const hasU = /\s(upr|upper)\s/.test(n),       hasLo = /\s(lwr|lower)\s/.test(n);
+  const hasI = /\s(inr|inner)\s/.test(n),       hasO = /\s(otr|outer)\s/.test(n);
+  return {
+    side: hasL && !hasR ? "L" : hasR && !hasL ? "R" : "",
+    end:  hasF && !hasB ? "F" : hasB && !hasF ? "B" : "",
+    vert: hasU && !hasLo ? "U" : hasLo && !hasU ? "D" : "",
+    depth: hasI && !hasO ? "I" : hasO && !hasI ? "O" : "",
+  };
+}
+export function posConflict(nameA, nameB, sepSide = false) {
+  const A = posKey(nameA), B = posKey(nameB);
+  if (A.end && B.end && A.end !== B.end) return true;                 // front never merges with rear
+  if (A.vert && B.vert && A.vert !== B.vert) return true;             // upper never merges with lower
+  if (A.depth && B.depth && A.depth !== B.depth) return true;         // inner never merges with outer
+  if (sepSide && A.side && B.side && A.side !== B.side) return true;  // LH vs RH, only when opted in (policy: sides pool)
+  return false;
+}
 export function normName(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9 ]/g, " ")
     .split(/\s+/).filter((t) => t && !STOP.has(t)).join(" ").trim();
@@ -218,7 +257,8 @@ export function buildClusters(parts, cfg) {
     return fuzzyAgglomerate(usable, cfg).sort((a, b) => b.n - a.n);
   }
 
-  // ---- hybrid (default) ----
+  // ---- hybrid ---- (the app's SHIPPED default is fuzzy-name — see cfg in src/PartsIndex.jsx;
+  // hybrid is the recommended mode as real part-number volume accumulates)
   // 1) seed groups by exact normalised part number
   const byPN = {};
   usable.forEach((p) => { const k = p.npn || ("~" + p.id); (byPN[k] = byPN[k] || []).push(p); });
@@ -239,6 +279,7 @@ export function buildClusters(parts, cfg) {
         if (cfg.sameModel && modelKey(a) !== modelKey(b)) continue;
         if (cfg.sepGrade !== false && gradeConflict(a.grade, b.grade)) continue; // never merge OEM with aftermarket
         if (a.unit_basis !== b.unit_basis) continue;                             // per-pair prices must not join per-each medians
+        if (posConflict(a.part_name, b.part_name, cfg.sepSide)) continue;        // front never merges with rear (LH/RH per cfg.sepSide)
         if (similarity(a.part_name, b.part_name, cfg.tokenWeight) >= cfg.threshold) {
           acc.push(...groups[j].mem); used[j] = true;
         }
@@ -262,6 +303,7 @@ export function fuzzyAgglomerate(usable, cfg) {
       if (cfg.sameModel && modelKey(usable[i]) !== modelKey(usable[j])) continue;
       if (cfg.sepGrade !== false && gradeConflict(usable[i].grade, usable[j].grade)) continue;
       if (usable[i].unit_basis !== usable[j].unit_basis) continue;
+      if (posConflict(usable[i].part_name, usable[j].part_name, cfg.sepSide)) continue;
       if (similarity(usable[i].part_name, usable[j].part_name, cfg.tokenWeight) >= cfg.threshold) {
         used[j] = true; mem.push(usable[j]);
       }
@@ -297,7 +339,12 @@ export function makeCluster(mem, cfg = {}) {
   };
 }
 export function parseDate(s) {
-  const m = String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  const str = String(s);
+  // ISO YYYY-MM-DD (shared-DB round-trips and some Excel exports print this form)
+  const iso = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+  // SG bill format D/M/Y (2- or 4-digit year)
+  const m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!m) return null; let y = +m[3]; if (y < 100) y += 2000;
   return new Date(y, +m[2] - 1, +m[1]);
 }
@@ -449,6 +496,8 @@ export function buildDisputePack(rows, cfg, meta) {
     ["Same make required", cfg.sameMake ? "yes" : "no"],
     ["Same model required", cfg.sameModel ? "yes" : "no"],
     ["Grades kept separate", cfg.sepGrade !== false ? "yes" : "no"],
+    ["Front/rear kept separate", "yes (always)"],
+    ["LH/RH kept separate", cfg.sepSide ? "yes" : "no"],
     ["Min quotes for reliable spread", cfg.minQuotes ?? 4],
     ["Inflation flag threshold", `+${meta.inflPct}% over median`],
     ["Lines assessed", rows.length],

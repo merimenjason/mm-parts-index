@@ -19,7 +19,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { similarity } from "../src/pipeline.js";
+import { similarity, posConflict } from "../src/pipeline.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const path = process.argv[2] || join(here, "gold_pairs.csv");
@@ -65,7 +65,11 @@ const TOKEN_WEIGHTS = [0.4, 0.6, 0.8];
 
 const results = [];
 for (const tw of TOKEN_WEIGHTS) {
-  const sims = pairs.map((p) => ({ sim: similarity(p.a, p.b, tw), truth: p.truth }));
+  // Replay the app's ACTUAL merge decision: the positional veto (front/rear,
+  // upper/lower, inner/outer — v1.12.0) is a hard negative applied BEFORE the
+  // similarity threshold, exactly as in buildClusters. Scoring raw similarity
+  // alone would grade code the app no longer runs.
+  const sims = pairs.map((p) => ({ sim: posConflict(p.a, p.b) ? -1 : similarity(p.a, p.b, tw), truth: p.truth }));
   for (const th of THRESHOLDS) {
     let tp = 0, fp = 0, fn = 0, tn = 0;
     for (const s of sims) {

@@ -1,4 +1,4 @@
-# PartsIndex v1.8.x — Opus implementation prompts
+# PartsIndex — Opus implementation prompts (status as of v1.12.0)
 
 Paste each prompt into Opus **run from the repo root** so it can read the real
 files. Standing conventions it must follow (already true of the codebase): pure
@@ -10,6 +10,13 @@ bumped (patch for fixes, minor for features).
 
 Order: P1 → P2 are pre-run and P2 depends on P1 plus your labeled gold set.
 P3 and P4 are pre-run and independent. P5–P7 are post-run.
+
+**Status after the v1.12.0 review** (see CHANGELOG and HANDOVER §7 gap
+analysis): **P1 done** (positional veto; deviations noted below). **P3 partly
+done** (model whitelist, token cap, optional shared secret — real auth still
+open). **P4 partly done** (save failures now raise a visible error event — the
+proactive quota meter is still open). P2, P5–P15 unchanged. The remaining
+pre-run blocker is **P2**.
 
 P8–P14 implement the **new features** elaborated in [`Fable.md`](./Fable.md)
 (F1–F7 — read the matching Fable.md section before running each prompt; it
@@ -25,6 +32,20 @@ relevant once the shared backend is actually in use.
 ## PRE-RUN
 
 ### P1 — Fix the front/rear positional false merge in the matcher
+
+> **STATUS: DONE in v1.12.0.** Kept for the record. Implemented as
+> `posKey`/`posConflict` in `src/pipeline.js`, applied in the hybrid bridge,
+> `fuzzyAgglomerate` and `matchLine`, replayed in `eval/evaluate.mjs`, with the
+> upper/lower and inner/outer axes and the tokenisation guards from step 3,
+> plus a new opt-in `cfg.sepSide` ("Separate LH / RH") beyond this spec.
+> **Deviations:** (a) step 1's stopword removal was NOT done — positional
+> tokens stay stripped so same-axis spelling variants (`FRT` vs `FRONT`) keep
+> merging; the veto supersedes removal. (b) test (g) (plain `BALL JOINT ASSY`
+> vs `-INR`) contradicts the unknown-never-blocks rule in step 2 of this same
+> prompt; the rule won — marked-vs-unmarked pairs stay threshold-dependent and
+> belong to P2. (c) eval metrics on the worked example are unchanged for that
+> reason; the veto's wins are the symmetric conflicts (front/rear etc.), which
+> that set's FP range happens not to contain.
 
 ```
 You are working on PartsIndex v1.8.0, a React/Vite motor-parts benchmarking
@@ -118,6 +139,12 @@ TASK (once labels exist):
 
 ### P3 — Harden the OCR proxy (api/ocr.js)
 
+> **STATUS: PARTLY DONE in v1.12.0.** Shipped: model whitelist (the four
+> Ingest-tab models), `max_tokens` cap (16 384), body validation, optional
+> `OCR_PROXY_TOKEN`/`VITE_OCR_PROXY_TOKEN` shared secret (documented as a
+> drive-by tripwire, not auth). **Still open:** anything resembling real
+> authentication / rate limiting; the secret ships in the client bundle.
+
 ```
 You are working on PartsIndex v1.8.0. api/ocr.js is a 32-line Vercel
 serverless function that forwards req.body verbatim to the Anthropic
@@ -164,6 +191,12 @@ TASK:
 ```
 
 ### P4 — localStorage quota guard and storage meter
+
+> **STATUS: PARTLY DONE in v1.12.0.** The silent-failure half is fixed:
+> `commit` now inspects the `saveDS` result (both backends) and raises a
+> visible error event — "data shown is in memory only and will be lost on
+> reload" — with backend and cause. **Still open:** `estimateBytes`, the
+> proactive quota meter/banner, and the pre-flight size check below.
 
 ```
 You are working on PartsIndex v1.8.0. Persistence is in src/PartsIndex.jsx:

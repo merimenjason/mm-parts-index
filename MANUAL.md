@@ -72,6 +72,8 @@ tab**:
 - **Bridge by name across part numbers** *(off by default)* — in hybrid mode, also merge PN-groups whose names are fuzzy-similar within the same make/model. Off = most defensible (identical PN only); on = more coverage on small datasets. Bridged benchmarks are flagged **≈** in the **Basis** column; single-PN benchmarks show **PN**.
 - **Similarity threshold** *(0.40–0.95)* and **token vs spelling weight** *(0–1)* — control the fuzzy score used for bridging (token overlap for word-order variants like `HEAD LAMP` vs `HEADLAMP ASSY`; spelling for typos).
 - **Same make / Same model** — keep parts apart across makes and, crucially, across models — so a Camry headlamp never merges with a Hilux one even under bridging.
+- **Positional veto** *(always on, v1.12.0)* — positional tokens (`FR`, `RH`, …) are stripped as stopwords before similarity scoring so spelling variants merge; identity, however, is preserved by a signature read from the *raw* name. Names that explicitly conflict on an axis never merge, at any threshold: **front vs rear**, **upper vs lower**, **inner vs outer**. A name with no positional token never blocks. The veto also applies when matching estimate lines in Assess a Claim.
+- **Separate LH / RH** *(off by default)* — additionally keeps left and right counterparts in separate clusters. Off is the policy default: side variants are the same part for pricing (see `eval/README.md`), and pooling them doubles the quotes behind each median. Both settings are disclosed in the dispute-pack summary.
 
 **Why hybrid rather than name-only?** Name-only matching over-merges — two
 genuinely different Mercedes distance sensors (LH/RH) share the name "DISTANCE
@@ -133,7 +135,7 @@ grows.
 
 See **[`OCR_PROMPT.md`](./OCR_PROMPT.md)**. In short: use the structured-JSON
 prompt, one document per call, extract every part line, stitch page-splits,
-exclude struck-through/returned/labour/GST rows, keep part numbers **verbatim**
+include struck-through/returned rows when their amount is still counted in the printed totals (exclude only when the totals exclude them — v1.12.0 policy), never labour/GST rows, keep part numbers **verbatim**
 (the app normalises them), and leave make/model or unit cost **blank rather than
 guessed**. Since v1.8.1 the prompt requests a **token-lean output** — minified
 JSON with default-valued fields omitted (unmarked grade, per-each basis,
@@ -437,31 +439,34 @@ the median but the quotes that produced it.
 - **Benchmark reproducibility** is handled at export time (each dispute pack carries a snapshot id), but past snapshots are not stored — regenerating an old pack requires the dataset as it stood. Persisting benchmark snapshots is the natural next step once storage moves beyond localStorage.
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
 - **The OCR proxy is unauthenticated.** `api/ocr.js` keeps the API key server-side, but anyone who discovers the deployment URL can POST arbitrary requests and spend the key's credits — there is no origin check, shared secret, model allowlist or rate limit yet. Acceptable for a low-profile POC URL; harden it (or take the deployment down between demos) before the URL circulates.
-- **`localStorage` is bounded (~5 MB).** The 174-line demo is far below it, but a 200-invoice dataset plus a review queue approaches it, and a failed write currently only logs to the console — the app keeps running on in-memory data that will not survive a refresh. Export to Excel regularly during large ingests; a quota meter and visible-failure banner are on the list.
-- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated and the two known matcher issues below are unfixed.
+- **`localStorage` is bounded (~5 MB).** The 174-line demo is far below it, but a 200-invoice dataset plus a review queue approaches it. Since v1.12.0 a failed write (quota or a failed shared-DB POST) raises a visible **error event** in the activity log — the data shown is in memory only and will not survive a refresh. Export to Excel when you see one; a proactive quota meter (P4) is still on the list.
+- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated.
 
-### Known matcher issues — fix before the 200-invoice run
+### Known matcher issues — status
 
-Both were surfaced by the eval harness and are reproducible on the demo set:
-
-1. **Positional-stopword false merge (permanent).** `fr`, `frt`, `front` are in
-   the stopword list, so `WEATHERSTRIP, HOOD` and `WEATHERSTRIP, HOOD, FR`
-   normalise to the same string and merge at *every* threshold — no threshold
-   tuning can recover an identity difference that normalisation erased. The list
-   is also asymmetric: front tokens are stripped but `rear`/`rr` are kept.
-   Per the labeling policy (eval/README.md) LH/RH *are* the same part for
-   pricing, so stripping side tokens is deliberate — the axis (front/rear)
-   tokens are the bug.
-2. **Threshold headroom.** `DOOR PANEL FRONT` vs `DOOR PANEL REAR` scores 0.667
-   and merges at the 0.65 default; on the demo set 0.70–0.75 costs no recall.
-   Confirm on the labeled 200-invoice gold set before changing the shipped
-   default.
+1. **Positional-stopword false merge — FIXED in v1.12.0.** Conflicting-axis
+   names (`DOOR PANEL FRONT` vs `DOOR PANEL REAR`, `BALL JOINT INR` vs `OTR`,
+   `ARM UPR` vs `LOWER`) are now hard-vetoed before the threshold, in both merge
+   paths and in Assess-a-Claim matching, at every threshold (see §3). The
+   stopwords stay stripped so same-axis spelling variants (`FRT` vs `FRONT`)
+   still merge.
+2. **Threshold headroom — still open (P2).** The veto only fires on *symmetric*
+   conflicts; a marked name vs an unmarked one (`WEATHERSTRIP, HOOD, FR` vs
+   `WEATHERSTRIP, HOOD`; `BALL JOINT ASSY-INR` vs `BALL JOINT ASSY`) is
+   deliberately left to the similarity threshold — an unknown position must
+   never block, or most lines (which carry no position token) would stop
+   merging. These are exactly the residual false positives on the worked
+   example, and they are a calibration problem: label the gold set, sweep, and
+   pin the threshold before the 200-invoice run.
 
 ### Pre-run checklist (200 invoices)
 
-1. Fix the front/rear stopword bug and re-run `npm run eval:score`.
+1. ~~Fix the front/rear stopword bug~~ — done in v1.12.0; `npm run eval:score`
+   now replays the veto.
 2. Label `eval/gold_pairs.csv` (y/n/? — policy in `eval/README.md`), sweep, and
-   pin the calibrated threshold as the shipped default.
+   pin the calibrated threshold as the shipped default. Settle the LH/RH gold-set
+   labeling against the shipped `sepSide` default (off = sides pool) so the
+   matcher is scored on the policy it ships with.
 3. Trial the runner: `npm run ocr:batch -- --in ./invoices --dry-run`, then
    `--limit 5`, verify the extracted JSONs against the source PDFs, then run the
    full folder (`--mode batch` for 50% token cost).

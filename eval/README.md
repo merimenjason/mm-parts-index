@@ -52,14 +52,18 @@ reasonable judgment call, not team-approved ground truth. Re-label before trusti
 numbers. Even so, it already surfaced two real issues at the current default
 (threshold 0.65, token weight 0.6):
 
-1. **Stopword bug (permanent false merge).** `fr`, `frt`, `rh`, `lh` are stripped as
-   stopwords, so "WEATHERSTRIP, HOOD" and "WEATHERSTRIP, HOOD, FR" normalise to the
-   same string and merge at *every* threshold. Positional tokens carry identity
-   information; stripping them erases the difference between a front and rear part.
-   Fix candidates: remove positional tokens from the stopword list, or map them to
-   canonical position tags instead of deleting them. Make the change, re-run
-   `eval:score`, and keep it only if precision improves without a recall collapse.
-2. **Threshold headroom.** "BALL JOINT ASSY" vs "BALL JOINT ASSY-INR L/R" (outer vs
-   inner joint — different parts) scores 0.69 and false-merges at 0.65. On this
-   small set, raising the default toward 0.70–0.75 costs zero recall. Confirm on the
-   200-invoice gold set before changing the shipped default.
+1. **Stopword bug — FIXED in v1.12.0 via a positional veto.** Positional tokens
+   stay stripped for similarity (so spelling variants merge), but a signature
+   read from the raw name hard-blocks merges that explicitly conflict on an
+   axis: front/rear, upper/lower, inner/outer always; LH/RH only when the
+   "Separate LH / RH" option is on (default off, per the side-pooling policy
+   above). `evaluate.mjs` replays the veto before the threshold, so this
+   harness scores the exact merge decision the app makes. Note the veto only
+   fires on *symmetric* conflicts — a marked vs an unmarked name (pair 5:
+   "WEATHERSTRIP, HOOD, FR" vs "WEATHERSTRIP, HOOD") is deliberately left to
+   the threshold, which is why the worked example's metrics did not move.
+2. **Threshold headroom — still open.** "BALL JOINT ASSY" vs "BALL JOINT
+   ASSY-INR L/R" (marked vs unmarked, so not vetoed) scores 0.69 and
+   false-merges at 0.65. On this small set, raising the default toward
+   0.70–0.75 costs zero recall. Confirm on the 200-invoice gold set before
+   changing the shipped default.

@@ -60,9 +60,13 @@ numbers recur, prefer Hybrid.
   (`each` / `pair` / `set`) and the invoice's **GST treatment**. Grade is the single
   largest legitimate price driver: the matcher **refuses to merge an OEM-genuine
   quote with an aftermarket one** (togglable via *Separate grades* on the Benchmark
-  tab; Unknown grades never block a merge), and per-pair prices never join per-each
-  medians. Grades come from OCR/Excel when supplied, else are inferred from name
-  tags like `(ORIGINAL)`, `(TW)`, `RECON` — never guessed.
+  tab; Unknown grades never block a merge), per-pair prices never join per-each
+  medians, and a **positional veto** (v1.12.0) blocks merges across conflicting
+  positions at any threshold — front vs rear, upper vs lower, inner vs outer
+  always; LH vs RH only when *Separate LH / RH* is ticked (off by default: side
+  counterparts are price-identical and pool). Grades come from OCR/Excel when
+  supplied, else are inferred from name tags like `(ORIGINAL)`, `(TW)`, `RECON`
+  — never guessed.
 - **Make canonicalisation** — makes are folded onto a canonical spelling at ingest
   and on load (`canonMake` in `src/pipeline.js`): case- and punctuation-insensitive,
   with aliases (Mercedes / Merc / Benz / MB → **Mercedes-Benz**, VW → Volkswagen,
@@ -79,7 +83,8 @@ numbers recur, prefer Hybrid.
   matcher over the labeled set and reports precision/recall/F1 across the full
   threshold grid, including the highest-recall setting that keeps false merges
   under 5% ("dispute-grade"). See [`eval/README.md`](eval/README.md) — the worked
-  example on the demo set already surfaced a stopword bug and threshold headroom.
+  example surfaced a positional-stopword false merge (fixed in v1.12.0 by the
+  veto, which `eval:score` now replays) and threshold headroom (open, P2).
 - **Robust, Excel-consistent dispersion** — spread is reported as **IQR** (Q1–Q3),
   sample **SD** and **CV**, chosen because parts pricing is right-skewed (IQR/median
   resist inflated quotes better than mean/SD) and CV makes spread comparable across
@@ -121,7 +126,11 @@ populated immediately. (With the shared Turso backend enabled the app starts
    The **Vite** preset is auto-detected (`vercel.json` is included).
 3. To enable the OCR button, add an environment variable
    **`ANTHROPIC_API_KEY`** in **Settings → Environment Variables**. The proxy in
-   `api/ocr.js` reads it; the key is never shipped to the browser.
+   `api/ocr.js` reads it; the key is never shipped to the browser. The proxy
+   whitelists the four Ingest-tab models and caps `max_tokens`; optionally set
+   **`OCR_PROXY_TOKEN`** (server) plus **`VITE_OCR_PROXY_TOKEN`** (build) to the
+   same value to require a shared-secret header — a drive-by tripwire, not real
+   auth (see `.env.example`).
 4. Deploy. Every `git push` redeploys automatically.
 
 The site is served at the domain root, so `base` stays `/` (default). Netlify
@@ -345,7 +354,7 @@ partsindex/
 ├─ MANUAL.md                      ← full manual + project journey
 ├─ HANDOVER.md                    ← onboarding handover for a new developer
 ├─ Fable.md                       ← feature roadmap (F1–F7, elaborated)
-├─ OPUS_PROMPTS.md                ← ready-to-run implementation prompts (P1–P14)
+├─ OPUS_PROMPTS.md                ← ready-to-run implementation prompts (P1–P15) + status
 ├─ OCR_PROMPT.md                  ← tuned prompt for OCR-ing the 200 invoices
 ├─ index.html
 ├─ vite.config.js                 ← base path via VITE_BASE
@@ -362,7 +371,8 @@ partsindex/
 │  ├─ favicon.ico / favicon-32.png / favicon-128.png   ← Merimen "f" browser icon
 │  ├─ apple-touch-icon.png
 │  └─ screenshot.png             ← dashboard preview used in this README
-├─ .env.example                   ← documents ANTHROPIC_API_KEY + Turso DB vars (set in the host dashboard, never committed)
+├─ .env.example                   ← documents ANTHROPIC_API_KEY, Turso DB vars, OCR proxy token (set in the host dashboard, never committed)
+├─ .gitignore                     ← node_modules, dist, local.db, .env*, Vite timestamp junk, ocr_out
 ├─ CHANGELOG.md                   ← version history
 ├─ eval/
 │  ├─ README.md                   ← gold-set labeling policy + how to read results
@@ -395,7 +405,7 @@ partsindex/
 - **Live OCR** requires the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking due to output token limits.
 - **The proxy is unauthenticated.** `api/ocr.js` hides the API key but accepts requests from anyone who knows the URL — no origin check, shared secret, model allowlist or rate limit yet. Fine for a private POC link; harden before the URL circulates.
 - **`localStorage` is bounded (~5 MB)** and a failed write only logs to the console today. Export to Excel regularly during large ingests.
-- **Matcher calibration is pending.** The gold set (`eval/gold_pairs.csv`, 138 pairs) is generated but unlabeled; the shipped 0.65 threshold is uncalibrated and two known matcher issues (positional-stopword false merges; threshold headroom) are open — see MANUAL.md §9 for the pre-run checklist.
+- **Matcher calibration is pending.** The gold set (`eval/gold_pairs.csv`, 138 pairs) is generated but unlabeled, so the shipped 0.65 threshold is uncalibrated. The positional false-merge bug is fixed (v1.12.0 veto); marked-vs-unmarked positional pairs remain threshold-dependent by design — see MANUAL.md §9 for the pre-run checklist.
 
 See **[`MANUAL.md`](./MANUAL.md)** for the full manual and the step-by-step
 project history, and **[`CHANGELOG.md`](./CHANGELOG.md)** for the version

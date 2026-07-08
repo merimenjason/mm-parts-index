@@ -56,7 +56,7 @@ const MEDIA = { ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/j
 
 /* ------------------------------- utilities ------------------------------- */
 export function parseArgs(argv) {
-  const a = { mode: "live", out: "./ocr_out", concurrency: 2, model: "claude-sonnet-4-6", maxTokens: 4000, poll: 30, limit: Infinity, retryFailed: false, dryRun: false, priceIn: 0, priceOut: 0 };
+  const a = { mode: "live", out: "./ocr_out", concurrency: 2, model: "claude-sonnet-4-6", maxTokens: 8192, poll: 30, limit: Infinity, retryFailed: false, dryRun: false, priceIn: 0, priceOut: 0 };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i], v = argv[i + 1];
     if (k === "--in") { a.in = v; i++; }
@@ -64,7 +64,7 @@ export function parseArgs(argv) {
     else if (k === "--mode") { a.mode = v; i++; }
     else if (k === "--concurrency") { a.concurrency = Math.max(1, +v || 2); i++; }
     else if (k === "--model") { a.model = v; i++; }
-    else if (k === "--max-tokens") { a.maxTokens = +v || 4000; i++; }
+    else if (k === "--max-tokens") { a.maxTokens = +v || 8192; i++; }
     else if (k === "--poll") { a.poll = Math.max(5, +v || 30); i++; }
     else if (k === "--limit") { a.limit = +v || Infinity; i++; }
     else if (k === "--retry-failed") a.retryFailed = true;
@@ -186,6 +186,7 @@ async function runLive(files, ctx, opts) {
       try {
         const b64 = fs.readFileSync(file.path).toString("base64");
         const data = await callMessages(buildRequestParams(b64, file.ext, opts), ctx.apiKey);
+        if (data.stop_reason === "max_tokens") throw new Error(`output truncated at max_tokens=${opts.maxTokens} — re-run this file with a higher --max-tokens`);
         const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
         entry = processResult(file, text, data.usage, ctx);
       } catch (err) {
@@ -263,8 +264,12 @@ async function pollBatches(ctx, opts) {
       let entry;
       if (r.result?.type === "succeeded") {
         const msg = r.result.message;
+        if (msg.stop_reason === "max_tokens") {
+          entry = { name: file.name, at: now(), status: "failed", error: "output truncated at max_tokens — retry with a higher --max-tokens" };
+        } else {
         const text = (msg.content || []).filter((x) => x.type === "text").map((x) => x.text).join("\n");
         entry = processResult(file, text, msg.usage, ctx);
+        }
       } else {
         entry = { name: file.name, at: now(), status: "failed", error: `batch result: ${r.result?.type}${r.result?.error ? " — " + JSON.stringify(r.result.error).slice(0, 200) : ""}` };
       }

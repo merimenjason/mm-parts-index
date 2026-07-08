@@ -238,33 +238,85 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.10.0.** Working: full ingest (Excel + live OCR + batch runner),
-hybrid matcher with grade/basis/model guards, nine tabs including the
-stakeholder Demo lookup (with a shared *Min quotes* floor slider and a
-leftmost-column `+` add control) with Worklist and Excel/PDF export, eight
-analytics views, Assess a Claim with Tukey-fence flags and the dispute pack,
-drill-down everywhere, a masthead *Github Repository* link, self-tests, eval
-harness.
+**Version 1.12.0** (full review release, July 2026). Working: full ingest
+(Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
+**positional** guards, nine tabs including the stakeholder Demo lookup (shared
+*Min quotes* floor slider, leftmost `+` add control) with Worklist and
+Excel/PDF export, eight analytics views, Assess a Claim with Tukey-fence flags
+and the dispute pack, drill-down everywhere, a masthead *Github Repository*
+link, 94 self-tests, eval harness that replays the exact production merge
+decision.
 
-**The near-term milestone is the 200-invoice OCR run.** The pre-run
-checklist is in `MANUAL.md` §9; in short: fix the front/rear stopword bug in
-the matcher (it causes a *permanent* false merge no threshold can undo),
-label the gold set and calibrate the threshold, then trial the runner with
-`--dry-run` → `--limit 5` → full folder.
+**The near-term milestone is the 200-invoice OCR run.** The pre-run checklist
+is in `MANUAL.md` §9; in short: label the gold set and calibrate the threshold
+(the front/rear false-merge bug is fixed; the calibration is not), then trial
+the runner with `--dry-run` → `--limit 5` → full folder.
 
-**Known warts you should not be surprised by** (all documented in
-`MANUAL.md` §9, with fixes specified in `OPUS_PROMPTS.md`):
+### Gap analysis — v1.12.0 review
 
-- The matcher strips `fr`/`frt`/`front` as stopwords → front and rear
-  variants of a part can merge (P1 fixes this with an axis-conflict veto).
-- The shipped similarity threshold (0.65) is uncalibrated (P2).
-- `api/ocr.js` is completely unauthenticated — anyone with the URL can spend
-  the API key (P3). Fine for a private POC link; do not circulate the URL.
-- A `localStorage` quota failure is silent — the app keeps running on
-  in-memory data that dies on refresh (P4). Export to Excel often during big
-  ingests.
-- `PartsIndex.jsx` is a 1,230-line single file. It's deliberate for now;
-  the decomposition plan is P6. Don't start a side-refactor.
+What the review **fixed** (details in `CHANGELOG.md`):
+
+- Multi-file ingestion kept only the last file (stale-closure in `addRaw` and
+  the OCR dedup gate) — the worst bug found; it would have silently shredded
+  a drag-and-drop of several invoices.
+- Failed dataset saves were invisible (localStorage quota, failed shared-DB
+  POST) — now a loud error event.
+- P1 positional false merge — axis-conflict veto in both merge paths, in
+  Assess-a-Claim matching, and replayed by the evaluator.
+- OCR failures masked as "Unexpected end of JSON input" (no `res.ok` /
+  `stop_reason` checks; token ceiling too low at 4000).
+- Struck-through-line policy contradicted the reconciliation gate — now
+  arithmetic-driven.
+- Open OCR proxy — now model-whitelisted, token-capped, optional shared
+  secret.
+- Repo hazards: stale v1.5.0 duplicates at the root (one careless edit from a
+  shipped regression), no `.gitignore`, committed build junk, documented-but-
+  missing `.env.example` and CI workflow.
+
+What remains **open**, in priority order:
+
+1. **Threshold calibration (P2)** — the veto only kills symmetric positional
+   conflicts; marked-vs-unmarked pairs (`…HOOD, FR` vs `…HOOD`) are
+   threshold-dependent by design and are the residual false positives on the
+   worked example. Label the 138-pair gold set and pin the threshold. Blocks
+   confident use of name matching in the 200-invoice run.
+2. **Shared-DB write race (P15)** — `POST /api/parts` in replace mode is
+   last-write-wins with no version check; two users saving concurrently
+   silently clobber each other. Fine for one operator; must be fixed before
+   multi-user use (optimistic concurrency via a dataset revision counter, or
+   append-mode-only writes from the UI).
+3. **Real proxy auth (P3)** — the shared secret ships in the client bundle;
+   it deters drive-by abuse only. Per-user auth (or Vercel password
+   protection) before the URL circulates.
+4. **Storage quota meter (P4)** — failures are now visible, but a proactive
+   meter and pre-flight size estimate are still worth having for the
+   200-invoice dataset on the localStorage build.
+5. **GST / date comparability (P5)** — medians still pool GST-inclusive and
+   -exclusive quotes, and quotes from different periods, unweighted.
+6. **`PartsIndex.jsx` decomposition (P6)** — ~1,500 lines and growing;
+   deliberate for now, don't side-refactor.
+7. **Vercel body limit** — serverless functions cap request bodies (~4.5 MB),
+   so a large base64 PDF can 413 at the proxy before Anthropic ever sees it.
+   Not yet observed with real bills; if it bites, split pages client-side or
+   use the batch runner (which calls the API directly).
+
+### Recommendations (reviewer's view, July 2026)
+
+- **Run the gold-set labeling session next**, before ingesting the 200
+  invoices — every other open item is tolerable for the run; an uncalibrated
+  matcher is not, because it decides which quotes pool into the medians the
+  run exists to produce. Settle the LH/RH label convention against the
+  shipped `sepSide` default (off = sides pool) in the same session.
+- **Use `--mode batch` with Sonnet for the 200-invoice run** (50% token cost),
+  Opus only for the retry pass on failures — and keep the mandatory 5% eyeball
+  sample regardless of reconciliation results: the gate catches amount
+  misreads, not part-number misreads.
+- **Prefer append mode over replace** when wiring anything new to
+  `/api/parts` — it sidesteps most of the race in (2) until P15 lands.
+- **Keep the veto's unknown-never-blocks semantics.** It is tempting to make
+  `…FR` vs unmarked block too, but most bill lines carry no position token;
+  blocking on unknowns would collapse recall. The threshold is the right tool
+  for those pairs.
 
 **The roadmap** is `Fable.md` (features F1–F7: estimate OCR intake,
 chassis/VIN enrichment, recency weighting, supplier scorecards, the POC#2
