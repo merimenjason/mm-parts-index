@@ -18,8 +18,6 @@
 
 const BACKEND = (import.meta.env.VITE_DATA_BACKEND || "local").toLowerCase();
 const KEY = "partsindex_dataset_v3";
-const EVENTS_KEY = "partsindex_activity_v1"; // persistent ingest/activity log
-const EVENTS_CAP = 500;                      // keep the most recent N events
 
 /* ---- localStorage backend (default; browser-only build) ---- */
 function localLoad() {
@@ -47,36 +45,6 @@ async function apiSave(ds) {
   return { ok: true };
 }
 
-/* ---- activity log: localStorage backend ---- */
-function localLoadEvents() {
-  try { const v = localStorage.getItem(EVENTS_KEY); const a = v ? JSON.parse(v) : []; return Array.isArray(a) ? a : []; }
-  catch { return []; }
-}
-function localAppendEvent(ev) {
-  try {
-    const arr = localLoadEvents();
-    arr.unshift(ev);                                  // newest first
-    localStorage.setItem(EVENTS_KEY, JSON.stringify(arr.slice(0, EVENTS_CAP)));
-    return { ok: true };
-  } catch (e) { console.error(e); return { ok: false, error: e }; }
-}
-
-/* ---- activity log: shared-DB backend (via /api/activity) ---- */
-async function apiLoadEvents(limit = EVENTS_CAP) {
-  const res = await fetch(`/api/activity?limit=${limit}`, { method: "GET" });
-  if (!res.ok) throw new Error(`GET /api/activity failed: ${res.status}`);
-  const data = await res.json();
-  return Array.isArray(data.events) ? data.events : [];
-}
-async function apiAppendEvent(ev) {
-  const res = await fetch("/api/activity", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: ev }),
-  });
-  if (!res.ok) { const t = await res.text().catch(() => ""); return { ok: false, error: new Error(`POST /api/activity ${res.status}: ${t}`) }; }
-  return { ok: true };
-}
-
 export const DATA_BACKEND = BACKEND;
 export const usingSharedBackend = BACKEND === "api";
 
@@ -89,17 +57,4 @@ export async function loadDataset() {
    surface a save failure without losing the in-memory data. */
 export async function saveDataset(ds) {
   return BACKEND === "api" ? apiSave(ds) : localSave(ds);
-}
-
-/* ---- activity log API (mirrors the dataset switch) ----
-   The log is an append-only stream of structured events (ingest, OCR, review,
-   dataset, error) — each with an ISO timestamp and a detail blob for drill-down.
-   It persists to the same backend as the dataset: localStorage by default, or
-   the shared Turso DB via /api/activity. Events survive reloads and (on the
-   shared backend) are visible to every user of the reference. */
-export async function loadEvents(limit = EVENTS_CAP) {
-  return BACKEND === "api" ? apiLoadEvents(limit) : localLoadEvents();
-}
-export async function appendEvent(ev) {
-  return BACKEND === "api" ? apiAppendEvent(ev) : localAppendEvent(ev);
 }

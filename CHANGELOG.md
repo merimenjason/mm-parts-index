@@ -2,50 +2,18 @@
 
 Versions reconstructed from the development history (dates approximate).
 
-## 1.11.1 — 8 July 2026
-- **Ingest layout: Activity and Dataset actions now share a row.** The persistent
-  activity log dropped its full-width (`span="1 / -1"`) treatment and moved up to
-  sit in the **left** column of the Ingest `.pi-2col` grid, with **Dataset
-  actions** (Load demo / Export / Clear) now to its **right** on the same row.
-  Below 760px the two-column grid still collapses to a single column (activity
-  above dataset actions), so the change is desktop-only. No behavioural change to
-  either panel.
-
-## 1.11.0 — 8 July 2026
-- **Persistent, drill-downable activity log.** The Ingest tab's *Activity* panel
-  is no longer an ephemeral in-memory list wiped on reload. Every ingest, OCR,
-  review and dataset action is now recorded as a **structured event** — machine
-  timestamp (date **and** time), kind, action, status, affected line count, the
-  originating file/bill, and a JSON **detail** blob — and **persisted** to the
-  same backend as the dataset:
-  - **localStorage** by default (new `partsindex_activity_v1` key, rolling
-    cap of 500 events).
-  - the shared **Turso / libSQL** database when `VITE_DATA_BACKEND=api`, so the
-    history survives reloads and is visible to every user of the reference.
-  - New `activity` table in `api/_db.js` (`SCHEMA_VERSION` bumped to **2**;
-    `getActivity` / `appendActivity`, idempotent on event id) and a new
-    `api/activity.js` endpoint (`GET /api/activity?limit=` → `{ events }`,
-    `POST` appends one event). `src/datasource.js` gains `loadEvents()` /
-    `appendEvent()`, mirroring the dataset backend switch.
-  - Each log row **expands** to a full drill-down: exact date & time, event,
-    status, source, parts affected, plus the detail captured for that action —
-    for OCR that includes the **Claude model used**, the **reconciliation**
-    outcome (extracted line sum vs printed total, basis and difference) and
-    whether the bill was held for review; for imports, the **suppliers / makes /
-    bills** touched; for review actions, the bill and line count. A kind filter
-    (All / Ingest / OCR / Review / Dataset / Error) sits above the list.
-- **Sortable table headers on every tab.** Clicking any column header now sorts
-  that table **A→Z**, and again for **Z→A**, with a ▲/▼ indicator on the active
-  column (an idle **⇅** hint on the rest). A shared `useSort` hook + `SortTh`
-  header + numeric-aware comparator (it reads through `S$`, `%`, `+` and `≈`
-  prefixes so money and percentages sort as numbers, text sorts alphabetically)
-  power it. Wired into the **Parts Ledger**, **Benchmark**, **Demo** results and
-  worklist tables, **Assess a Claim** results, the Analytics `ExpandTable` (so
-  all of Inflation / Confidence / Dispersion / Agreement / Accuracy /
-  Normalisation sort), the Analytics median-benchmark table, and every
-  Dashboard **KPI drill-down** table. Sorting a table collapses any open
-  drill-down row so the expanded evidence always matches the row above it;
-  tables keep their existing default order until a header is clicked.
+## 1.10.1 — 8 July 2026
+- **Fixed: makes with alias spellings split on the dashboard.** A bill whose make
+  column read `Mercedes`, `MERCEDES BENZ`, `Merc` or `Benz` was carried through
+  verbatim, so it showed as a separate marque from `Mercedes-Benz` and its quotes
+  never clustered with the canonical ones. `inferMake` now runs every make —
+  whether taken from the bill or derived from a part-number prefix — through a new
+  `canonMake` alias map (`pipeline.js`), collapsing the known spellings to one
+  canonical label (Mercedes-Benz, Volkswagen, Chevrolet, Mitsubishi Fuso). The
+  match is whole-string and case-insensitive, so `Mitsubishi Fuso` is never
+  collapsed to `Mitsubishi`. The demo dataset already used canonical labels, so
+  it is unchanged; this only affects uploaded bills. Nine self-tests added
+  (59 → 68).
 
 ## 1.10.0 — 7 July 2026
 - **Wider reliability floor range.** The *Min quotes for reliable spread* slider

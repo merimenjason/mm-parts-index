@@ -20,7 +20,7 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 ## What it does
 
 - **Ingest two ways** — bulk-upload Claude-OCR'd spreadsheets, or upload raw invoice PDFs/images and have Claude OCR them live.
-- **Auto-enrich** — normalises part numbers, infers make/model, assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
+- **Auto-enrich** — normalises part numbers, infers make/model (canonicalising alias spellings like `Mercedes` / `Benz` → **Mercedes-Benz** so one marque never splits in two), assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
 - **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Benchmark tab (bridging is off by default for the most defensible number).
 - **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line) and get a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
@@ -32,8 +32,6 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 - **Quote drill-down everywhere** — click any benchmark part (Dashboard, Benchmark tab) and **any row in any of the eight Analytics views** to expand the evidence behind the number: inflation flags open the offending bill plus the full cluster, confidence scores open a component-by-component breakdown (depth / diversity / recency bars), dispersion opens the cheapest-vs-dearest gap with a grade caution, trend strips list their lines in date order, agreement rows show the verdict arithmetic, accuracy signals expand to line-level list-vs-net and per-bill provenance, and normalisation rows reveal every raw spelling that was merged. The same applies outside Analytics: **Parts Ledger** lines open their full record (GST, grade, basis, normalised PN, source, bill context) plus the benchmark they feed; **Assess a Claim** rows open the match evidence — or, for unmatched lines, the closest rejected candidate and why it fell short; **Coverage** makes/categories and the Dashboard coverage bars expand into their part lines.
 - **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
 - **Coverage report** — by make and category, against the project's success criteria.
-- **Sortable tables everywhere** — every data table sorts on any column: click a header to order **A→Z**, click again for **Z→A** (▲/▼ marks the active column). Money and percentages sort as numbers, text alphabetically. Covers the Parts Ledger, Benchmark, Demo results + worklist, Assess-a-Claim results, all eight Analytics views and every Dashboard KPI drill-down. Sorting collapses any open drill-down so the evidence always matches the row above it.
-- **Persistent, drill-downable activity log** — the Ingest tab's *Activity* panel records every ingest, OCR, review and dataset action as a structured event with a **date-and-time stamp**, kind, status and affected-line count, and **persists it** (localStorage by default, or the shared Turso DB via `/api/activity` when the backend is on) so the history survives reloads. Click any entry to drill into its detail — for OCR that includes the **Claude model used** and the **totals-reconciliation** outcome; for imports the suppliers/makes/bills touched — and filter the stream by kind.
 - **Loads on open + persists** — in the browser-only build the 18-bill demo dataset loads automatically on first visit and uploads persist to the browser for next session; with the shared Turso backend the app starts empty and reads/writes one shared dataset. Export the enriched DB + benchmark to `.xlsx` either way.
 
 ### How matching works
@@ -147,8 +145,8 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 |---|---|
 | **Dashboard** | KPI tiles (click any tile to drill into it), make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
 | **Demo** | Stakeholder-facing benchmark lookup: filter by make/model, part name or number (normalisation-aware), or global search → **median & mean** per part; a **Min quotes for reliable spread** slider (1–30, shared with Benchmark) tunes the `*` floor here too; click a row for every source quote (supplier · bill · date · grade · price · OCR/Excel). Add parts to a **Worklist** with the `+` in the **leftmost column** (each worklist row expands to its source quotes) and export it — with evidence — to **Excel** or **PDF** |
-| **Ingest** | Excel upload, live OCR, reload-demo, export, clear, and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
-| **Parts Ledger** | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
+| **Ingest** | Excel upload, live OCR, reload-demo, export, clear, activity log |
+| **Parts Ledger** | Every enriched line with Make/Model columns; search + filter by make / line-type |
 | **Benchmark** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
 | **Assess a Claim** | Paste a repairer estimate → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence |
 | **Analytics** | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
@@ -263,20 +261,12 @@ The browser never holds the DB token. It calls a same-origin endpoint, exactly
 like the OCR proxy:
 
 ```
-src/datasource.js   loadDataset()/saveDataset() + loadEvents()/appendEvent()
-      │                — both switch on VITE_DATA_BACKEND
-      │  fetch /api/parts   ·   fetch /api/activity
+src/datasource.js   loadDataset()/saveDataset() — switches on VITE_DATA_BACKEND
+      │  fetch /api/parts
       ▼
 api/parts.js        GET → { parts:[…] } ;  POST → replace/append
-api/activity.js     GET → { events:[…] } ; POST → append one event
-api/_db.js          libSQL client, schema, upsert/replace + getActivity/appendActivity
-                    (server-only, holds the token)
+api/_db.js          libSQL client, schema, upsert/replace  (server-only, holds the token)
 ```
-
-The **activity log** rides the same rails as the dataset: `loadEvents()` /
-`appendEvent()` in `src/datasource.js` write to `localStorage` by default or the
-shared DB via `/api/activity` when `VITE_DATA_BACKEND=api`, so the Ingest tab's
-history is durable and (on the shared backend) shared across users.
 
 `src/pipeline.js` is untouched — it operates on plain arrays, so it doesn't care
 whether the array came from `localStorage` or a `SELECT`. That existing
@@ -293,13 +283,6 @@ CREATE TABLE parts (
   make TEXT, model TEXT, part_name TEXT, part_number TEXT, npn TEXT, cat TEXT,
   qty REAL, unit REAL, total REAL, ltype TEXT, doc_type TEXT, src TEXT,
   grade TEXT, unit_basis TEXT, gst TEXT, review INTEGER, review_reason TEXT
-);
-
--- Append-only activity/ingest log (schema_version 2). One row per event; the
--- detail column is a JSON blob the Ingest tab expands for drill-down.
-CREATE TABLE activity (
-  id TEXT PRIMARY KEY, ts TEXT, kind TEXT, action TEXT, message TEXT,
-  source TEXT, count INTEGER, status TEXT, detail TEXT
 );
 ```
 
@@ -348,8 +331,7 @@ partsindex/
 ├─ api/
 │  ├─ ocr.js                      ← serverless OCR proxy (keeps API key server-side)
 │  ├─ parts.js                    ← serverless dataset endpoint (GET/POST → shared DB)
-│  ├─ activity.js                 ← serverless activity-log endpoint (GET/POST → shared DB)
-│  └─ _db.js                      ← libSQL/Turso client + schema (parts + activity) + upsert (server-only, holds the token)
+│  └─ _db.js                      ← libSQL/Turso client + schema + upsert (server-only, holds the token)
 ├─ .github/workflows/
 │  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
 ├─ public/
@@ -373,7 +355,7 @@ partsindex/
 └─ src/
    ├─ main.jsx
    ├─ index.css
-   ├─ datasource.js               ← loadDataset/saveDataset + loadEvents/appendEvent — switch localStorage ↔ /api/parts · /api/activity (VITE_DATA_BACKEND)
+   ├─ datasource.js               ← loadDataset/saveDataset — switches localStorage ↔ /api/parts (VITE_DATA_BACKEND)
    ├─ ocrPrompt.js                ← the tuned OCR prompt — single source of truth (app + runner)
    ├─ pipeline.js                 ← pure enrichment + matcher + validation + dispute pack (shared by app, eval, tools)
    ├─ demoData.js                 ← embedded 174-line demo dataset

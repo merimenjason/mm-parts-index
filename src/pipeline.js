@@ -38,11 +38,30 @@ export const MAKE_PREFIX = [
   [/^8[RK]|^4[GHFD]|^WAUZ/, "Audi"], [/^V5C5|^VN9|^VWV/, "Volkswagen"], [/^513/, "BMW"], [/^M9\d/, "Chevrolet"],
   [/^M[KCLEBRS]\d/, "Mitsubishi Fuso"], [/^T\d{4,}/, "Toyota"],
 ];
+/* Canonical make labels. Supplier bills spell the same marque many ways
+   ("Mercedes", "MERCEDES BENZ", "Merc", "Benz" → Mercedes-Benz), which would
+   otherwise split one marque into several on the dashboard and stop quotes for
+   the same part clustering. Whole-string, case-insensitive match so a partial
+   like "Mitsubishi" never clobbers the distinct "Mitsubishi Fuso". */
+export const MAKE_ALIASES = [
+  [/^(mercedes[-\s]?benz|mercedes|merc\.?|benz|mb|mbz|m-benz)$/i, "Mercedes-Benz"],
+  [/^(volkswagen|vw)$/i, "Volkswagen"],
+  [/^bmw$/i, "BMW"],
+  [/^(chevrolet|chevy|chev)$/i, "Chevrolet"],
+  [/^(mitsubishi[-\s]*fuso|fuso)$/i, "Mitsubishi Fuso"],
+  [/^(mitsubishi|mitsu)$/i, "Mitsubishi"],
+];
+export function canonMake(make = "") {
+  const m = String(make).trim();
+  if (!m) return m;
+  for (const [re, canon] of MAKE_ALIASES) if (re.test(m)) return canon;
+  return m;
+}
 export function inferMake(pn = "", billMake = "") {
-  if (billMake && billMake !== "Unknown") return billMake;
+  if (billMake && billMake !== "Unknown") return canonMake(billMake);
   const p = normPN(pn);
   for (const [re, mk] of MAKE_PREFIX) if (re.test(p)) return mk;
-  return billMake || "Unknown";
+  return canonMake(billMake) || "Unknown";
 }
 export function lineType(docType = "", cat = "") {
   const d = String(docType).toLowerCase();

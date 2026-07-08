@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, inferMake, canonMake } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -54,6 +54,21 @@ console.log("token-lean OCR output (omitted default fields — prompt v1.8.1)");
   const noTotals = enrichPart({ part_name: "THING", part_number: "P1", qty: 1,
     supplier: "X", bill_no: "B1", bill_date: "01/02/2025", doc_type: "Tax Invoice" });
   ok(noTotals.unit === 0 && noTotals.total === 0, "omitted unit_cost with no total stays 0, never NaN");
+}
+
+console.log("make canonicalisation");
+{
+  ok(canonMake("Mercedes") === "Mercedes-Benz", "canonMake: 'Mercedes' → Mercedes-Benz");
+  ok(canonMake("MERCEDES BENZ") === "Mercedes-Benz", "canonMake: 'MERCEDES BENZ' → Mercedes-Benz");
+  ok(canonMake("Merc") === "Mercedes-Benz" && canonMake("Benz") === "Mercedes-Benz", "canonMake: 'Merc' / 'Benz' → Mercedes-Benz");
+  ok(canonMake("Mercedes-Benz") === "Mercedes-Benz", "canonMake: already-canonical value is unchanged");
+  ok(canonMake("Mitsubishi Fuso") === "Mitsubishi Fuso", "canonMake: 'Mitsubishi Fuso' is NOT collapsed to Mitsubishi");
+  ok(canonMake("Toyota") === "Toyota", "canonMake: unknown/other makes pass through untouched");
+  // The bug report: an uploaded bill whose make column says 'Mercedes' must
+  // enrich to the canonical label so the dashboard shows one marque, not two.
+  ok(inferMake("MBA213 906 67 01", "Mercedes") === "Mercedes-Benz", "inferMake canonicalises a provided 'Mercedes' bill make");
+  ok(inferMake("41588 1234", "Unknown") === "Mercedes-Benz", "inferMake still resolves Mercedes-Benz from a part-number prefix");
+  ok(inferMake("ZZZ999", "Unknown") === "Unknown", "inferMake returns Unknown when neither make nor prefix resolves");
 }
 
 console.log("extractJson");
