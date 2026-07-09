@@ -238,14 +238,20 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.12.0** (full review release, July 2026). Working: full ingest
+**Version 1.12.1** (auto-seed guard follow-up, July 2026). Working: full ingest
 (Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs including the stakeholder Demo lookup (shared
 *Min quotes* floor slider, leftmost `+` add control) with Worklist and
 Excel/PDF export, eight analytics views, Assess a Claim with Tukey-fence flags
 and the dispute pack, drill-down everywhere, a masthead *Github Repository*
-link, 94 self-tests, eval harness that replays the exact production merge
+link, 103 self-tests, eval harness that replays the exact production merge
 decision.
+
+**1.12.1** fixed the demo silently reseeding over a returning user's data once
+the `partsindex_dataset_v3` key was lost, and the StrictMode double-log of that
+seed. A `partsindex_seeded_v1` marker now makes the first-run seed fire exactly
+once and log a distinct **Auto-seed** event; the pure decision lives in
+`decideInit` (`src/pipeline.js`, unit-tested). See CHANGELOG 1.12.1.
 
 **The near-term milestone is the 200-invoice OCR run.** The pre-run checklist
 is in `MANUAL.md` §9; in short: label the gold set and calibrate the threshold

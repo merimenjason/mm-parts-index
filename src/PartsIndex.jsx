@@ -24,11 +24,12 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
-  normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart } from "./pipeline.js";
+  normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
-import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent } from "./datasource.js";
+import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
+  hasSeededMarker, setSeededMarker } from "./datasource.js";
 
-const APP_VERSION = "1.12.0";
+const APP_VERSION = "1.12.1";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -158,10 +159,20 @@ export default function App() {
   });
   const setOcrModel = (m) => { setOcrModelState(m); try { localStorage.setItem(MODEL_KEY, m); } catch {} };
   const excelRef = useRef(), invRef = useRef();
+  // StrictMode (dev) runs mount effects twice — setup → cleanup → setup — on the
+  // SAME fiber, so this ref persists between the two invocations and gates the
+  // load/seed to run exactly once. This is what stops the demo from being seeded
+  // (and, historically, LOGGED) twice a second apart on first load.
+  const didInit = useRef(false);
 
   useEffect(() => {
+    if (didInit.current) return;   // StrictMode's second invocation is a no-op
+    didInit.current = true;
     loadDS().then((stored) => {
-      if (stored && Array.isArray(stored.parts)) {
+      // Decide once, in a pure function, what a fresh mount should do. See
+      // src/pipeline.js: decideInit() — kept there so the branch is unit-tested.
+      const action = decideInit({ isShared: usingSharedBackend, stored, seededBefore: hasSeededMarker() });
+      if (action === "use-stored") {
         // Migrate datasets persisted by older app versions: back-fill fields added
         // since (grade, unit basis, GST, review) so stale lines don't render empty
         // badges or dodge the grade/basis merge guards. Existing values always win.
@@ -171,18 +182,32 @@ export default function App() {
         // server is the source of truth, so we don't re-POST the whole dataset on
         // every page load (wasteful, and a needless write to the shared reference).
         if (!usingSharedBackend) saveDS(upgraded);
-      } else if (usingSharedBackend) {
+      } else if (action === "empty-shared") {
         // Shared DB (Turso) is empty → start EMPTY. Never auto-seed the demo into a
         // shared dataset: those 174 rows would pollute the reference every other
         // user queries. Real data added via upload/OCR is written to the libSQL DB
         // through saveDS (POST /api/parts). Seed the demo deliberately instead —
         // `npm run db:seed`, or the "Load demo" button on the Ingest tab.
         setDs({ parts: [] });
+      } else if (action === "empty-returning") {
+        // Local build, no stored dataset, but this browser has held data before
+        // (a successful import/OCR save, or a prior seed). Do NOT reseed the demo
+        // over a returning user — start empty and let them re-import or click
+        // "Load demo" deliberately. This is the guard that keeps a cleared/evicted
+        // (or, pre-1.12.0, silently-unsaved) store from resurrecting the demo.
+        setDs({ parts: [] });
       } else {
-        // Browser-only build (localStorage): seed the 18-bill demo on first run so
-        // the dashboard/benchmark are populated immediately for stakeholders.
+        // "seed-first-run": genuine first run in the localStorage build — seed the
+        // 18-bill demo so the dashboard/benchmark are populated for stakeholders.
+        // Mark the browser seeded FIRST so this path can never repeat, and log a
+        // DISTINCT "Auto-seed" event so it is never mistaken for a manual Load demo.
+        setSeededMarker();
         const seeded = { parts: DEMO_18.map(enrichPart) };
         setDs(seeded); saveDS(seeded);
+        logEvent("dataset", `First-run auto-seed: ${seeded.length} sample lines (18 bills)`, {
+          action: "Auto-seed", source: "first-run", count: seeded.length, status: "ok",
+          detail: { lines: seeded.length, note: "Automatic first-run demo seed — not a manual Load demo. Clear the dataset or import bills to replace it." },
+        });
       }
     }).catch((e) => {
       // A shared-backend load can fail (network / endpoint down). Start empty and
@@ -190,6 +215,7 @@ export default function App() {
       console.error("dataset load failed:", e);
       setDs({ parts: [] });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Load the persisted activity log once on mount. A failure (e.g. shared
   // backend unreachable) leaves the log empty rather than blocking the app.

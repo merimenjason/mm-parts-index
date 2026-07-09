@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -272,6 +272,27 @@ console.log("dispersion stats (IQR / SD / CV)");
   const b = parseDate("2026-01-15");
   ok(b && b.getFullYear() === 2026 && b.getMonth() === 0 && b.getDate() === 15, "parseDate reads ISO YYYY-MM-DD");
   ok(parseDate("no date here") === null, "parseDate returns null for garbage");
+}
+
+console.log("decideInit — first-load seed decision (auto-seed guard)");
+{
+  const populated = { parts: [{ part_name: "X" }] };
+  const empty = { parts: [] };
+  // A real dataset always wins, on either backend.
+  ok(decideInit({ isShared: false, stored: populated, seededBefore: false }) === "use-stored", "local: a stored dataset is used, never reseeded");
+  ok(decideInit({ isShared: true, stored: populated, seededBefore: false }) === "use-stored", "shared: a stored dataset is used");
+  // An empty-but-PRESENT dataset ({parts:[]}) is real state (e.g. after Clear) — use it, don't seed.
+  ok(decideInit({ isShared: false, stored: empty, seededBefore: false }) === "use-stored", "local: an explicitly-empty dataset is honoured (Clear is not a reseed trigger)");
+  // Shared backend never auto-seeds, marker or not.
+  ok(decideInit({ isShared: true, stored: null, seededBefore: false }) === "empty-shared", "shared: empty DB starts empty, never auto-seeds");
+  ok(decideInit({ isShared: true, stored: null, seededBefore: true }) === "empty-shared", "shared: marker is irrelevant to the shared backend");
+  // The whole point: local build, no dataset key, but this browser has held data → do NOT reseed.
+  ok(decideInit({ isShared: false, stored: null, seededBefore: true }) === "empty-returning", "local: a returning browser with a lost dataset starts EMPTY, not reseeded");
+  // Genuine first run: no dataset, no marker → seed once.
+  ok(decideInit({ isShared: false, stored: null, seededBefore: false }) === "seed-first-run", "local: a genuine first run seeds the demo");
+  // Malformed stored shape (no parts array) is treated as absent, so the marker still guards it.
+  ok(decideInit({ isShared: false, stored: { parts: "oops" }, seededBefore: true }) === "empty-returning", "local: a malformed stored blob falls through to the marker guard");
+  ok(decideInit({ isShared: false, stored: {}, seededBefore: false }) === "seed-first-run", "local: a malformed stored blob on a fresh browser still seeds");
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");

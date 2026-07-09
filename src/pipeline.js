@@ -565,3 +565,25 @@ export function evidenceDateRange(c) {
   const f = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   return ds.length === 1 ? f(ds[0]) : `${f(ds[0])} – ${f(ds[ds.length - 1])}`;
 }
+
+/* Pure first-load decision — what should the app do when it mounts, given the
+   backend, whatever loadDataset() returned, and whether this browser has held
+   data before (the "seeded" marker)? Lives here (not datasource.js) so the same
+   Vite-independent implementation is shared by the browser bundle and the Node
+   self-test. Returns exactly one of:
+     "use-stored"      — a real dataset came back → migrate & use it. An
+                         explicitly-empty {parts:[]} (e.g. after Clear) counts as
+                         real state and is honoured, NOT treated as a first run.
+     "empty-shared"    — shared backend, empty DB → start empty, never auto-seed
+                         (those 174 demo rows must not pollute the shared reference).
+     "empty-returning" — local build, no stored dataset, BUT this browser has held
+                         data before → start EMPTY. Do not clobber a returning user
+                         with the demo when the store was cleared/evicted (or, in
+                         the pre-1.12.0 silent-save bug, never persisted).
+     "seed-first-run"  — local build, genuine first run (no dataset, no marker) →
+                         seed the 18-bill demo once and mark this browser seeded. */
+export function decideInit({ isShared, stored, seededBefore }) {
+  if (stored && Array.isArray(stored.parts)) return "use-stored";
+  if (isShared) return "empty-shared";
+  return seededBefore ? "empty-returning" : "seed-first-run";
+}

@@ -104,10 +104,16 @@ npm run dev        # http://localhost:5173
 ```
 
 Open the app — in the default browser-only build the **18-bill demo dataset
-loads automatically** on first run, so the dashboard, benchmark and analytics are
-populated immediately. (With the shared Turso backend enabled the app starts
-**empty** instead — see [Data model & persistence](#data-model--persistence).)
-`npm run build` produces a static site in `dist/`.
+loads automatically on the very first run only**, so the dashboard, benchmark and
+analytics are populated immediately. This is logged as a distinct **Auto-seed**
+event (not a "Load demo"), and it happens **exactly once**: once this browser has
+held any data — a successful import/OCR save, or that first seed — it is never
+auto-seeded again (v1.12.1). If the dataset is later cleared or the store is
+lost, the app re-opens **empty** rather than resurrecting the demo; use the
+**Load demo** button to bring it back deliberately. (With the shared Turso
+backend enabled the app starts **empty** from the start — see
+[Data model & persistence](#data-model--persistence).) `npm run build` produces a
+static site in `dist/`.
 
 > **Live OCR note.** The Excel-upload path, enrichment, benchmark, analytics and
 > export all run **fully in the browser** — no server needed. The **"OCR
@@ -170,10 +176,16 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 | **Coverage** | Make & category coverage vs the success criteria |
 | **Method Notes** | What each analytic computes and why |
 
-In the browser-only build the **18-bill demo loads automatically** on first
-visit. Uploaded data persists and is shown on return; an explicit **Clear
-dataset** stays cleared across reloads (it won't re-seed the demo). With the
-shared Turso backend (`VITE_DATA_BACKEND=api`) the app instead **starts empty** —
+In the browser-only build the **18-bill demo loads automatically on the first
+visit only**. A `partsindex_seeded_v1` marker is written the first time this
+browser holds data (that seed, or any successful import/OCR save); once set, the
+demo is **never auto-seeded again**. So an explicit **Clear dataset** stays
+cleared across reloads, and — crucially — if the dataset key is ever lost
+(cleared/evicted store, or the pre-1.12.0 silent-save-failure) the app re-opens
+**empty** instead of quietly resurrecting the demo over your real data (v1.12.1).
+Only fully clearing browser storage (marker included) counts as a fresh first
+run. With the shared Turso backend (`VITE_DATA_BACKEND=api`) the app instead
+**starts empty** —
 the demo is never auto-written to the shared database; seed it deliberately with
 `npm run db:seed` or the **Load demo** button, and uploads are written to the
 libSQL database via `/api/parts`.

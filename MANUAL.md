@@ -122,12 +122,16 @@ grows.
 - **Coverage** — make & category coverage vs the success criteria.
 - **Method Notes** — short reference for each analytic + the matching rationale.
 
-> **Persistence behaviour.** In the browser-only build, first visit seeds the
-> demo, uploaded data persists and is shown on return, and an explicit **Clear
-> dataset** stays cleared across reloads (it will not re-seed the demo). With the
-> shared Turso backend the app **starts empty** — the demo is never auto-seeded
-> into the shared database; uploads are written to libSQL via `/api/parts`
-> (see §7).
+> **Persistence behaviour.** In the browser-only build, the **first visit only**
+> seeds the demo — logged as a distinct **Auto-seed** event, and guarded by a
+> `partsindex_seeded_v1` marker so it fires exactly once. Uploaded data persists
+> and is shown on return; an explicit **Clear dataset** stays cleared across
+> reloads, and if the dataset key is ever lost (cleared/evicted store, or the
+> pre-1.12.0 silent-save bug) the app re-opens **empty** rather than resurrecting
+> the demo over your real data (v1.12.1). Bring the demo back deliberately with
+> **Load demo**. With the shared Turso backend the app **starts empty** — the demo
+> is never auto-seeded into the shared database; uploads are written to libSQL via
+> `/api/parts` (see §7).
 
 ---
 
@@ -218,10 +222,11 @@ Vercel dashboard), then `npm run db:init` (schema) or `npm run db:seed` (schema
 are in the [README](./README.md#data-model--persistence).
 
 **Seeding is deliberate on the shared backend.** In the browser-only build the
-demo auto-seeds on first run for a populated stakeholder demo. With the shared
-backend the app **starts empty** and never auto-writes the demo — otherwise every
-fresh browser hitting an empty shared database would push 174 demo rows into the
-reference everyone queries. Seed it on purpose (`npm run db:seed` server-side, or
+demo auto-seeds on the **first run only** (guarded by the `partsindex_seeded_v1`
+marker; §2) for a populated stakeholder demo. With the shared backend the app
+**starts empty** and never auto-writes the demo — otherwise every fresh browser
+hitting an empty shared database would push 174 demo rows into the reference
+everyone queries. Seed it on purpose (`npm run db:seed` server-side, or
 the **Load demo** button in-app), and real uploads/OCR are written to libSQL via
 `/api/parts`.
 

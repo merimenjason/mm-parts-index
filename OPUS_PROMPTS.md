@@ -1,4 +1,4 @@
-# PartsIndex — Opus implementation prompts (status as of v1.12.0)
+# PartsIndex — Opus implementation prompts (status as of v1.12.1)
 
 Paste each prompt into Opus **run from the repo root** so it can read the real
 files. Standing conventions it must follow (already true of the codebase): pure
@@ -17,6 +17,11 @@ done** (model whitelist, token cap, optional shared secret — real auth still
 open). **P4 partly done** (save failures now raise a visible error event — the
 proactive quota meter is still open). P2, P5–P15 unchanged. The remaining
 pre-run blocker is **P2**.
+
+**v1.12.1 follow-up:** the auto-seed guard (`partsindex_seeded_v1` marker +
+`decideInit` in `src/pipeline.js`) closed a related failure mode of P4 — a lost
+dataset key silently reseeding the demo over real data. This is distinct from the
+open proactive quota **meter**, which P4 still tracks.
 
 P8–P14 implement the **new features** elaborated in [`Fable.md`](./Fable.md)
 (F1–F7 — read the matching Fable.md section before running each prompt; it

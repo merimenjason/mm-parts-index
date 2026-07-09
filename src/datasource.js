@@ -20,14 +20,35 @@ const BACKEND = (import.meta.env.VITE_DATA_BACKEND || "local").toLowerCase();
 const KEY = "partsindex_dataset_v3";
 const EVENTS_KEY = "partsindex_activity_v1"; // persistent ingest/activity log
 const EVENTS_CAP = 500;                      // keep the most recent N events
+const SEEDED_KEY = "partsindex_seeded_v1";  // "this browser has held data" marker (localStorage build only)
+
+/* ---- "has this browser ever held data?" marker (localStorage build) ----
+   Set on the first successful dataset save (real import/OCR) AND when the demo
+   is auto-seeded on a genuine first run. Once set, the app must NOT silently
+   reseed the demo if the dataset key later disappears (a cleared/evicted store,
+   or the pre-1.12.0 silent-save-failure that started this whole investigation) —
+   a returning user's app opens EMPTY instead of being clobbered with demo rows.
+   Only fully clearing browser storage (marker gone too) counts as a fresh run.
+   Irrelevant to the shared backend, which never auto-seeds. */
+export function hasSeededMarker() {
+  try { return localStorage.getItem(SEEDED_KEY) === "1"; } catch { return false; }
+}
+export function setSeededMarker() {
+  try { localStorage.setItem(SEEDED_KEY, "1"); } catch {}
+}
 
 /* ---- localStorage backend (default; browser-only build) ---- */
 function localLoad() {
   try { const v = localStorage.getItem(KEY); return v ? JSON.parse(v) : null; } catch { return null; }
 }
 function localSave(ds) {
-  try { localStorage.setItem(KEY, JSON.stringify(ds)); return { ok: true }; }
-  catch (e) { console.error(e); return { ok: false, error: e }; }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(ds));
+    // A successful save means this browser now holds real data — mark it so a
+    // future load with a missing dataset key does not reseed over the user.
+    setSeededMarker();
+    return { ok: true };
+  } catch (e) { console.error(e); return { ok: false, error: e }; }
 }
 
 /* ---- API backend (shared Turso DB via the serverless endpoint) ---- */
@@ -79,6 +100,8 @@ async function apiAppendEvent(ev) {
 
 export const DATA_BACKEND = BACKEND;
 export const usingSharedBackend = BACKEND === "api";
+// decideInit (the pure first-load decision) lives in pipeline.js so the browser
+// bundle and the Node self-test share one Vite-independent implementation.
 
 /* Returns the dataset ({ parts: [...] }) or null on first run / empty DB. */
 export async function loadDataset() {

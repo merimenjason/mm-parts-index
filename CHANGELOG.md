@@ -2,6 +2,44 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.12.1 — 9 July 2026
+
+Auto-seed guard: the demo no longer silently reappears over a returning user's
+data, and no longer double-logs. 103 self-tests (was 94), clean build.
+
+- **FIXED: the demo could silently reseed over real data.** The mount effect
+  seeded the 18-bill demo whenever `loadDataset()` returned nothing — including
+  when a browser that *had* held data lost its `partsindex_dataset_v3` key
+  (cleared/evicted store, or the pre-1.12.0 silent-save-failure). On the next
+  load the app looked "empty" and quietly repopulated with demo rows, masking the
+  data loss. A new `partsindex_seeded_v1` marker records that this browser has
+  held data — set on the first successful save (`localSave`) **and** on the
+  first-run seed. The load decision now has four outcomes (see `decideInit` in
+  `src/pipeline.js`): use the stored dataset; start empty on the shared backend;
+  start **empty for a returning browser** whose dataset key is missing but whose
+  marker is set (the new guard — no reseed); or seed once on a genuine first run
+  (no dataset **and** no marker). Only fully clearing browser storage counts as a
+  fresh run. An explicitly-empty `{parts:[]}` (e.g. after **Clear dataset**) is
+  honoured as real state and never triggers a reseed.
+- **FIXED: first-run seed logged twice, one second apart.** React
+  `StrictMode` (dev) double-invokes mount effects, so the load/seed path ran
+  twice — the origin of the paired "LOAD DEMO" rows in the activity log. A
+  `didInit` ref guards the effect so it runs exactly once per real mount
+  (StrictMode's second, synthetic invocation is now a no-op). Production builds
+  were never double-invoked, but the guard makes the intent explicit.
+- **CHANGED: the first-run seed is a distinct `Auto-seed` event, not `Load demo`.**
+  Automatic seeding now logs a **dataset / Auto-seed** activity event
+  (`source: "first-run"`) with a drill-down note explaining it was automatic and
+  how to replace it. It can no longer be mistaken for a manual **Load demo**
+  (which still logs its own event when the button is pressed).
+- **decideInit is a pure, tested function.** Placed in `src/pipeline.js` (shared,
+  Vite-independent) rather than `datasource.js` — which reads `import.meta.env` at
+  module load and so can't be imported by the Node self-test. Nine new assertions
+  in `tools/selftest.mjs` cover all four outcomes plus the malformed-blob and
+  explicitly-empty edge cases.
+- Docs (README, MANUAL, HANDOVER, OPUS_PROMPTS) updated to describe the once-only
+  seed, the marker, and the returning-user guard.
+
 ## 1.12.0 — 8 July 2026
 
 Full code review release: two data-loss bugs fixed, the P1 matcher false-merge
