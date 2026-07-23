@@ -25,7 +25,7 @@
      --mode live|batch   live = immediate calls; batch = Message Batches API (default live)
      --concurrency <n>   parallel live calls (default 2)
      --model <id>        model (default claude-sonnet-4-6)
-     --max-tokens <n>    max output tokens per invoice (default 4000)
+     --max-tokens <n>    max output tokens per invoice (default 8192)
      --poll <sec>        batch-mode poll interval (default 30)
      --limit <n>         process at most n new files (trial runs)
      --retry-failed      re-attempt files whose last run failed

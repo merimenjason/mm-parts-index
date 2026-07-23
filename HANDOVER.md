@@ -238,7 +238,8 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.12.1** (auto-seed guard follow-up, July 2026). Working: full ingest
+**Version 1.12.2** (repo hygiene + 200-invoice run planning, July 2026).
+Working: full ingest
 (Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs including the stakeholder Demo lookup (shared
 *Min quotes* floor slider, leftmost `+` add control) with Worklist and
@@ -246,6 +247,15 @@ Excel/PDF export, eight analytics views, Assess a Claim with Tukey-fence flags
 and the dispute pack, drill-down everywhere, a masthead *Github Repository*
 link, 103 self-tests, eval harness that replays the exact production merge
 decision.
+
+**1.12.2** removed stale duplicate sources at the repo root (older copies of
+`PartsIndex.jsx`, `pipeline.js`, etc. that nothing imported but that invited
+edits which silently changed nothing — `src/` is now the single source of
+truth), added `.gitignore` / `.env.example` / the Pages deploy workflow the
+README already documented, corrected the batch runner's `--max-tokens`
+header (8192, matching the code and the app), and added
+**`Cost-Estimation.md`** — the cost model and step-by-step procedure for the
+200-invoice ingestion. See CHANGELOG 1.12.2.
 
 **1.12.1** fixed the demo silently reseeding over a returning user's data once
 the `partsindex_dataset_v3` key was lost, and the StrictMode double-log of that
@@ -316,7 +326,9 @@ What remains **open**, in priority order:
 - **Use `--mode batch` with Sonnet for the 200-invoice run** (50% token cost),
   Opus only for the retry pass on failures — and keep the mandatory 5% eyeball
   sample regardless of reconciliation results: the gate catches amount
-  misreads, not part-number misreads.
+  misreads, not part-number misreads. The full cost model and run procedure
+  live in `Cost-Estimation.md` (≈ US$3.40 all-in on the recommended plan;
+  budget US$5, ceiling US$10).
 - **Prefer append mode over replace** when wiring anything new to
   `/api/parts` — it sidesteps most of the race in (2) until P15 lands.
 - **Keep the veto's unknown-never-blocks semantics.** It is tempting to make

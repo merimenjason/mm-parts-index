@@ -199,7 +199,10 @@ libSQL database via `/api/parts`.
   supplier + bill number, and emits `PartsIndex_import.xlsx` for the app's
   *Bulk upload* button. Resumable (SHA-256 manifest), retrying, and it
   supports the **Message Batches API** (`--mode batch`) for 50% token cost.
-  See [Batch OCR runner](#batch-ocr-runner) below.
+  See [Batch OCR runner](#batch-ocr-runner) below, and
+  [`Cost-Estimation.md`](./Cost-Estimation.md) for the full cost model
+  (≈ US$3.40 for all 200 on the recommended Sonnet-batch + Opus-retry plan)
+  and the step-by-step run instructions.
 - **Spreadsheets:** Ingest → *Bulk upload*. Columns are matched flexibly
   (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
   and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
@@ -368,6 +371,7 @@ partsindex/
 ├─ Fable.md                       ← feature roadmap (F1–F7, elaborated)
 ├─ OPUS_PROMPTS.md                ← ready-to-run implementation prompts (P1–P15) + status
 ├─ OCR_PROMPT.md                  ← tuned prompt for OCR-ing the 200 invoices
+├─ Cost-Estimation.md             ← cost model + step-by-step instructions for the 200-invoice ingestion
 ├─ index.html
 ├─ vite.config.js                 ← base path via VITE_BASE
 ├─ vercel.json

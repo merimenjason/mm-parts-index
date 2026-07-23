@@ -137,7 +137,11 @@ grows.
 
 ## 6. OCR-ing the 200 invoices
 
-See **[`OCR_PROMPT.md`](./OCR_PROMPT.md)**. In short: use the structured-JSON
+Budget, model choice and the end-to-end run procedure (dry run → 5-file trial
+→ full batch → Opus retries → import + QC) are in
+**[`Cost-Estimation.md`](./Cost-Estimation.md)** — the recommended
+Sonnet-4.6-batch + Opus-4.8-retry plan lands around **US$3.40** for all 200.
+For the prompt itself, see **[`OCR_PROMPT.md`](./OCR_PROMPT.md)**. In short: use the structured-JSON
 prompt, one document per call, extract every part line, stitch page-splits,
 include struck-through/returned rows when their amount is still counted in the printed totals (exclude only when the totals exclude them — v1.12.0 policy), never labour/GST rows, keep part numbers **verbatim**
 (the app normalises them), and leave make/model or unit cost **blank rather than

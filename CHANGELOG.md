@@ -2,6 +2,40 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.12.2 — 23 July 2026
+
+Repository hygiene + 200-invoice run planning. 103 self-tests, clean build.
+
+- **FIXED: stale duplicate sources at the repo root.** `PartsIndex.jsx`,
+  `pipeline.js`, `demoData.js`, `ocrPrompt.js`, `index.css` and `main.jsx`
+  existed both at the root and under `src/`. Only the `src/` copies are ever
+  imported (`index.html` loads `/src/main.jsx`; every tool imports
+  `../src/pipeline.js`), but the root copies were **older versions** — the
+  root `pipeline.js` predated the v1.12.0 positional veto and v1.12.1
+  `decideInit` — so editing one by mistake would silently change nothing while
+  looking like a fix. All six removed; `src/` is the single source of truth.
+- **FIXED: `tools/batch-ocr.mjs` header said `--max-tokens` defaults to 4000**
+  while the code defaults to 8192 (matching the app's live-OCR path). Header
+  corrected to 8192.
+- **ADDED: `Cost-Estimation.md`** — full cost model for the 200-invoice OCR
+  ingestion (per-invoice token budget, Sonnet-batch vs Opus scenarios,
+  ≈ $3.40 recommended plan) plus the end-to-end run instructions:
+  pre-run checklist → dry run → 5-file trial → full batch → Opus retries →
+  app import and the mandatory 5% QC sample.
+- **FIXED: duplicate image assets at the repo root.** `favicon*.png/ico`,
+  `apple-touch-icon.png` and `screenshot.png` existed identically at the root
+  and in `public/` (Vite serves only `public/`; the README embeds
+  `public/screenshot.png`). Root copies removed.
+- **FIXED: the repo did not contain two files its own README documents.**
+  Added `.env.example` (documents `ANTHROPIC_API_KEY`, `TURSO_DATABASE_URL` /
+  `TURSO_AUTH_TOKEN`, `OCR_PROXY_TOKEN` / `VITE_OCR_PROXY_TOKEN`,
+  `VITE_DATA_BACKEND`, `VITE_BASE`) and
+  `.github/workflows/deploy-pages.yml` (CI build → test → Pages deploy with
+  `VITE_BASE=/mm-parts-index/`).
+- **ADDED: `.gitignore`** (`node_modules/`, `dist/`, `ocr_out/`, `.env*`,
+  `vite.config.js.timestamp-*`). A committed Vite timestamp artifact
+  (`vite.config.js.timestamp-…mjs`) was removed.
+
 ## 1.12.1 — 9 July 2026
 
 Auto-seed guard: the demo no longer silently reappears over a returning user's
