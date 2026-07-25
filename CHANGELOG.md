@@ -2,6 +2,39 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.13.0 — 25 July 2026
+
+Opus 5 / Sonnet 5 generation update (Anthropic released Claude Opus 5 on
+24 July 2026). 106 self-tests (was 103), clean build.
+
+- **CHANGED: OCR model lineup updated for the new generation.** The Ingest
+  model picker (`OCR_MODELS`, src/PartsIndex.jsx) now offers **Sonnet 4.6
+  (default, tuned baseline) · Sonnet 5 (intro pricing to 31 Aug 2026) ·
+  Haiku 4.5 · Opus 5 · Fable 5**. Opus 5 (`claude-opus-5`) replaces Opus 4.8
+  in the picker — identical $5/$25 pricing, newer May-2026 knowledge cutoff,
+  128k max output. The proxy allowlist (api/ocr.js) adds `claude-opus-5` and
+  `claude-sonnet-5` and **keeps `claude-opus-4-8`** so older deployed bundles
+  keep working. Sonnet 4.6 stays the default in both the app and the batch
+  runner because the OCR prompt and 5-file trial were validated on it —
+  Sonnet 5 is offered, not silently switched to.
+- **CHANGED: retry-pass recommendation is now Opus 5** everywhere
+  (`--retry-failed --model claude-opus-5`) — batch runner header,
+  Cost-Estimation.md, OCR_PROMPT.md, MANUAL, HANDOVER. There is no cost or
+  capability reason to retry on 4.8.
+- **CHANGED: Cost-Estimation.md refreshed for post-launch pricing.** New
+  scenario A′ — Sonnet 5 batch on intro pricing (to 31 Aug 2026) drops the
+  200-invoice first pass to ≈ $1.70 (≈ $2.55 total with Opus 5 retries),
+  versus the ≈ $3.40 Sonnet 4.6 baseline. Adopting A′ requires re-running the
+  5-file trial on Sonnet 5 first.
+- **FIXED: the in-app version constant (`APP_VERSION`, shown in the masthead
+  and stamped into dispute packs) was not bumped in 1.12.2** — package.json
+  said 1.12.2 while the app reported 1.12.1. Both now read 1.13.0; keep them
+  in lockstep on every release.
+- **ADDED: 3 self-test assertions** (106 total) covering the model plumbing
+  the retry pass depends on: the runner's default model, the `--model`
+  override, and `buildRequestParams` carrying model + max_tokens into the
+  request body.
+
 ## 1.12.2 — 23 July 2026
 
 Repository hygiene + 200-invoice run planning. 103 self-tests, clean build.

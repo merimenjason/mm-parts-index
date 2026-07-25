@@ -138,9 +138,10 @@ grows.
 ## 6. OCR-ing the 200 invoices
 
 Budget, model choice and the end-to-end run procedure (dry run → 5-file trial
-→ full batch → Opus retries → import + QC) are in
+→ full batch → Opus 5 retries → import + QC) are in
 **[`Cost-Estimation.md`](./Cost-Estimation.md)** — the recommended
-Sonnet-4.6-batch + Opus-4.8-retry plan lands around **US$3.40** for all 200.
+Sonnet-4.6-batch + Opus-5-retry plan lands around **US$3.40** for all 200
+(≈ US$2.55 if the 5-file trial clears Sonnet 5 on intro pricing).
 For the prompt itself, see **[`OCR_PROMPT.md`](./OCR_PROMPT.md)**. In short: use the structured-JSON
 prompt, one document per call, extract every part line, stitch page-splits,
 include struck-through/returned rows when their amount is still counted in the printed totals (exclude only when the totals exclude them — v1.12.0 policy), never labour/GST rows, keep part numbers **verbatim**
@@ -317,8 +318,9 @@ ingest (present values always win) — plus defensive badge rendering. The tags
 now carry hover tooltips and the Analytics → Median benchmark header explains
 them (grade tag: shown only when known, different grades never merge; per
 pair/set tag: kept out of per-each medians). Also added a **Claude model
-picker** to the Ingest OCR card (Sonnet default; Haiku for clean prints;
-Opus/Fable for the worst scans), persisted per browser and passed straight
+picker** to the Ingest OCR card (Sonnet 4.6 default; Sonnet 5 as the newer
+cheaper option — trial first; Haiku for clean prints; Opus 5/Fable 5 for the
+worst scans), persisted per browser and passed straight
 through the proxy — the batch runner takes the same choice via `--model`.
 
 **Step 12 — Drill-downs across all Analytics views.** Previously only Median

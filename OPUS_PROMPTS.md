@@ -1,6 +1,7 @@
-# PartsIndex — Opus implementation prompts (status as of v1.12.1)
+# PartsIndex — Opus implementation prompts (status as of v1.13.0)
 
-Paste each prompt into Opus **run from the repo root** so it can read the real
+Paste each prompt into Opus (Claude Opus 5 as of 24 July 2026) **run from the
+repo root** so it can read the real
 files. Standing conventions it must follow (already true of the codebase): pure
 logic lives in `src/pipeline.js` (browser-free; imported by the app, the eval
 harness and `tools/batch-ocr.mjs`), every new pure function gets assertions in

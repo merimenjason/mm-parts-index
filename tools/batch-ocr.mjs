@@ -17,14 +17,16 @@
      node tools/batch-ocr.mjs --in ./invoices --mode batch       # Message Batches API (50% cost, ≤24 h)
      node tools/batch-ocr.mjs --in ./invoices --limit 5          # trial run on 5 files
      node tools/batch-ocr.mjs --in ./invoices --dry-run          # show the plan, no API calls
-     node tools/batch-ocr.mjs --in ./invoices --retry-failed     # reprocess previous failures
+     node tools/batch-ocr.mjs --in ./invoices --retry-failed --model claude-opus-5   # reprocess previous failures on Opus 5
 
    Options:
      --in <dir>          input folder of .pdf/.png/.jpg/.jpeg/.webp/.gif   (required)
      --out <dir>         output folder (default ./ocr_out)
      --mode live|batch   live = immediate calls; batch = Message Batches API (default live)
      --concurrency <n>   parallel live calls (default 2)
-     --model <id>        model (default claude-sonnet-4-6)
+     --model <id>        model (default claude-sonnet-4-6 — the tuned baseline;
+                         claude-sonnet-5 is cheaper on intro pricing to 31 Aug 2026,
+                         claude-opus-5 for the retry pass — see Cost-Estimation.md)
      --max-tokens <n>    max output tokens per invoice (default 8192)
      --poll <sec>        batch-mode poll interval (default 30)
      --limit <n>         process at most n new files (trial runs)

@@ -29,17 +29,21 @@ import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker } from "./datasource.js";
 
-const APP_VERSION = "1.12.1";
+const APP_VERSION = "1.13.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
-   runner takes the same choice via --model. Sonnet is the tuned default;
-   Haiku trades accuracy for cost on clean prints; Opus/Fable help on the
-   worst faxes and handwriting at a higher price. */
+   runner takes the same choice via --model. Sonnet 4.6 stays the default —
+   the prompt and the 5-file trial were validated on it — with Sonnet 5
+   offered as the cheaper newer option (intro pricing to 31 Aug 2026; trial
+   before switching a full run). Haiku trades accuracy for cost on clean
+   prints; Opus 5 / Fable 5 help on the worst faxes and handwriting at a
+   higher price. The proxy allowlist (api/ocr.js) must contain every id here. */
 const OCR_MODELS = [
-  ["claude-sonnet-4-6", "Sonnet 4.6 — default: fast, accurate, economical"],
+  ["claude-sonnet-4-6", "Sonnet 4.6 — default: tuned & trial-validated baseline"],
+  ["claude-sonnet-5", "Sonnet 5 — newer gen; intro pricing to 31 Aug 2026 (trial first)"],
   ["claude-haiku-4-5-20251001", "Haiku 4.5 — fastest & cheapest, for clean prints"],
-  ["claude-opus-4-8", "Opus 4.8 — stronger on faint fax / handwriting"],
+  ["claude-opus-5", "Opus 5 — stronger on faint fax / handwriting"],
   ["claude-fable-5", "Fable 5 — most capable, highest cost"],
 ];
 const MODEL_KEY = "partsindex_ocr_model";

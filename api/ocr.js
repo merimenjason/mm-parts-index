@@ -7,7 +7,8 @@
 //
 // HARDENING (v1.12.0) — the endpoint is publicly reachable, so it constrains
 // what a caller can spend rather than forwarding arbitrary bodies:
-//   • model must be on the whitelist below (the four the Ingest tab offers)
+//   • model must be on the whitelist below (the Ingest tab's picker, plus
+//     prior-generation ids kept for older deployed bundles)
 //   • max_tokens is capped (an attacker can't request a 100k-token generation)
 //   • optional shared secret: set OCR_PROXY_TOKEN server-side and build the app
 //     with VITE_OCR_PROXY_TOKEN to require an x-ocr-token header. This deters
@@ -16,10 +17,14 @@
 //     OPUS_PROMPTS.md P3).
 
 const ALLOWED_MODELS = new Set([
+  // current picker (src/PartsIndex.jsx → OCR_MODELS)
   "claude-sonnet-4-6",
+  "claude-sonnet-5",
   "claude-haiku-4-5-20251001",
-  "claude-opus-4-8",
+  "claude-opus-5",
   "claude-fable-5",
+  // prior-generation id kept so older deployed bundles keep working
+  "claude-opus-4-8",
 ]);
 const MAX_TOKENS_CAP = 16384;
 

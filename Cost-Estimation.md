@@ -31,17 +31,21 @@ image tokens ≈ width × height ÷ 750, capped around ~1,600 tokens at the
 
 ---
 
-## 2. Model pricing (list, July 2026)
+## 2. Model pricing (list, as of the Opus 5 launch — 24 July 2026)
 
 | Model | Standard $/MTok (in / out) | **Batch** $/MTok (in / out, 50% off) |
 |---|---|---|
 | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) | 1.00 / 5.00 | 0.50 / 2.50 |
-| Claude Sonnet 4.6 (`claude-sonnet-4-6`) — **recommended** | 3.00 / 15.00 | 1.50 / 7.50 |
-| Claude Opus 4.8 (`claude-opus-4-8`) | 5.00 / 25.00 | 2.50 / 12.50 |
+| Claude Sonnet 5 (`claude-sonnet-5`) — **intro pricing to 31 Aug 2026** | 2.00 / 10.00 (then 3.00 / 15.00) | 1.00 / 5.00 (then 1.50 / 7.50) |
+| Claude Sonnet 4.6 (`claude-sonnet-4-6`) — **tuned baseline** | 3.00 / 15.00 | 1.50 / 7.50 |
+| Claude Opus 5 (`claude-opus-5`) — **retry tier** | 5.00 / 25.00 | 2.50 / 12.50 |
+| Claude Opus 4.8 (`claude-opus-4-8`) — prior gen, same price as Opus 5 | 5.00 / 25.00 | 2.50 / 12.50 |
 
 The Message Batches API halves both input and output pricing; batches usually
 complete well within an hour (worst case 24 h). The runner's `--mode batch`
-uses it natively.
+uses it natively. Opus 5 (released 24 July 2026) replaced Opus 4.8 at
+identical pricing with a newer knowledge cutoff (May 2026) and 128k max
+output — there is no cost reason to retry on 4.8 anymore.
 
 ---
 
@@ -51,20 +55,29 @@ Using the 1.0M-in / 0.14M-out planning figures:
 
 | Scenario | Input cost | Output cost | **Total** |
 |---|---|---|---|
-| **A. Sonnet 4.6, batch mode (recommended)** | 1.0M × $1.50 = $1.50 | 0.14M × $7.50 = $1.05 | **≈ $2.55** |
+| **A. Sonnet 4.6, batch mode (tuned baseline)** | 1.0M × $1.50 = $1.50 | 0.14M × $7.50 = $1.05 | **≈ $2.55** |
+| **A′. Sonnet 5, batch mode, intro pricing (to 31 Aug 2026)** | 1.0M × $1.00 = $1.00 | 0.14M × $5.00 = $0.70 | **≈ $1.70** |
 | B. Sonnet 4.6, live mode (no batch discount) | $3.00 | $2.10 | ≈ $5.10 |
-| C. Opus 4.8, batch mode (everything on Opus) | $2.50 | $1.75 | ≈ $4.25 |
+| C. Opus 5, batch mode (everything on Opus) | $2.50 | $1.75 | ≈ $4.25 |
 | D. Haiku 4.5, batch mode (clean prints only) | $0.50 | $0.35 | ≈ $0.85 |
 
-**Recommended plan = A + a small Opus retry pass:** run all 200 through
+**Recommended plan = A + a small Opus 5 retry pass:** run all 200 through
 Sonnet 4.6 in batch mode, then re-run only the failures/review cases
-(historically ~5–10%, so ~10–20 files) through Opus 4.8 live with
+(historically ~5–10%, so ~10–20 files) through **Opus 5** live with
 `--retry-failed`:
 
-- Opus retry pass, 20 files, live: 0.10M × $5 + 0.014M × $25 ≈ **$0.85**
+- Opus 5 retry pass, 20 files, live: 0.10M × $5 + 0.014M × $25 ≈ **$0.85**
 - **Total recommended budget: ≈ $3.40**, i.e. under **$5 with headroom** for
   page-heavy bills, resubmissions and trial runs. A hard ceiling of **$10**
   covers even a pathological corpus (multi-page faxes, full Opus re-run).
+
+**Cheaper variant (A′):** if the 5-file trial in Step 2 passes on
+**Sonnet 5**, run the corpus on it before 31 Aug 2026 and the batch pass
+drops to ≈ $1.70 (total ≈ $2.55 with Opus 5 retries). Sonnet 4.6 remains the
+default because the prompt was tuned and trial-validated on it — switch only
+on trial evidence, not on price alone, and note that a Sonnet 5 corpus should
+be trialed against the same 5 documents so extraction differences surface
+before 200 invoices land in the benchmark.
 
 Per-invoice this is **≈ 1.3–2.5 US cents** — negligible next to the analyst
 time it replaces.
@@ -152,16 +165,16 @@ node tools/batch-ocr.mjs --in ./invoices --mode batch \
 - Duplicate bills (same supplier + bill number) are detected and skipped
   automatically.
 
-### Step 4 — Retry failures on Opus (≈ $0.85)
+### Step 4 — Retry failures on Opus 5 (≈ $0.85)
 
 ```bash
 node tools/batch-ocr.mjs --in ./invoices --retry-failed \
-  --model claude-opus-4-8 --price-in 5 --price-out 25
+  --model claude-opus-5 --price-in 5 --price-out 25
 ```
 
 Live mode so each fix is visible immediately. If a file failed with
 "truncated at max_tokens", add `--max-tokens 16384`. Anything still failing
-after Opus goes to manual entry via the app's **Add lines manually** path.
+after Opus 5 goes to manual entry via the app's **Add lines manually** path.
 
 ### Step 5 — Import into PartsIndex
 
@@ -192,9 +205,9 @@ after Opus goes to manual entry via the app's **Add lines manually** path.
 
 | Item | Value |
 |---|---|
-| Recommended model | Sonnet 4.6, `--mode batch` |
-| Retry model | Opus 4.8, live, `--retry-failed` |
-| Expected cost | **≈ $3.40** (budget $5, ceiling $10) |
+| Recommended model | Sonnet 4.6, `--mode batch` (or Sonnet 5 on trial evidence — cheaper to 31 Aug 2026) |
+| Retry model | Opus 5, live, `--retry-failed` |
+| Expected cost | **≈ $3.40** baseline / **≈ $2.55** on Sonnet 5 intro (budget $5, ceiling $10) |
 | Expected wall-clock | batch < 1 h typical (≤ 24 h worst case) + QC time |
 | Expected review rate | ~5–10% of invoices (reconciliation mismatches) |
 | Mandatory QC | 5% line-by-line eyeball sample, no exceptions |

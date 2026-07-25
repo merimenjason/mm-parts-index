@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit } from "../src/pipeline.js";
-import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256 } from "./batch-ocr.mjs";
+import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams } from "./batch-ocr.mjs";
 
 let failures = 0;
 const ok = (cond, name) => { console.log(`${cond ? "  ✓" : "  ✗ FAIL"} ${name}`); if (!cond) failures++; };
@@ -140,6 +140,12 @@ console.log("batch runner helpers");
   ok(a.in === "./x" && a.mode === "batch" && a.limit === 5 && a.priceIn === 1.5, "parseArgs reads flags");
   let threw = false; try { parseArgs(["--mode", "turbo"]); } catch { threw = true; }
   ok(threw, "parseArgs rejects unknown mode");
+  ok(a.model === "claude-sonnet-4-6", "parseArgs default model is the tuned Sonnet 4.6 baseline");
+  const aOpus = parseArgs(["--in", "./x", "--model", "claude-opus-5"]);
+  ok(aOpus.model === "claude-opus-5", "parseArgs --model overrides the default (Opus 5 retry pass)");
+  const req = buildRequestParams("QUJD", ".pdf", { model: "claude-sonnet-5", maxTokens: 8192 });
+  ok(req.model === "claude-sonnet-5" && req.max_tokens === 8192 &&
+     req.messages[0].content[0].type === "document", "buildRequestParams carries model + max_tokens into the request body");
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pix-test-"));
   const jsonDir = path.join(tmp, "json"); fs.mkdirSync(jsonDir);

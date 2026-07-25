@@ -238,7 +238,7 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.12.2** (repo hygiene + 200-invoice run planning, July 2026).
+**Version 1.13.0** (Opus 5 / Sonnet 5 generation update, July 2026).
 Working: full ingest
 (Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs including the stakeholder Demo lookup (shared
@@ -247,6 +247,14 @@ Excel/PDF export, eight analytics views, Assess a Claim with Tukey-fence flags
 and the dispute pack, drill-down everywhere, a masthead *Github Repository*
 link, 103 self-tests, eval harness that replays the exact production merge
 decision.
+
+**1.13.0** updated the OCR model lineup for the Opus 5 launch (24 July
+2026): the picker and proxy now offer `claude-opus-5` and `claude-sonnet-5`
+(Opus 4.8 stays allowlisted for older bundles), the retry pass moves to
+Opus 5, Cost-Estimation.md gains the Sonnet 5 intro-pricing scenario
+(≈ US$2.55 total, valid to 31 Aug 2026), the masthead `APP_VERSION` constant
+missed in 1.12.2 is back in lockstep with package.json, and 3 new self-tests
+(106 total) pin the runner's model plumbing. See CHANGELOG 1.13.0.
 
 **1.12.2** removed stale duplicate sources at the repo root (older copies of
 `PartsIndex.jsx`, `pipeline.js`, etc. that nothing imported but that invited
@@ -324,7 +332,9 @@ What remains **open**, in priority order:
   run exists to produce. Settle the LH/RH label convention against the
   shipped `sepSide` default (off = sides pool) in the same session.
 - **Use `--mode batch` with Sonnet for the 200-invoice run** (50% token cost),
-  Opus only for the retry pass on failures — and keep the mandatory 5% eyeball
+  Opus 5 only for the retry pass on failures (`claude-opus-5` replaced
+  Opus 4.8 at the same price on 24 July 2026; Sonnet 5 intro pricing to
+  31 Aug 2026 is the cheaper first-pass option if the 5-file trial clears it) — and keep the mandatory 5% eyeball
   sample regardless of reconciliation results: the gate catches amount
   misreads, not part-number misreads. The full cost model and run procedure
   live in `Cost-Estimation.md` (≈ US$3.40 all-in on the recommended plan;

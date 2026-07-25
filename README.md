@@ -201,12 +201,13 @@ libSQL database via `/api/parts`.
   supports the **Message Batches API** (`--mode batch`) for 50% token cost.
   See [Batch OCR runner](#batch-ocr-runner) below, and
   [`Cost-Estimation.md`](./Cost-Estimation.md) for the full cost model
-  (≈ US$3.40 for all 200 on the recommended Sonnet-batch + Opus-retry plan)
+  (≈ US$3.40 for all 200 on the recommended Sonnet-batch + Opus 5-retry plan,
+  or ≈ US$2.55 on Sonnet 5 intro pricing)
   and the step-by-step run instructions.
 - **Spreadsheets:** Ingest → *Bulk upload*. Columns are matched flexibly
   (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
   and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
-- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet by default; Haiku for clean prints, Opus/Fable for faint fax and handwriting) — the batch runner takes the same choice via `--model`.
+- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet 4.6 by default — the tuned baseline; Sonnet 5 as the cheaper newer option on intro pricing to 31 Aug 2026; Haiku for clean prints, Opus 5/Fable 5 for faint fax and handwriting) — the batch runner takes the same choice via `--model`.
 - The OCR prompt both paths use lives in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
   (documented in [`OCR_PROMPT.md`](./OCR_PROMPT.md)) — one source of truth.
 
