@@ -23,7 +23,7 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 - **Auto-enrich** — normalises part numbers, infers make/model, assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
 - **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Benchmark tab (bridging is off by default for the most defensible number).
-- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line) and get a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR. Each line is matched to the benchmark, producing a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
 - **Dispute pack export** — one click turns an assessment into the attachable audit trail: an Excel with a **Summary** (claim ref, matching settings, totals, a **benchmark snapshot id**), the **Line Assessment**, and an **Evidence** sheet listing *every underlying supplier quote* behind every benchmark used (make · model · supplier · bill no · date · grade · price · source). Same snapshot id = same data + same settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.
 - **Demo lookup tab + worklist** — a stakeholder-facing benchmark search: filter by make/model, part name or part number (normalisation-aware, so `52119` finds `T52119-06971`), or a global search across all fields, and read each part's **median** and **mean** unit price. Every result drills down to the underlying supplier quotes with full provenance (supplier, bill number, date, grade, and Claude-OCR vs Excel source). Add results to a **Worklist** with the `+` button and export the shortlist to **Excel** (worklist + evidence sheets) or **PDF** (a benchmark table plus an evidence table of the quotes behind each part); worklist rows are expandable to their source quotes, and both exports include that evidence. The PDF library loads on demand so it never bloats the main bundle.
 - **Make _and_ model everywhere** — the vehicle **model** is shown alongside make across every tab (Benchmark, Parts Ledger, Demo, Analytics, Dashboard), in every drill-down, and in both the Excel export and the dispute pack. Clusters that legitimately span models carry a `+N` marker with a hover listing them, so the median is never quietly attributed to a single model.
@@ -171,7 +171,7 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 | **Ingest** | Excel upload, live OCR, reload-demo, export, clear, and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
 | **Parts Ledger** | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
 | **Benchmark** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
-| **Assess a Claim** | Paste a repairer estimate → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence |
+| **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence |
 | **Analytics** | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
 | **Coverage** | Make & category coverage vs the success criteria |
 | **Method Notes** | What each analytic computes and why |
@@ -208,8 +208,10 @@ libSQL database via `/api/parts`.
   (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
   and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
 - **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet 4.6 by default — the tuned baseline; Sonnet 5 as the cheaper newer option on intro pricing to 31 Aug 2026; Haiku for clean prints, Opus 5/Fable 5 for faint fax and handwriting) — the batch runner takes the same choice via `--model`.
-- The OCR prompt both paths use lives in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
+- The OCR prompts both paths use live in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
   (documented in [`OCR_PROMPT.md`](./OCR_PROMPT.md)) — one source of truth.
+  The file contains `OCR_SYS` (supplier bills) and `ESTIMATE_OCR_SYS`
+  (repairer estimates for Assess a Claim).
 
 ---
 

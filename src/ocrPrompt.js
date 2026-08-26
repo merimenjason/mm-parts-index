@@ -51,3 +51,39 @@ Rules:
 - Return one object per document. Do not merge two invoices into one object.`;
 
 export const OCR_USER_TEXT = "Extract this supplier invoice as JSON per the schema. One object, parts array complete.";
+
+/* ---------- Estimate OCR prompt ----------
+   A lighter schema for reading repairer estimates into the Assess-a-Claim tab.
+   Only three fields per line are needed: part_number, part_name, quoted_price.
+   The existing bill prompt is heavier (supplier metadata, reconciliation fields)
+   and would work, but this dedicated prompt is cheaper and faster. */
+
+export const ESTIMATE_OCR_SYS = `You are an OCR engine for Singapore motor-parts repairer estimates.
+Return ONLY a single valid JSON object — no markdown, no code fences, no commentary.
+
+Schema:
+{
+  "repairer": string,       // workshop name if shown, else ""
+  "vehicle": string,        // free text as printed
+  "make": string,           // vehicle make if printed, else ""
+  "estimate_ref": string,   // estimate/quotation number if printed, else ""
+  "parts": [
+    {
+      "part_number": string, // manufacturer part number if printed, else ""
+      "part_name": string,   // verbatim description
+      "quoted_price": number // the price quoted for this part (total for the line, not unit if qty > 1)
+    }
+  ]
+}
+
+Rules:
+- OUTPUT FORMAT: emit MINIFIED JSON — a single line, no indentation.
+- Extract EVERY parts line, top to bottom, including lines continued on later pages.
+- EXCLUDE labour, painting, GST, sub-total, discount, sundry, or service rows — parts only.
+- If a line has a quantity and a unit price but the total is the value that matters for comparison, use the line total as quoted_price.
+- part_number: keep exactly as printed including spaces and dashes. Leave "" if none is shown.
+- Read handwriting and faint copy as best you can; use "" or 0 for unreadable values.
+- Return one object per document.`;
+
+export const ESTIMATE_OCR_USER_TEXT = "Extract this repairer estimate as JSON per the schema. Parts lines only, one object.";
+

@@ -2,6 +2,32 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.14.0 — 26 August 2026
+
+Estimate OCR for Assess a Claim (F1). 106 self-tests, clean build.
+
+- **ADDED: Upload estimate (OCR) on the Assess a Claim tab.** An "Upload
+  estimate (OCR)" button accepts a PDF or image of a repairer's estimate,
+  sends it through the existing `/api/ocr` proxy using whichever Claude
+  model is selected on the Ingest tab, and fills the assessment textarea
+  with structured `part_number, part_name, quoted_price` lines — then
+  auto-runs the assessment. The manual paste workflow is unchanged; both
+  paths feed the same `run()` function. A metadata line below the textarea
+  shows what was read (repairer, vehicle, make, estimate ref, line count).
+  This closes the **F1** roadmap item from `Fable.md`.
+- **ADDED: `ESTIMATE_OCR_SYS` / `ESTIMATE_OCR_USER_TEXT`** in
+  `src/ocrPrompt.js` — a lighter prompt for estimate extraction (parts
+  only: `part_number`, `part_name`, `quoted_price`, plus minimal document
+  metadata). Cheaper and faster than the full bill prompt since estimates
+  don't need reconciliation fields, grade tracking, or GST treatment.
+- **ADDED: `ocrEstimate()` function** in `src/PartsIndex.jsx` — mirrors
+  `ocrFile()` but uses the estimate prompt and converts the parsed JSON
+  into the comma-separated text format the Assess textarea already
+  understands.
+- **CHANGED: `ocrModel` is now passed to the Assess component** so the
+  estimate OCR uses whichever model the user has selected on the Ingest
+  tab (Sonnet 4.6 by default).
+
 ## 1.13.0 — 25 July 2026
 
 Opus 5 / Sonnet 5 generation update (Anthropic released Claude Opus 5 on

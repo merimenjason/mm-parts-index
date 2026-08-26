@@ -66,8 +66,10 @@ src/PartsIndex.jsx  ← The entire React UI (~1,330 lines): all tabs, state,
                        activity log (logEvent + ActivityLog/ActivityDetail).
 src/datasource.js   ← Backend switch (VITE_DATA_BACKEND): loadDataset/saveDataset
                        AND loadEvents/appendEvent — localStorage ↔ /api/*.
-src/ocrPrompt.js    ← The OCR system prompt. Single source of truth — the
-                       in-app OCR button and the batch runner both import it.
+src/ocrPrompt.js    ← The OCR system prompts. Single source of truth — the
+                       bill prompt (OCR_SYS, used by ingest + batch runner)
+                       and the estimate prompt (ESTIMATE_OCR_SYS, used by
+                       Assess a Claim's upload button). Tune prompts HERE.
 src/demoData.js     ← The embedded 174-line demo dataset.
 api/ocr.js          ← Vercel serverless proxy: forwards OCR requests to the
                        Anthropic API so the key never reaches the browser.
@@ -207,7 +209,8 @@ dataset or the stats, so it needs no snapshot bookkeeping.
    `CHANGELOG.md` in the same change, and bump `package.json` +
    `APP_VERSION` (top of `PartsIndex.jsx`) — patch for fixes, minor for
    features.
-7. **One prompt, one place**: OCR prompts live in `src/ocrPrompt.js` only.
+7. **One prompt, one place**: OCR prompts live in `src/ocrPrompt.js` only
+   (`OCR_SYS` for bills, `ESTIMATE_OCR_SYS` for estimates).
 
 ## 6. Common tasks, concretely
 
@@ -238,15 +241,24 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.13.0** (Opus 5 / Sonnet 5 generation update, July 2026).
+**Version 1.14.0** (Estimate OCR for Assess a Claim, August 2026).
 Working: full ingest
 (Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs including the stakeholder Demo lookup (shared
 *Min quotes* floor slider, leftmost `+` add control) with Worklist and
-Excel/PDF export, eight analytics views, Assess a Claim with Tukey-fence flags
-and the dispute pack, drill-down everywhere, a masthead *Github Repository*
-link, 103 self-tests, eval harness that replays the exact production merge
-decision.
+Excel/PDF export, eight analytics views, Assess a Claim with **estimate OCR
+upload** and Tukey-fence flags and the dispute pack, drill-down everywhere, a
+masthead *Github Repository* link, 106 self-tests, eval harness that replays
+the exact production merge decision.
+
+**1.14.0** added estimate OCR to the Assess a Claim tab — the **F1** roadmap
+item. An "Upload estimate (OCR)" button accepts a PDF or image of the
+repairer's estimate, reads it via Claude using the same proxy and model
+picker as bill OCR, and fills the assessment with structured lines that
+auto-run against the benchmark. A dedicated lighter prompt
+(`ESTIMATE_OCR_SYS` in `src/ocrPrompt.js`) extracts parts only — no
+reconciliation fields, grade tracking, or GST treatment. The manual paste
+workflow is unchanged. See CHANGELOG 1.14.0.
 
 **1.13.0** updated the OCR model lineup for the Opus 5 launch (24 July
 2026): the picker and proxy now offer `claude-opus-5` and `claude-sonnet-5`
@@ -346,12 +358,12 @@ What remains **open**, in priority order:
   blocking on unknowns would collapse recall. The threshold is the right tool
   for those pairs.
 
-**The roadmap** is `Fable.md` (features F1–F7: estimate OCR intake,
-chassis/VIN enrichment, recency weighting, supplier scorecards, the POC#2
-claim-outcomes module, a quarterly price index, and shareable benchmark
-bundles), each with a ready-to-run implementation prompt in
-`OPUS_PROMPTS.md` P8–P14. Read the Fable.md section before its prompt — the
-rationale and the honesty rules live there.
+**The roadmap** is `Fable.md` (features F1–F7: estimate OCR intake (**F1
+done** in v1.14.0), chassis/VIN enrichment, recency weighting, supplier
+scorecards, the POC#2 claim-outcomes module, a quarterly price index, and
+shareable benchmark bundles), each with a ready-to-run implementation prompt
+in `OPUS_PROMPTS.md` P8–P14. Read the Fable.md section before its prompt —
+the rationale and the honesty rules live there.
 
 ## 8. Glossary
 

@@ -25,11 +25,11 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
   normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
-import { OCR_SYS, OCR_USER_TEXT } from "./ocrPrompt.js";
+import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker } from "./datasource.js";
 
-const APP_VERSION = "1.13.0";
+const APP_VERSION = "1.14.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -106,6 +106,44 @@ async function ocrFile(base64, mediaType, isPdf, model) {
 const fileToB64 = (file) => new Promise((res, rej) => {
   const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file);
 });
+
+/* ================= Estimate OCR =================
+   Reads a repairer estimate (PDF / image) via Claude and returns structured
+   lines as "part_number, part_name, quoted_price" text ready for the Assess
+   textarea, reusing the same proxy and model infrastructure as bill OCR. */
+async function ocrEstimate(base64, mediaType, isPdf, model) {
+  const docBlock = isPdf
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+    : { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
+  const proxyToken = import.meta.env.VITE_OCR_PROXY_TOKEN;
+  const res = await fetch("/api/ocr", {
+    method: "POST", headers: { "Content-Type": "application/json", ...(proxyToken ? { "x-ocr-token": proxyToken } : {}) },
+    body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 8192, system: ESTIMATE_OCR_SYS,
+      messages: [{ role: "user", content: [docBlock, { type: "text", text: ESTIMATE_OCR_USER_TEXT }] }] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.error?.message || data?.error || data?.detail || `HTTP ${res.status}`;
+    throw new Error(`Estimate OCR failed: ${typeof msg === "string" ? msg : JSON.stringify(msg)}`);
+  }
+  if (data.stop_reason === "max_tokens") {
+    throw new Error("Estimate OCR hit the token ceiling — the document is too long for one pass");
+  }
+  const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  const clean = text.replace(/```json|```/g, "").trim();
+  const start = clean.indexOf("{"), end = clean.lastIndexOf("}");
+  if (start < 0 || end < 0) throw new Error("Estimate OCR response contained no JSON object");
+  const parsed = JSON.parse(clean.slice(start, end + 1));
+  // Convert the structured parts array into the "pn, name, price" text format
+  // the Assess textarea already understands.
+  const lines = (parsed.parts || []).map((p) => {
+    const pn = (p.part_number || "").trim();
+    const nm = (p.part_name || "").trim();
+    const pr = p.quoted_price ?? 0;
+    return pn ? `${pn}, ${nm}, ${pr}` : `${nm}, ${pr}`;
+  });
+  return { text: lines.join("\n"), meta: { repairer: parsed.repairer, vehicle: parsed.vehicle, make: parsed.make, ref: parsed.estimate_ref, lineCount: lines.length } };
+}
 
 /* ================= flexible Excel mapping ================= */
 function col(headers, ...needles) {
@@ -396,7 +434,7 @@ export default function App() {
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
-        {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct }} />}
+        {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct, ocrModel }} />}
         {tab === "analytics" && <Analytics {...{ parts, clusters, cfg, method, setMethod, inflPct, setInflPct }} />}
         {tab === "coverage" && <Coverage {...{ parts, clusters }} />}
         {tab === "methods" && <MethodNotes />}
@@ -1391,13 +1429,38 @@ T81130-06590, HEAD LAMP RH, 420
 8R2998002, WIPER BLADES, 95
 9999-XXX, UNLISTED WIDGET, 300`;
 
-function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
+function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState(null);
   const [claimRef, setClaimRef] = useState("");
   const [openRow, setOpenRow] = useState(null);
+  const [ocrBusy, setOcrBusy] = useState(null);   // null | "reading…" status string
+  const [ocrMeta, setOcrMeta] = useState(null);    // { repairer, vehicle, make, ref, lineCount }
+  const estRef = React.useRef(null);
   const { sort, toggle } = useSort();
   const onSort = (k) => { setOpenRow(null); toggle(k); };
+
+  const handleEstimateOcr = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const isPdf = file.type === "application/pdf";
+    const model = ocrModel || "claude-sonnet-4-6";
+    setOcrBusy(`Reading ${file.name} with ${model}…`);
+    setOcrMeta(null);
+    try {
+      const b64 = await fileToB64(file);
+      const result = await ocrEstimate(b64, file.type || "image/png", isPdf, model);
+      setText(result.text);
+      setOcrMeta(result.meta);
+      // Auto-run the assessment on the extracted lines
+      run(result.text);
+    } catch (err) {
+      alert("Estimate OCR failed: " + err.message);
+    } finally {
+      setOcrBusy(null);
+    }
+  };
 
   const run = (raw) => {
     const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
@@ -1453,11 +1516,17 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct }) {
 
   return (<>
     <Card title="Assess an incoming repairer estimate">
-      <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Paste the estimate's parts, one per line as <span style={{ fontFamily: "ui-monospace,monospace", color: TEXT }}>part number, description, quoted price</span> (make optional as a 4th field). Each line is matched to the benchmark — by exact part number first, then by name — and compared against its median. This is the inverse of building the reference: it puts the reference to work on a live claim.</p>
+      <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Paste the estimate's parts below, or <b style={{ color: TEAL_L }}>upload the estimate document</b> and let Claude read it. Each line as <span style={{ fontFamily: "ui-monospace,monospace", color: TEXT }}>part number, description, quoted price</span> (make optional as a 4th field). Each line is matched to the benchmark and compared against its median.</p>
       <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={SAMPLE_ESTIMATE}
         style={{ width: "100%", minHeight: 120, marginTop: 6, background: "#082430", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 11, fontSize: 12.5, fontFamily: "ui-monospace,monospace", outline: "none", resize: "vertical" }} />
+      {ocrMeta && <div style={{ fontSize: 11, color: TEAL_L, marginTop: 4 }}>
+        Read {ocrMeta.lineCount} part line{ocrMeta.lineCount !== 1 ? "s" : ""} from estimate{ocrMeta.repairer ? ` · ${ocrMeta.repairer}` : ""}{ocrMeta.vehicle ? ` · ${ocrMeta.vehicle}` : ""}{ocrMeta.make ? ` · ${ocrMeta.make}` : ""}{ocrMeta.ref ? ` · ref ${ocrMeta.ref}` : ""}
+      </div>}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
         <button onClick={() => run()} style={{ ...btn(LIME, TEAL_D), marginTop: 0 }}>Assess estimate</button>
+        <input ref={estRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.tiff,.bmp,.gif" hidden onChange={handleEstimateOcr} />
+        <button onClick={() => estRef.current?.click()} disabled={!!ocrBusy} style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, cursor: ocrBusy ? "wait" : "pointer", opacity: ocrBusy ? 0.6 : 1 }}>
+          {ocrBusy ? ocrBusy : "Upload estimate (OCR)"}</button>
         <button onClick={() => { setText(SAMPLE_ESTIMATE); run(SAMPLE_ESTIMATE); }} style={{ ...btn(ICE, TEAL_D), marginTop: 0 }}>Try sample</button>
         <span style={{ fontSize: 12.5, color: MUTE, marginLeft: 8 }}>Flag when quoted exceeds median by <b style={{ color: RED }}>+{inflPct}%</b>&nbsp;
           <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 160, verticalAlign: "middle" }} /></span>

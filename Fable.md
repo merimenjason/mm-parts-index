@@ -38,7 +38,20 @@ themes, and the seven features below map onto them:
 
 ## F1 — OCR the estimate: document intake for Assess a Claim
 
+**Status: SHIPPED in v1.14.0 (26 August 2026).**
 **When: pre- or post-run (independent). Effort: S–M. Risk: low.**
+
+> **Implementation note (v1.14.0).** Shipped as an "Upload estimate (OCR)"
+> button on the Assess tab. Uses a dedicated lighter prompt
+> (`ESTIMATE_OCR_SYS` in `src/ocrPrompt.js`) with a minimal schema
+> (`part_number`, `part_name`, `quoted_price` per line, plus repairer /
+> vehicle / make / estimate_ref metadata). The `ocrEstimate()` function
+> reuses the same `/api/ocr` proxy and model picker as bill OCR. Extracted
+> lines are converted into the comma-separated text format the textarea
+> already understands and the assessment auto-runs. The manual paste
+> workflow is unchanged. The editable-preview grid and per-line
+> reconciliation from the design sketch below were deferred as
+> nice-to-haves — the textarea serves as the editable preview.
 
 ### The gap
 Assess a Claim is the tab with teeth, but its input is a `textarea`: the
@@ -390,7 +403,7 @@ committee — while the raw dataset stays where it was ingested.
 | 2 | **F2** (chassis/VIN) | Small, pre-run: the 200 invoices land with better vehicle identity; the runner's Excel round-trips it. |
 | 3 | *The 200-invoice run* | The milestone everything is staged around. |
 | 4 | P5 (GST) + **F3** (recency) | The two halves of price comparability, in that order — F3 reuses P5's date parsing. |
-| 5 | **F1** (estimate OCR) + **F5** (claim outcomes) | Close the claim loop; F5 is the POC#2 deliverable and the funding argument. |
+| 5 | ~~**F1**~~ (estimate OCR — **done** v1.14.0) + **F5** (claim outcomes) | Close the claim loop; F5 is the POC#2 deliverable and the funding argument. |
 | 6 | **F4** (supplier scorecards), **F6** (price index) | Volume-powered analytics; independent of each other. |
 | 7 | P6, P7, **F7** | Structural refactor, snapshot persistence, then the shareable bundle that leans on both. |
 
