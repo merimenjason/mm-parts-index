@@ -26,7 +26,10 @@ Estimate OCR for Assess a Claim (F1). 106 self-tests, clean build.
   understands.
 - **CHANGED: `ocrModel` is now passed to the Assess component** so the
   estimate OCR uses whichever model the user has selected on the Ingest
-  tab (Sonnet 4.6 by default).
+  tab (Sonnet 4.6 by default). A **model indicator** beside the upload
+  button shows the active model with a tooltip pointing to the Ingest
+  tab's picker, so the user always knows which model will read the
+  document without switching tabs.
 
 ## 1.13.0 — 25 July 2026
 

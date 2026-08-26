@@ -255,7 +255,9 @@ the exact production merge decision.
 item. An "Upload estimate (OCR)" button accepts a PDF or image of the
 repairer's estimate, reads it via Claude using the same proxy and model
 picker as bill OCR, and fills the assessment with structured lines that
-auto-run against the benchmark. A dedicated lighter prompt
+auto-run against the benchmark. A **model indicator** beside the button
+shows the active Claude model (set on the Ingest tab) so the user always
+knows which model will read the document. A dedicated lighter prompt
 (`ESTIMATE_OCR_SYS` in `src/ocrPrompt.js`) extracts parts only — no
 reconciliation fields, grade tracking, or GST treatment. The manual paste
 workflow is unchanged. See CHANGELOG 1.14.0.

@@ -1527,6 +1527,8 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         <input ref={estRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.tiff,.bmp,.gif" hidden onChange={handleEstimateOcr} />
         <button onClick={() => estRef.current?.click()} disabled={!!ocrBusy} style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, cursor: ocrBusy ? "wait" : "pointer", opacity: ocrBusy ? 0.6 : 1 }}>
           {ocrBusy ? ocrBusy : "Upload estimate (OCR)"}</button>
+        <span style={{ fontSize: 10.5, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="The Claude model used for estimate OCR — change it on the Ingest tab's model picker">
+          {((OCR_MODELS.find(([id]) => id === ocrModel) || [])[1] || ocrModel).split("—")[0].trim()}</span>
         <button onClick={() => { setText(SAMPLE_ESTIMATE); run(SAMPLE_ESTIMATE); }} style={{ ...btn(ICE, TEAL_D), marginTop: 0 }}>Try sample</button>
         <span style={{ fontSize: 12.5, color: MUTE, marginLeft: 8 }}>Flag when quoted exceeds median by <b style={{ color: RED }}>+{inflPct}%</b>&nbsp;
           <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 160, verticalAlign: "middle" }} /></span>
