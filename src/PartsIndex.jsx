@@ -20,7 +20,8 @@ const TEXT = "#EAF6FA", MUTE = "#8FB6C4", RED = "#E8615A", AMBER = "#E8A33D";
 
 const LOGO = "data:image/png;base64,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"; // Merimen "Fermion" mark (lime f)
 const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Benz","BMW","Audi",
-  "Volkswagen","Mitsubishi","Suzuki","Subaru","Lexus","Mitsubishi Fuso","Porsche","Chevrolet"];
+  "Volkswagen","Mitsubishi","Suzuki","Subaru","Lexus","Mitsubishi Fuso","Porsche","Chevrolet",
+  "BYD","Tesla","MG"];
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice, findDuplicateLines,
@@ -1651,6 +1652,12 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
   </>);
 }
 
+// Ordinal ramp (one hue, monotone lightness) for the four graded tiers, in
+// quality/standardisation order; Unknown sits outside the ramp as a neutral
+// gray since it isn't a position in that order. Validated with the dataviz
+// skill's palette checker against this app's dark surface (#0A2733):
+// lightness monotone, adjacent ΔL, light-end contrast, single hue all pass.
+const GRADE_COLORS = { "OEM Genuine": "#0A6B8A", "OES": "#0089A8", "Aftermarket": "#17A8C4", "Used/Recon": "#6FE0F0", "Unknown": "#6B7C85" };
 function Coverage({ parts, clusters }) {
   const [openMake, setOpenMake] = useState(null);
   const [openCat, setOpenCat] = useState(null);
@@ -1660,6 +1667,11 @@ function Coverage({ parts, clusters }) {
   const cats = Object.entries(catMap).sort((a, b) => b[1].length - a[1].length);
   const covered = new Set(usable.map((p) => p.make));
   const hit = SG_MAKES.filter((m) => covered.has(m)).length;
+  const gradeMap = {};
+  usable.forEach((p) => { (gradeMap[p.make] ||= {})[p.grade] = (gradeMap[p.make][p.grade] || 0) + 1; });
+  const gradeByMake = Object.entries(gradeMap)
+    .map(([m, counts]) => [m, counts, Object.values(counts).reduce((a, b) => a + b, 0)])
+    .sort((a, b) => b[2] - a[2]);
   return (<div className="pi-2col">
     <Card title={`Make coverage · ${hit}/${SG_MAKES.length} common SG makes · click a make for its parts`}>
       {SG_MAKES.map((m) => { const items = usable.filter((p) => p.make === m); const n = items.length; const isOpen = openMake === m;
@@ -1676,6 +1688,25 @@ function Coverage({ parts, clusters }) {
             <span><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c}</span><span style={{ color: MUTE }}>{items.length} parts</span></div>
           {isOpen && <div style={{ padding: "2px 0 8px 16px", fontSize: 11, color: MUTE, maxHeight: 170, overflow: "auto" }}><PartLines items={items} /></div>}
         </div>); }) : <span style={{ color: MUTE, fontSize: 12.5 }}>No data yet.</span>}</Card>
+    <div style={{ gridColumn: "1 / -1" }}><Card title="Grade mix by make · a skewed bar is a reliability signal, not just a count">
+      <p style={{ color: MUTE, fontSize: 12, lineHeight: 1.6, marginTop: -4 }}>A make whose bar is mostly one shade rests on one grade of quote; a make split across several is drawing on genuinely different markets — worth a second look before quoting its median as one number. Hover a segment for the exact count.</p>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", margin: "10px 0 14px", fontSize: 11.5, color: MUTE }}>
+        {GRADES.map((g) => (
+          <span key={g} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: GRADE_COLORS[g], display: "inline-block" }} />{g}</span>))}
+      </div>
+      {gradeByMake.length ? gradeByMake.map(([m, counts, total]) => {
+        const segs = GRADES.map((g) => [g, counts[g] || 0]).filter(([, n]) => n > 0);
+        return (<div key={m} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <span style={{ width: 130, fontSize: 12, color: TEXT, flexShrink: 0 }}>{m}</span>
+          <div style={{ flex: 1, display: "flex", height: 16, borderRadius: 4, overflow: "hidden", background: LINE }}>
+            {segs.map(([g, n], i) => (
+              <div key={g} title={`${g}: ${n} of ${total} (${Math.round((n / total) * 100)}%)`}
+                style={{ width: `${(n / total) * 100}%`, background: GRADE_COLORS[g], borderRight: i < segs.length - 1 ? `2px solid ${INK}` : "none" }} />))}
+          </div>
+          <span style={{ width: 46, textAlign: "right", fontSize: 11, color: MUTE, flexShrink: 0 }}>{total}</span>
+        </div>); }) : <span style={{ color: MUTE, fontSize: 12.5 }}>No data yet.</span>}
+    </Card></div>
     <div style={{ gridColumn: "1 / -1" }}><Card title="Success criteria (from the project brief)">
       <div style={{ fontSize: 12.5, lineHeight: 1.8 }}>
         <b style={{ color: LIME }}>a. Coverage completeness</b> — {hit} of {SG_MAKES.length} common makes and {cats.length} categories; {clusters.filter((c) => c.n > 1).length} fuzzy clusters have a 2+-quote benchmark. Depth grows with invoice volume.<br />
