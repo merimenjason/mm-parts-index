@@ -47,6 +47,9 @@ const OCR_MODELS = [
   ["claude-fable-5", "Fable 5 — most capable, highest cost"],
 ];
 const MODEL_KEY = "partsindex_ocr_model";
+const UI_MODE_KEY = "partsindex_ui_mode";
+// Tabs hidden in "Simple" mode — deeper-dive views a layperson doesn't need day to day.
+const ADVANCED_TABS = new Set(["analytics", "coverage", "methods"]);
 
 /* ================= activity log =================
    The Ingest tab's activity history is a persistent, append-only stream of
@@ -200,6 +203,15 @@ export default function App() {
     catch { return OCR_MODELS[0][0]; }
   });
   const setOcrModel = (m) => { setOcrModelState(m); try { localStorage.setItem(MODEL_KEY, m); } catch {} };
+  const [uiMode, setUiModeState] = useState(() => {
+    try { const v = localStorage.getItem(UI_MODE_KEY); return v === "detailed" ? "detailed" : "simple"; }
+    catch { return "simple"; }
+  });
+  const setUiMode = (m) => {
+    setUiModeState(m);
+    try { localStorage.setItem(UI_MODE_KEY, m); } catch {}
+    if (m === "simple") setTab((t) => (ADVANCED_TABS.has(t) ? "dashboard" : t));
+  };
   const excelRef = useRef(), invRef = useRef();
   // StrictMode (dev) runs mount effects twice — setup → cleanup → setup — on the
   // SAME fiber, so this ref persists between the two invocations and gates the
@@ -421,11 +433,24 @@ export default function App() {
                 </a>
               </div></div>}
       </div>
-      <div style={{ background: TEAL, padding: "0 calc(var(--pi-gutter) - 4px)", display: "flex", gap: 2, flexWrap: "wrap" }}>
-        <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Demo" /><Tab id="upload" label="Ingest" />
-        <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Benchmark" />
-        <Tab id="assess" label="Assess a Claim" /><Tab id="analytics" label="Analytics" />
-        <Tab id="coverage" label="Coverage" /><Tab id="methods" label="Method Notes" />
+      <div style={{ background: TEAL, padding: "0 calc(var(--pi-gutter) - 4px)", display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+        <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Benchmark" /><Tab id="upload" label="Add Bills" />
+        <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Configuration" />
+        <Tab id="assess" label="Assess a Claim" />
+        {uiMode === "detailed" && <>
+          <Tab id="analytics" label="Analytics" />
+          <Tab id="coverage" label="Coverage" /><Tab id="methods" label="Method Notes" />
+        </>}
+        <div style={{ flex: 1 }} />
+        <div role="group" aria-label="Display mode" style={{ display: "flex", margin: "6px 0", background: TEAL_D, borderRadius: 8, padding: 2 }}>
+          {["simple", "detailed"].map((m) => (
+            <button key={m} onClick={() => setUiMode(m)} title={m === "simple" ? "Hide Analytics, Coverage and Method Notes" : "Show all tabs"} style={{
+              padding: "6px 12px", background: uiMode === m ? LIME : "none", color: uiMode === m ? TEAL_D : "#BFE6EF",
+              border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700, fontSize: 12, letterSpacing: ".02em" }}>
+              {m === "simple" ? "Simple" : "Detailed"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
@@ -641,7 +666,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
   if (!parts.length) return (
     <div style={{ border: `1px dashed ${LINE}`, borderRadius: 12, padding: 44, textAlign: "center", background: PANEL }}>
       <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "#fff" }}>No parts loaded</div>
-      <div style={{ color: MUTE, fontSize: 13, maxWidth: 460, margin: "0 auto", lineHeight: 1.6 }}>Load the demo bills or ingest supplier bills on the Dashboard / Ingest tab, then search the benchmark here.</div>
+      <div style={{ color: MUTE, fontSize: 13, maxWidth: 460, margin: "0 auto", lineHeight: 1.6 }}>Load the demo bills or add supplier bills on the Dashboard / Add Bills tab, then search the benchmark here.</div>
     </div>);
 
   return (<>
@@ -663,7 +688,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <span style={{ fontSize: 12.5, color: MUTE }}><b style={{ color: results.length ? LIME : MUTE }}>{results.length}</b> benchmark{results.length === 1 ? "" : "s"} match{anyFilter ? " your filters" : ""}</span>
-        {setCfg && cfg && <label style={{ fontSize: 12, color: MUTE, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }} title="A cluster with fewer quotes than this shows its median with a * and its spread as advisory. Shared with the Benchmark tab. Raise it to be stricter about thin data, lower it to treat small clusters as reliable.">
+        {setCfg && cfg && <label style={{ fontSize: 12, color: MUTE, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }} title="A cluster with fewer quotes than this shows its median with a * and its spread as advisory. Shared with the Configuration tab. Raise it to be stricter about thin data, lower it to treat small clusters as reliable.">
           Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b>
           <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => setCfg({ ...cfg, minQuotes: +e.target.value })} style={{ width: 130 }} /></label>}
         <div style={{ flex: 1 }} />
@@ -796,7 +821,7 @@ function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
                 {isOpen && <div style={{ padding: "2px 0 8px 16px", fontSize: 11, color: MUTE }}><QuoteLines c={c} /></div>}
               </div>); })}
           {clusters.filter((c) => c.n > 1).length === 0 &&
-            <div style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6 }}>No clusters with 2+ quotes at the current matching setting. Loosen the threshold on the Benchmark tab.</div>}
+            <div style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6 }}>No clusters with 2+ quotes at the current matching setting. Loosen the threshold on the Configuration tab.</div>}
         </Card>
       </div>
     )}
@@ -854,7 +879,7 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
 
   if (kpi === "review") {
     const flagged = parts.filter((p) => p.review);
-    note = "These lines failed the totals-reconciliation check at OCR time. Resolve them on the Ingest tab (Accept / Discard).";
+    note = "These lines failed the totals-reconciliation check at OCR time. Resolve them on the Add Bills tab (Accept / Discard).";
     body = <div style={{ fontSize: 11.5, color: MUTE }}><PartLines items={flagged} /></div>;
   }
   if (kpi === "invoices") {
@@ -1081,11 +1106,11 @@ function LedgerDetail({ p, parts, clusters }) {
     {sib.length > 1 && <div style={{ marginTop: 6 }}><b style={{ color: TEXT }}>Same bill</b> — {sib.length} lines on bill {p.bill_no} ({p.supplier}) totalling S${billTotal.toFixed(2)}.</div>}
     <div style={{ marginTop: 6 }}>
       {!usable
-        ? <span><b style={{ color: TEXT }}>Benchmark</b> — {p.review ? "held for review, so excluded from every benchmark until accepted or discarded on the Ingest tab." : `${p.ltype} lines are excluded from the parts cost benchmark by design.`}</span>
+        ? <span><b style={{ color: TEXT }}>Benchmark</b> — {p.review ? "held for review, so excluded from every benchmark until accepted or discarded on the Add Bills tab." : `${p.ltype} lines are excluded from the parts cost benchmark by design.`}</span>
         : c && c.n > 1
           ? <><b style={{ color: TEXT }}>Feeds benchmark</b> — <b style={{ color: LIME }}>{c.label}</b> ({c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""}) · median S${c.med} across {c.n} quotes from {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}:
               <div style={{ marginTop: 4 }}><QuoteLines c={c} /></div></>
-          : <span><b style={{ color: TEXT }}>Benchmark</b> — sole quote in its cluster at the current matching settings; a defensible median needs a second quote. Loosen the threshold on the Benchmark tab or add more bills.</span>}
+          : <span><b style={{ color: TEXT }}>Benchmark</b> — sole quote in its cluster at the current matching settings; a defensible median needs a second quote. Loosen the threshold on the Configuration tab or add more bills.</span>}
     </div>
   </div>);
 }
@@ -1396,7 +1421,7 @@ function MNormalisation({ clusters }) {
         _detail: (<div>
           <div style={{ marginBottom: 6 }}>{c.names.length} spelling{c.names.length > 1 ? "s" : ""} and {c.pns.length} part number{c.pns.length > 1 ? "s" : ""} merged into one benchmark{c.bridged ? <span style={{ color: AMBER }}> — spans multiple part numbers (name-bridged ≈), so verify these really are the same part</span> : " — same normalised part number throughout"}. The lines as written on the bills:</div>
           <QuoteLines c={c} /></div>) }))} />
-      : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>At the current threshold no cluster merged differing names. Loosen the threshold on the Benchmark tab to see merges.</span></Card>}</>);
+      : <Card><span style={{ color: MUTE, fontSize: 12.5 }}>At the current threshold no cluster merged differing names. Loosen the threshold on the Configuration tab to see merges.</span></Card>}</>);
 }
 
 /* ---------- Assess a claim: match an incoming estimate to the benchmark ---------- */
@@ -1527,7 +1552,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         <input ref={estRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.tiff,.bmp,.gif" hidden onChange={handleEstimateOcr} />
         <button onClick={() => estRef.current?.click()} disabled={!!ocrBusy} style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, cursor: ocrBusy ? "wait" : "pointer", opacity: ocrBusy ? 0.6 : 1 }}>
           {ocrBusy ? ocrBusy : "Upload estimate (OCR)"}</button>
-        <span style={{ fontSize: 10.5, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="The Claude model used for estimate OCR — change it on the Ingest tab's model picker">
+        <span style={{ fontSize: 10.5, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="The Claude model used for estimate OCR — change it on the Add Bills tab's model picker">
           {((OCR_MODELS.find(([id]) => id === ocrModel) || [])[1] || ocrModel).split("—")[0].trim()}</span>
         <button onClick={() => { setText(SAMPLE_ESTIMATE); run(SAMPLE_ESTIMATE); }} style={{ ...btn(ICE, TEAL_D), marginTop: 0 }}>Try sample</button>
         <span style={{ fontSize: 12.5, color: MUTE, marginLeft: 8 }}>Flag when quoted exceeds median by <b style={{ color: RED }}>+{inflPct}%</b>&nbsp;
@@ -1535,7 +1560,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         <div style={{ flex: 1 }} />
         <input value={claimRef} onChange={(e) => setClaimRef(e.target.value)} placeholder="Claim ref (optional)" style={{ ...inp(160), marginTop: 0 }} />
         <button onClick={exportPack} disabled={!rows} title={rows ? "Excel: summary + line assessment + every underlying supplier quote, stamped with a benchmark snapshot id" : "Assess an estimate first"}
-          style={{ ...btn(rows ? TEAL_L : "#1E4E60", rows ? INK : MUTE), marginTop: 0, cursor: rows ? "pointer" : "not-allowed" }}>Export dispute pack ⬇</button>
+          style={{ ...btn(rows ? TEAL_L : "#1E4E60", rows ? INK : MUTE), marginTop: 0, cursor: rows ? "pointer" : "not-allowed" }}>Export Detailed Report ⬇</button>
       </div>
     </Card>
 
@@ -1570,10 +1595,10 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
                   : <span style={{ color: MUTE, fontSize: 11 }} title={`Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
               {isOpen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
                 {r.cluster ? (<div>
-                  <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the dispute pack exports:</div>
+                  <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
                   <QuoteLines c={r.cluster} /></div>)
                 : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
-                    ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Benchmark tab or add the part number to the estimate line.</>
+                    ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Configuration tab or add the part number to the estimate line.</>
                     : "No candidate cluster could be compared — the part is not in the reference yet, or the make constraint filtered everything out."}</div>)}
               </td></tr>}
             </React.Fragment>); })}</tbody></table></div>
@@ -1581,7 +1606,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
         Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
         Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.
-        <b style={{ color: TEXT }}> Export dispute pack</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
+        <b style={{ color: TEXT }}> Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
     </>)}
   </>);
 }
