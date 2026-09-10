@@ -13,7 +13,12 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 (text + GitHub icon) from the top-right of the app masthead, under
 *fuzzy-matched median benchmark*.
 
-![tabs: Dashboard · Demo · Ingest · Parts Ledger · Benchmark · Assess a Claim · Analytics · Coverage · Method Notes](public/screenshot.png)
+![tabs: Dashboard · Benchmark · Add Bills · Parts Ledger · Configuration · Assess a Claim · Analytics · Coverage · Method Notes](public/screenshot.png)
+
+The app opens in **Simple mode** — a Simple/Detailed toggle in the tab bar
+hides Analytics, Coverage and Method Notes until a **Detailed** click is
+needed, so a first-time reviewer isn't handed the full statistical toolkit
+up front.
 
 ---
 
@@ -22,18 +27,20 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 - **Ingest two ways** — bulk-upload Claude-OCR'd spreadsheets, or upload raw invoice PDFs/images and have Claude OCR them live.
 - **Auto-enrich** — normalises part numbers, infers make/model, assigns a canonical category, and classifies each line (supplier part / consumable / estimate / labour).
 - **Fuzzy-matched benchmark** — groups parts by **configurable fuzzy name matching** (not brittle exact part numbers), then computes median / average / range / quote count / suppliers per cluster.
-- **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Benchmark tab (bridging is off by default for the most defensible number).
-- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR. A model indicator beside the upload button shows which Claude model will be used (set on the Ingest tab). Each line is matched to the benchmark, producing a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
-- **Dispute pack export** — one click turns an assessment into the attachable audit trail: an Excel with a **Summary** (claim ref, matching settings, totals, a **benchmark snapshot id**), the **Line Assessment**, and an **Evidence** sheet listing *every underlying supplier quote* behind every benchmark used (make · model · supplier · bill no · date · grade · price · source). Same snapshot id = same data + same settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.
-- **Demo lookup tab + worklist** — a stakeholder-facing benchmark search: filter by make/model, part name or part number (normalisation-aware, so `52119` finds `T52119-06971`), or a global search across all fields, and read each part's **median** and **mean** unit price. Every result drills down to the underlying supplier quotes with full provenance (supplier, bill number, date, grade, and Claude-OCR vs Excel source). Add results to a **Worklist** with the `+` button and export the shortlist to **Excel** (worklist + evidence sheets) or **PDF** (a benchmark table plus an evidence table of the quotes behind each part); worklist rows are expandable to their source quotes, and both exports include that evidence. The PDF library loads on demand so it never bloats the main bundle.
-- **Make _and_ model everywhere** — the vehicle **model** is shown alongside make across every tab (Benchmark, Parts Ledger, Demo, Analytics, Dashboard), in every drill-down, and in both the Excel export and the dispute pack. Clusters that legitimately span models carry a `+N` marker with a hover listing them, so the median is never quietly attributed to a single model.
-- **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab.
-- **Dispersion measures (IQR / SD / CV)** — every benchmark carries the interquartile range (Q1–Q3), sample standard deviation and coefficient of variation. The Benchmark tab shows an **IQR band** column (a `*` marks clusters below the reliability floor, where spread is advisory); the dispersion and confidence analytics surface SD and CV; and **Assess a Claim** flags any estimate line above the **Tukey upper fence** (Q3 + 1.5·IQR) as `ABOVE BOUND` — a statistically defensible outlier, harder to dispute than a bare percentage. A **Min quotes for reliable spread** slider (range 1–30, default 4, on both the Benchmark and Demo tabs, writing the shared `cfg.minQuotes`) sets that floor and, since it changes which lines are flagged, is folded into the reproducibility snapshot. Quantiles use Excel's PERCENTILE.INC and SD uses STDEV.S (n−1) so every figure reconciles against a spreadsheet.
-- **Quote drill-down everywhere** — click any benchmark part (Dashboard, Benchmark tab) and **any row in any of the eight Analytics views** to expand the evidence behind the number: inflation flags open the offending bill plus the full cluster, confidence scores open a component-by-component breakdown (depth / diversity / recency bars), dispersion opens the cheapest-vs-dearest gap with a grade caution, trend strips list their lines in date order, agreement rows show the verdict arithmetic, accuracy signals expand to line-level list-vs-net and per-bill provenance, and normalisation rows reveal every raw spelling that was merged. The same applies outside Analytics: **Parts Ledger** lines open their full record (GST, grade, basis, normalised PN, source, bill context) plus the benchmark they feed; **Assess a Claim** rows open the match evidence — or, for unmatched lines, the closest rejected candidate and why it fell short; **Coverage** makes/categories and the Dashboard coverage bars expand into their part lines.
+- **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Configuration tab (bridging is off by default for the most defensible number).
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR. A model indicator beside the upload button shows which Claude model will be used (set on the Add Bills tab). Each line is matched to the benchmark, producing a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
+- **Detailed report export** — the **Export Detailed Report** button turns an assessment into the attachable audit trail (a "dispute pack" internally): an Excel with a **Summary** (claim ref, matching settings, totals, a **benchmark snapshot id**), the **Line Assessment**, and an **Evidence** sheet listing *every underlying supplier quote* behind every benchmark used (make · model · supplier · bill no · date · grade · price · source). Same snapshot id = same data + same settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.
+- **Benchmark lookup tab + worklist** — a stakeholder-facing benchmark search: filter by make/model, part name or part number (normalisation-aware, so `52119` finds `T52119-06971`), or a global search across all fields, and read each part's **median** and **mean** unit price. Every result drills down to the underlying supplier quotes with full provenance (supplier, bill number, date, grade, and Claude-OCR vs Excel source). Add results to a **Worklist** with the `+` button and export the shortlist to **Excel** (worklist + evidence sheets) or **PDF** (a benchmark table plus an evidence table of the quotes behind each part); worklist rows are expandable to their source quotes, and both exports include that evidence. The PDF library loads on demand so it never bloats the main bundle.
+- **Make _and_ model everywhere** — the vehicle **model** is shown alongside make across every tab (Configuration, Parts Ledger, Benchmark, Analytics, Dashboard), in every drill-down, and in both the Excel export and the detailed report. Clusters that legitimately span models carry a `+N` marker with a hover listing them, so the median is never quietly attributed to a single model.
+- **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab (Detailed mode).
+- **Dispersion measures (IQR / SD / CV)** — every benchmark carries the interquartile range (Q1–Q3), sample standard deviation and coefficient of variation. The Configuration tab shows an **IQR band** column (a `*` marks clusters below the reliability floor, where spread is advisory); the dispersion and confidence analytics surface SD and CV; and **Assess a Claim** flags any estimate line above the **Tukey upper fence** (Q3 + 1.5·IQR) as `ABOVE BOUND` — a statistically defensible outlier, harder to dispute than a bare percentage. A **Min quotes for reliable spread** slider (range 1–30, default 4, on both the Configuration and Benchmark tabs, writing the shared `cfg.minQuotes`) sets that floor and, since it changes which lines are flagged, is folded into the reproducibility snapshot. Quantiles use Excel's PERCENTILE.INC and SD uses STDEV.S (n−1) so every figure reconciles against a spreadsheet.
+- **Quote drill-down everywhere** — click any benchmark part (Dashboard, Configuration tab) and **any row in any of the eight Analytics views** to expand the evidence behind the number: inflation flags open the offending bill plus the full cluster, confidence scores open a component-by-component breakdown (depth / diversity / recency bars), dispersion opens the cheapest-vs-dearest gap with a grade caution, trend strips list their lines in date order, agreement rows show the verdict arithmetic, accuracy signals expand to line-level list-vs-net and per-bill provenance, and normalisation rows reveal every raw spelling that was merged. The same applies outside Analytics: **Parts Ledger** lines open their full record (GST, grade, basis, normalised PN, source, bill context) plus the benchmark they feed; **Assess a Claim** rows open the match evidence — or, for unmatched lines, the closest rejected candidate and why it fell short; **Coverage** makes/categories and the Dashboard coverage bars expand into their part lines.
 - **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
 - **Coverage report** — by make and category, against the project's success criteria.
-- **Sortable tables everywhere** — every data table sorts on any column: click a header to order **A→Z**, click again for **Z→A** (▲/▼ marks the active column). Money and percentages sort as numbers, text alphabetically. Covers the Parts Ledger, Benchmark, Demo results + worklist, Assess-a-Claim results, all eight Analytics views and every Dashboard KPI drill-down. Sorting collapses any open drill-down so the evidence always matches the row above it.
-- **Persistent, drill-downable activity log** — the Ingest tab's *Activity* panel records every ingest, OCR, review and dataset action as a structured event with a **date-and-time stamp**, kind, status and affected-line count, and **persists it** (localStorage by default, or the shared Turso DB via `/api/activity` when the backend is on) so the history survives reloads. Click any entry to drill into its detail — for OCR that includes the **Claude model used** and the **totals-reconciliation** outcome; for imports the suppliers/makes/bills touched — and filter the stream by kind.
+- **Sortable tables everywhere** — every data table sorts on any column: click a header to order **A→Z**, click again for **Z→A** (▲/▼ marks the active column). Money and percentages sort as numbers, text alphabetically. Covers the Parts Ledger, Configuration, Benchmark results + worklist, Assess-a-Claim results, all eight Analytics views and every Dashboard KPI drill-down. Sorting collapses any open drill-down so the evidence always matches the row above it.
+- **Persistent, drill-downable activity log** — the Add Bills tab's *Activity* panel records every ingest, OCR, review and dataset action as a structured event with a **date-and-time stamp**, kind, status and affected-line count, and **persists it** (localStorage by default, or the shared Turso DB via `/api/activity` when the backend is on) so the history survives reloads. Click any entry to drill into its detail — for OCR that includes the **Claude model used** and the **totals-reconciliation** outcome; for imports the suppliers/makes/bills touched — and filter the stream by kind.
+- **Duplicate-line detection** — a line item repeated within the same invoice (same part number, qty and price) holds the bill for review instead of silently double-counting that quote in the benchmark. Shared logic between the app and the batch OCR runner.
+- **Test-mode OCR** — a "Test mode" toggle on the OCR-invoices card reads and previews an invoice without writing it to the dataset, so trying the OCR path on a demo or sample bill can never skew the live benchmark.
 - **Loads on open + persists** — in the browser-only build the 18-bill demo dataset loads automatically on first visit and uploads persist to the browser for next session; with the shared Turso backend the app starts empty and reads/writes one shared dataset. Export the enriched DB + benchmark to `.xlsx` either way.
 
 ### How matching works
@@ -47,7 +54,7 @@ part numbers by name when you turn **bridging** on. Keeping **Same model** on
 prevents a Camry headlamp merging with a Hilux one, and every benchmark shows a
 **Basis** flag: `PN` (rests on one part number) or `≈` (a name bridge). All four
 modes — fuzzy name, hybrid, exact part number, and category — are selectable on
-the Benchmark tab, along with similarity threshold, token-vs-spelling weight, and
+the Configuration tab, along with similarity threshold, token-vs-spelling weight, and
 same-make/same-model constraints. As real volume builds and identical part
 numbers recur, prefer Hybrid.
 
@@ -59,7 +66,7 @@ numbers recur, prefer Hybrid.
   (`OEM Genuine` / `OES` / `Aftermarket` / `Used/Recon` / `Unknown`), a **unit basis**
   (`each` / `pair` / `set`) and the invoice's **GST treatment**. Grade is the single
   largest legitimate price driver: the matcher **refuses to merge an OEM-genuine
-  quote with an aftermarket one** (togglable via *Separate grades* on the Benchmark
+  quote with an aftermarket one** (togglable via *Separate grades* on the Configuration
   tab; Unknown grades never block a merge), per-pair prices never join per-each
   medians, and a **positional veto** (v1.12.0) blocks merges across conflicting
   positions at any threshold — front vs rear, upper vs lower, inner vs outer
@@ -76,8 +83,19 @@ numbers recur, prefer Hybrid.
 - **Totals-reconciliation gate** — every OCR'd invoice's extracted line sum is
   checked against the invoice's own printed parts subtotal (tolerance S$1 or 0.5%).
   Mismatched bills are **held for review and excluded from all benchmarks** until
-  accepted or discarded in the Ingest tab's review queue. Duplicate bills
+  accepted or discarded in the Add Bills tab's review queue. Duplicate bills
   (same supplier + bill no) are skipped at upload so quotes never double-count.
+- **Duplicate-line gate** — a line repeated *within* one invoice (same normalised
+  part number, qty and unit price) holds the whole bill for review alongside the
+  totals-reconciliation gate, rather than silently letting a double-entry (or a
+  genuinely repeated line) double-count that quote. The Add Bills tab's review
+  queue shows a category breakdown (totals mismatch vs duplicate line) of why
+  bills are held. `findDuplicateLines` in `src/pipeline.js` is shared by the app
+  and the batch OCR runner.
+- **Test-mode OCR** — a "Test mode — OCR only, don't save to the dataset" toggle
+  on the OCR-invoices card runs the read and the reconciliation/duplicate checks
+  but skips the write, so a demo or trial invoice can never accidentally end up
+  inside the live benchmark.
 - **Gold-standard matcher evaluation** — `npm run eval:pairs` generates candidate
   part pairs for human labeling; `npm run eval:score` replays the *exact* production
   matcher over the labeled set and reports precision/recall/F1 across the full
@@ -133,7 +151,7 @@ static site in `dist/`.
 3. To enable the OCR button, add an environment variable
    **`ANTHROPIC_API_KEY`** in **Settings → Environment Variables**. The proxy in
    `api/ocr.js` reads it; the key is never shipped to the browser. The proxy
-   whitelists the four Ingest-tab models and caps `max_tokens`; optionally set
+   whitelists the four Add-Bills-tab models and caps `max_tokens`; optionally set
    **`OCR_PROXY_TOKEN`** (server) plus **`VITE_OCR_PROXY_TOKEN`** (build) to the
    same value to require a shared-secret header — a drive-by tripwire, not real
    auth (see `.env.example`).
@@ -167,14 +185,17 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 | Tab | What it does |
 |---|---|
 | **Dashboard** | KPI tiles (click any tile to drill into it), make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
-| **Demo** | Stakeholder-facing benchmark lookup: filter by make/model, part name or number (normalisation-aware), or global search → **median & mean** per part; a **Min quotes for reliable spread** slider (1–30, shared with Benchmark) tunes the `*` floor here too; click a row for every source quote (supplier · bill · date · grade · price · OCR/Excel). Add parts to a **Worklist** with the `+` in the **leftmost column** (each worklist row expands to its source quotes) and export it — with evidence — to **Excel** or **PDF** |
-| **Ingest** | Excel upload, live OCR, reload-demo, export, clear, and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
+| **Benchmark** | Stakeholder-facing benchmark lookup: filter by make/model, part name or number (normalisation-aware), or global search → **median & mean** per part; a **Min quotes for reliable spread** slider (1–30, shared with Configuration) tunes the `*` floor here too; click a row for every source quote (supplier · bill · date · grade · price · OCR/Excel). Add parts to a **Worklist** with the `+` in the **leftmost column** (each worklist row expands to its source quotes) and export it — with evidence — to **Excel** or **PDF** |
+| **Add Bills** | Excel upload, live OCR (with a "Test mode" toggle to preview an OCR read without saving it), reload-demo, export, clear, a held-for-review queue with a reason breakdown (totals mismatch / duplicate line), and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
 | **Parts Ledger** | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
-| **Benchmark** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
-| **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence |
-| **Analytics** | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
-| **Coverage** | Make & category coverage vs the success criteria |
-| **Method Notes** | What each analytic computes and why |
+| **Configuration** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
+| **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence; **Export Detailed Report** produces the attachable audit trail |
+| **Analytics** *(Detailed mode)* | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
+| **Coverage** *(Detailed mode)* | Make & category coverage vs the success criteria |
+| **Method Notes** *(Detailed mode)* | What each analytic computes and why |
+
+A **Simple / Detailed** toggle in the tab bar (top right) switches between a
+lean six-tab view (default) and all nine tabs; the choice persists per browser.
 
 In the browser-only build the **18-bill demo loads automatically on the first
 visit only**. A `partsindex_seeded_v1` marker is written the first time this
@@ -204,10 +225,10 @@ libSQL database via `/api/parts`.
   (≈ US$3.40 for all 200 on the recommended Sonnet-batch + Opus 5-retry plan,
   or ≈ US$2.55 on Sonnet 5 intro pricing)
   and the step-by-step run instructions.
-- **Spreadsheets:** Ingest → *Bulk upload*. Columns are matched flexibly
+- **Spreadsheets:** Add Bills → *Bulk upload*. Columns are matched flexibly
   (Part Name, Part No, Qty, Unit, Total, Supplier, Make, Model, Bill No, Date,
   and — from the batch runner — Grade, Unit Basis, GST, Review, Review Reason).
-- **Raw invoices, one at a time:** Ingest → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet 4.6 by default — the tuned baseline; Sonnet 5 as the cheaper newer option on intro pricing to 31 Aug 2026; Haiku for clean prints, Opus 5/Fable 5 for faint fax and handwriting) — the batch runner takes the same choice via `--model`.
+- **Raw invoices, one at a time:** Add Bills → *OCR invoices* (needs the Vercel proxy + key). A **model picker** on the card chooses which Claude model reads the documents (Sonnet 4.6 by default — the tuned baseline; Sonnet 5 as the cheaper newer option on intro pricing to 31 Aug 2026; Haiku for clean prints, Opus 5/Fable 5 for faint fax and handwriting) — the batch runner takes the same choice via `--model`. A **Test mode** toggle on the same card OCRs and previews an invoice without saving it — safe for a demo or trial run.
 - The OCR prompts both paths use live in [`src/ocrPrompt.js`](./src/ocrPrompt.js)
   (documented in [`OCR_PROMPT.md`](./OCR_PROMPT.md)) — one source of truth.
   The file contains `OCR_SYS` (supplier bills) and `ESTIMATE_OCR_SYS`
@@ -308,7 +329,7 @@ api/_db.js          libSQL client, schema, upsert/replace + getActivity/appendAc
 
 The **activity log** rides the same rails as the dataset: `loadEvents()` /
 `appendEvent()` in `src/datasource.js` write to `localStorage` by default or the
-shared DB via `/api/activity` when `VITE_DATA_BACKEND=api`, so the Ingest tab's
+shared DB via `/api/activity` when `VITE_DATA_BACKEND=api`, so the Add Bills tab's
 history is durable and (on the shared backend) shared across users.
 
 `src/pipeline.js` is untouched — it operates on plain arrays, so it doesn't care
@@ -329,7 +350,7 @@ CREATE TABLE parts (
 );
 
 -- Append-only activity/ingest log (schema_version 2). One row per event; the
--- detail column is a JSON blob the Ingest tab expands for drill-down.
+-- detail column is a JSON blob the Add Bills tab expands for drill-down.
 CREATE TABLE activity (
   id TEXT PRIMARY KEY, ts TEXT, kind TEXT, action TEXT, message TEXT,
   source TEXT, count INTEGER, status TEXT, detail TEXT

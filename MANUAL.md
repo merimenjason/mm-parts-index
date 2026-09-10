@@ -112,15 +112,22 @@ grows.
 
 ## 5. Tabs & how to use them
 
+A **Simple / Detailed** toggle in the tab bar (top right, persisted per
+browser) opens in **Simple** by default, hiding Analytics, Coverage and
+Method Notes for a first-time or non-technical reviewer; click **Detailed**
+to reveal them. As of v1.15.0 the tabs are named **Benchmark** (was Demo),
+**Add Bills** (was Ingest) and **Configuration** (was Benchmark) — the
+matching-configuration functionality itself is unchanged, only the labels.
+
 - **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. In the browser-only build the 18-bill demo **loads automatically on first visit**, so this is populated immediately (with the shared Turso backend the app starts empty until you upload or seed — see §7). **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
-- **Demo** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. A **Min quotes for reliable spread** slider (1–30, default 4) sits beside the results count and shares `cfg.minQuotes` with the Benchmark tab, so tightening or loosening the reliability floor here moves the `*` advisory markers everywhere at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** in the **leftmost column** of any result row adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
-- **Ingest** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy); reload-demo; **Export .xlsx**; clear; activity log.
+- **Benchmark** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. A **Min quotes for reliable spread** slider (1–30, default 4) sits beside the results count and shares `cfg.minQuotes` with the Configuration tab, so tightening or loosening the reliability floor here moves the `*` advisory markers everywhere at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** in the **leftmost column** of any result row adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
+- **Add Bills** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy, with a **Test mode** toggle to preview a read without saving it); reload-demo; **Export .xlsx**; clear; a held-for-review queue with a category breakdown (totals mismatch / duplicate line — see §6); activity log.
 - **Parts Ledger** — every enriched line with **Make** and **Model** columns; search + filter by make / line-type.
-- **Benchmark** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (1–30, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The same slider is mirrored on the **Demo** tab (both write the shared `cfg.minQuotes`). The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the dispute pack. Click a row to reveal its quotes.
-- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR using the same model and proxy as bill ingestion. A **model indicator** beside the upload button shows which Claude model is active (change it on the Ingest tab's picker). Extracted lines fill the textarea and the assessment auto-runs. Each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The exported dispute pack records the IQR band, the statistical upper bound and the above-bound flag per line. The inverse of building the reference — putting it to work on a live claim.
-- **Analytics** — the 8 methods (§4); the median-benchmark view is also click-to-expand.
-- **Coverage** — make & category coverage vs the success criteria.
-- **Method Notes** — short reference for each analytic + the matching rationale.
+- **Configuration** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (1–30, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The same slider is mirrored on the **Benchmark** tab (both write the shared `cfg.minQuotes`). The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the detailed report (dispute pack). Click a row to reveal its quotes.
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR using the same model and proxy as bill ingestion. A **model indicator** beside the upload button shows which Claude model is active (change it on the Add Bills tab's picker). Extracted lines fill the textarea and the assessment auto-runs. Each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The **Export Detailed Report** button (a "dispute pack" internally) records the IQR band, the statistical upper bound and the above-bound flag per line. The inverse of building the reference — putting it to work on a live claim.
+- **Analytics** *(Detailed mode)* — the 8 methods (§4); the median-benchmark view is also click-to-expand.
+- **Coverage** *(Detailed mode)* — make & category coverage vs the success criteria.
+- **Method Notes** *(Detailed mode)* — short reference for each analytic + the matching rationale.
 
 > **Persistence behaviour.** In the browser-only build, the **first visit only**
 > seeds the demo — logged as a distinct **Auto-seed** event, and guarded by a
@@ -197,7 +204,7 @@ purpose — pushing median/IQR into SQL would break the Excel-reconcilable
 `PERCENTILE.INC` guarantee (§4).
 
 **The activity log persists the same way.** Every ingest, OCR, review and dataset
-action on the Ingest tab is recorded as a **structured event** — an ISO
+action on the Add Bills tab is recorded as a **structured event** — an ISO
 timestamp (date **and** time), a `kind` (ingest / ocr / review / dataset /
 error), a status, the affected line count, the originating file/bill, and a JSON
 `detail` blob — and written through the *same* backend switch: `loadEvents()` /
@@ -501,19 +508,33 @@ respects them: with **Separate grades** on (the default), quotes whose grades ar
 same part number are different markets, not one benchmark. Unknown grades never
 block a merge. Per-pair lines never merge with per-each lines in any mode. Mixed-
 grade clusters (possible only with the toggle off) are flagged **MIXED GRADE** in
-red on the Benchmark tab.
+red on the Configuration tab.
 
-### Totals-reconciliation gate & review queue
+### Totals-reconciliation gate, duplicate-line gate & review queue
 The OCR prompt now also extracts the invoice's printed **parts subtotal**, GST
 amount and grand total. On upload, the sum of extracted line totals is compared to
 the printed subtotal (tolerance: S$1 or 0.5%, whichever is larger). A mismatch
 means lines were missed, duplicated or misread, so the whole bill is **held for
 review**: its lines are stored but excluded from every benchmark, KPI and analytic,
-an amber *Needs review* KPI appears on the Dashboard, and the Ingest tab shows a
+an amber *Needs review* KPI appears on the Dashboard, and the Add Bills tab shows a
 review queue with the reason and the extracted lines, plus **Accept** (lines are
 correct → join the benchmark) and **Discard** (drop the bill). Bills whose
 supplier + bill number already exist in the dataset are skipped at upload —
 duplicates would double-count quotes and skew medians.
+
+A second gate (v1.15.0) catches duplication *within* one invoice:
+`findDuplicateLines` in `src/pipeline.js` flags a line repeated on the same bill
+(same normalised part number, qty and unit price) — a genuine double-entry or a
+legitimately repeated line, but either way it holds the bill for review rather
+than silently doubling that quote's weight. The review queue groups held bills
+into a reason breakdown (totals mismatch / duplicate line / both) so the pattern
+across a batch is visible at a glance. The same function is shared with
+`tools/batch-ocr.mjs`, so the 200-invoice batch run gets identical protection.
+A **Test mode** toggle on the OCR-invoices card runs both gates and shows the
+result without ever writing to the dataset — useful for trying the OCR path on
+a sample or AI-generated invoice without any risk of it skewing the real
+benchmark (the scenario that prompted this feature — see the "Sharing of
+Supplier Bill Extraction project" review, 27 Aug 2026).
 
 ### Gold-standard matcher evaluation
 `npm run eval:pairs` generates `eval/gold_pairs.csv` — candidate part pairs from
@@ -543,7 +564,7 @@ measurable spread and must not read as perfect agreement.
 
 Because the middle-50% band and fences are only meaningful with enough
 observations, a **reliability floor** (the *Min quotes for reliable spread*
-slider, range 1–30, default 4, on both the Benchmark and Demo tabs) marks thin
+slider, range 1–30, default 4, on both the Configuration and Benchmark tabs) marks thin
 clusters as advisory (a `*` on the median) and withholds the statistical outlier
 bound from them. The floor is configurable
 because the right value depends on real volume; it is hashed into the benchmark

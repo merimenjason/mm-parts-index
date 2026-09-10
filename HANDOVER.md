@@ -41,9 +41,12 @@ npm run build        # must also pass before any commit
 On first load the app seeds itself with an embedded **demo dataset** (18 real
 supplier bills, 174 part lines) so every tab is populated immediately. Data
 persists in your browser's `localStorage` (or a shared Turso/libSQL DB when
-`VITE_DATA_BACKEND=api`); "Clear dataset" on the Ingest tab wipes it (and stays
-cleared — it won't re-seed). The Ingest tab's **activity log** persists the same
-way (see §4) and every data table is **click-to-sort** on any column.
+`VITE_DATA_BACKEND=api`); "Clear dataset" on the Add Bills tab wipes it (and stays
+cleared — it won't re-seed). The Add Bills tab's **activity log** persists the same
+way (see §4) and every data table is **click-to-sort** on any column. A
+**Simple/Detailed** toggle (top right, persisted per browser) opens in Simple
+by default, hiding Analytics, Coverage and Method Notes; Demo/Benchmark/Ingest
+were renamed Benchmark/Configuration/Add Bills in v1.15.0 — see §7.
 
 The **"OCR invoices"** button will *not* work locally with plain `vite`,
 because it calls a serverless function (`api/ocr.js`) that only exists on a
@@ -139,17 +142,24 @@ SD is the *sample* SD (n−1, `STDEV.S`) — so a non-technical stakeholder can
 reproduce every figure in a spreadsheet. And a single-quote cluster returns
 SD/CV as `NaN`, **never 0** — one quote must not masquerade as perfect
 agreement. Clusters below the **reliability floor** (`cfg.minQuotes`,
-default 4, adjustable 1–30 via the slider on **both** the Benchmark and Demo
-tabs) are marked advisory (`*`) and get no fence.
+default 4, adjustable 1–30 via the slider on **both** the Configuration and
+Benchmark tabs) are marked advisory (`*`) and get no fence.
 
 ### 4.4 Trust machinery (review, dedupe, snapshots)
 - **Reconciliation gate**: the sum of an invoice's extracted line totals is
   checked against the invoice's own *printed* subtotal (tolerance S$1 or
   0.5%). Mismatch ⇒ the whole bill is **held for review** — stored, visible
-  in the Ingest review queue, but excluded from every benchmark until a human
+  in the Add Bills review queue, but excluded from every benchmark until a human
   accepts or discards it.
-- **Duplicate detection**: same supplier + bill number is never ingested
+- **Duplicate-bill detection**: same supplier + bill number is never ingested
   twice (double-counted quotes skew medians).
+- **Duplicate-line gate** (v1.15.0): `findDuplicateLines` in `src/pipeline.js`
+  (shared with `tools/batch-ocr.mjs`) flags a line repeated *within* one
+  invoice — same normalised part number, qty and unit price — and holds the
+  bill for review, same as the reconciliation gate. The review queue shows a
+  reason breakdown (totals mismatch / duplicate line) so the pattern across a
+  batch is visible. A **Test mode** toggle on the OCR-invoices card runs both
+  gates on a read without ever writing it to the dataset.
 - **Snapshot ids**: every dispute pack is stamped `PIX-<dataHash>-<cfgHash>`
   (FNV-1a over the dataset and the matching config). Same id = same data +
   same settings = same numbers, on any machine. **Consequence for you:** any
@@ -178,7 +188,7 @@ DB): the **dataset** (`loadDataset`/`saveDataset` → `/api/parts`) and the
 **activity log** (`loadEvents`/`appendEvent` → `/api/activity`). The log is an
 append-only stream of structured events — `logEvent(kind, message, extra)` in the
 app builds `{ id, ts, kind, action, message, source, count, status, detail }`,
-updates in-memory state and fire-and-forget-persists it; the Ingest tab renders it
+updates in-memory state and fire-and-forget-persists it; the Add Bills tab renders it
 via `ActivityLog`/`ActivityDetail`, where each row expands to its `detail` blob
 (OCR model, reconciliation figures, suppliers/makes/bills touched…). Server side,
 `api/_db.js` holds both tables (`parts`, `activity`); adding `activity` bumped
@@ -241,15 +251,32 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.14.0** (Estimate OCR for Assess a Claim, August 2026).
+**Version 1.15.0** (Layperson simplification pass, September 2026).
 Working: full ingest
-(Excel + live OCR + batch runner), hybrid matcher with grade / basis / model /
-**positional** guards, nine tabs including the stakeholder Demo lookup (shared
-*Min quotes* floor slider, leftmost `+` add control) with Worklist and
-Excel/PDF export, eight analytics views, Assess a Claim with **estimate OCR
-upload** and Tukey-fence flags and the dispute pack, drill-down everywhere, a
-masthead *Github Repository* link, 106 self-tests, eval harness that replays
+(Excel + live OCR + batch runner, with a Test-mode toggle and a duplicate-line
+detection gate alongside the totals-reconciliation gate), hybrid matcher with
+grade / basis / model / **positional** guards, nine tabs — a Simple/Detailed
+toggle (Simple by default) shows six and hides Analytics/Coverage/Method
+Notes — including the stakeholder Benchmark lookup (shared *Min quotes* floor
+slider, leftmost `+` add control) with Worklist and Excel/PDF export, eight
+analytics views, Assess a Claim with **estimate OCR upload**, Tukey-fence
+flags and the **Export Detailed Report** button, drill-down everywhere, a
+masthead *Github Repository* link, 110 self-tests, eval harness that replays
 the exact production merge decision.
+
+**1.15.0** simplified the UI for a non-technical audience, prompted by team
+feedback in the "Sharing of Supplier Bill Extraction project" review call
+(27 Aug 2026). Added the Simple/Detailed mode toggle; renamed Demo →
+Benchmark, Benchmark → Configuration, Ingest → Add Bills, and "Export dispute
+pack" → "Export Detailed Report" (the underlying artifact and
+`buildDisputePack` are unchanged — only the labels). Also added a
+duplicate-line detection gate (`findDuplicateLines` in `src/pipeline.js`,
+shared with `tools/batch-ocr.mjs`) that holds a bill for review when the same
+part/qty/price repeats within one invoice, a held-for-review reason
+breakdown on the Add Bills tab, and a Test-mode OCR toggle that previews a
+read without ever writing it to the dataset — closing the near-miss from the
+review call where a demo invoice was nearly OCR'd into the real benchmark.
+See CHANGELOG 1.15.0.
 
 **1.14.0** added estimate OCR to the Assess a Claim tab — the **F1** roadmap
 item. An "Upload estimate (OCR)" button accepts a PDF or image of the
@@ -378,10 +405,10 @@ the rationale and the honesty rules live there.
 | Bridging | In hybrid mode, merging different part numbers by name similarity (flagged `≈`) |
 | Grade | OEM Genuine / OES / Aftermarket / Used-Recon — the biggest legitimate price driver |
 | Unit basis | each / pair / set — per-pair prices never join per-each medians |
-| Reliability floor | Min quotes (range 1–30, default 4; slider on Benchmark and Demo tabs) before spread stats and fences are trusted |
+| Reliability floor | Min quotes (range 1–30, default 4; slider on Configuration and Benchmark tabs) before spread stats and fences are trusted |
 | Tukey fence | Q3 + 1.5·IQR — the statistical outlier bound behind "ABOVE BOUND" |
 | Snapshot id | `PIX-<dataHash>-<cfgHash>` — reproducibility stamp on every export |
-| Review queue | Bills failing totals reconciliation, held out of all benchmarks |
-| Dispute pack | Three-sheet Excel (Summary / Line Assessment / Evidence) from Assess |
+| Review queue | Bills failing totals reconciliation or the duplicate-line gate, held out of all benchmarks (Add Bills tab) |
+| Dispute pack | Three-sheet Excel (Summary / Line Assessment / Evidence), exported via the "Export Detailed Report" button on Assess |
 | Gold set | Human-labelled part pairs used to measure matcher precision/recall |
 | Dispute-grade | The eval operating point: max recall at ≥95% precision |

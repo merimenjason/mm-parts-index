@@ -134,6 +134,23 @@ export function reconcileInvoice(extractedParts, doc) {
   const tol = Math.max(1, stated * 0.005); // S$1 or 0.5%, whichever is larger
   return { ok: Math.abs(diff) <= tol, sum, stated, diff, basis: doc.parts_subtotal ? "parts subtotal" : "invoice total" };
 }
+/* ---- intra-invoice duplicate-line detection ----
+   Same normalised part number (or name, when no number), same qty and same unit
+   price recurring more than once on one invoice is either a genuine double-entry
+   (drop it) or a legitimately repeated line (keep it) — either way a human should
+   look before it silently doubles that quote's weight in the benchmark. Returns
+   the distinct part descriptions that recur, for a review-reason message. */
+export function findDuplicateLines(parts) {
+  const seen = new Map();
+  const dups = [];
+  for (const p of parts || []) {
+    const key = `${normPN(p.part_number) || String(p.part_name || "").trim().toLowerCase()}|${Number(p.qty) || 1}|${Number(p.unit_cost) || 0}`;
+    const n = (seen.get(key) || 0) + 1;
+    seen.set(key, n);
+    if (n === 2) dups.push(p.part_name || p.part_number || "unnamed part");
+  }
+  return dups;
+}
 export const median = (a) => { const s=[...a].sort((x,y)=>x-y); const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; };
 export const mean = (a) => a.reduce((x,y)=>x+y,0)/a.length;
 

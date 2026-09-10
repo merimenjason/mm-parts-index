@@ -2,6 +2,40 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.15.0 — 10 September 2026
+
+Layperson simplification pass, prompted by team feedback in the "Sharing of
+Supplier Bill Extraction project" review. 110 self-tests (was 106), clean build.
+
+- **ADDED: Simple / Detailed mode toggle**, on by default in **Simple**. A
+  toggle in the tab bar (top right, persisted per browser) hides Analytics,
+  Coverage and Method Notes until **Detailed** is clicked, so a first-time
+  reviewer isn't handed the full statistical toolkit up front. Switching back
+  to Simple from a hidden tab redirects to the Dashboard.
+- **CHANGED: tab names, for a non-technical audience.** Demo → **Benchmark**
+  (the stakeholder lookup tab), Benchmark → **Configuration** (the matching-
+  settings tab), Ingest → **Add Bills**. Every in-app cross-reference
+  ("Loosen the threshold on the Benchmark tab…") was updated to match.
+- **CHANGED: "Export dispute pack" → "Export Detailed Report"** on Assess a
+  Claim. The underlying artifact (and `buildDisputePack` internally) is
+  unchanged — only the button label and its help text.
+- **ADDED: duplicate-line detection** (`findDuplicateLines` in
+  `src/pipeline.js`, shared by the app and `tools/batch-ocr.mjs`). A line
+  repeated within one invoice (same normalised part number, qty and unit
+  price) holds the bill for review instead of silently double-counting that
+  quote in the benchmark.
+- **ADDED: test-mode OCR.** A "Test mode — OCR only, don't save to the
+  dataset" toggle on the Add Bills OCR card reads and previews an invoice
+  without writing it to the dataset — closes the near-miss raised in the
+  review call, where a demo invoice was OCR'd through the live path and
+  nearly counted into the real benchmark.
+- **ADDED: held-for-review reason breakdown.** The Add Bills review queue now
+  shows category chips (e.g. "Totals mismatch · 2", "Duplicate line · 1")
+  summarising why bills are held, addressing the team's ask for visibility
+  into why OCR'd bills fail — scoped to the two signals the app actually
+  has (totals mismatch, duplicate line), not OCR-level causes like
+  handwriting that aren't exposed by the model.
+
 ## 1.14.0 — 26 August 2026
 
 Estimate OCR for Assess a Claim (F1). 106 self-tests, clean build.

@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -88,6 +88,13 @@ console.log("reconciliation + snapshot");
   const bad = reconcileInvoice(GOOD_INV.parts.slice(0, 1), GOOD_INV);
   ok(bad.ok === false, "missing line fails reconciliation");
 
+  ok(findDuplicateLines(GOOD_INV.parts).length === 0, "distinct lines have no duplicates");
+  const dup = [GOOD_INV.parts[0], GOOD_INV.parts[0], GOOD_INV.parts[1]];
+  ok(findDuplicateLines(dup).length === 1 && findDuplicateLines(dup)[0] === GOOD_INV.parts[0].part_name,
+     "same part number, qty and price repeated → flagged once, by name");
+  const sameNameDiffPrice = [{ part_name: "BOLT", part_number: "", qty: 1, unit_cost: 5 }, { part_name: "BOLT", part_number: "", qty: 1, unit_cost: 8 }];
+  ok(findDuplicateLines(sameNameDiffPrice).length === 0, "same name but different price is not flagged as a duplicate");
+
   const parts = GOOD_INV.parts.map((p) => enrichPart({ ...p, supplier: GOOD_INV.supplier_name, bill_no: GOOD_INV.bill_no, bill_date: GOOD_INV.bill_date, make: "Toyota", doc_type: "Tax Invoice" }));
   const cfg = { mode: "hybrid", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true };
   const id1 = snapshotId(parts, cfg), id2 = snapshotId([...parts].reverse(), cfg);
@@ -163,6 +170,14 @@ console.log("batch runner helpers");
   ok(e3.status === "review" && /reconcil|missing|misread/i.test(e3.review_reason), "reconciliation mismatch → review");
   const e4 = processResult({ name: "junk.pdf", hash: sha256(Buffer.from("fake pdf 4")) }, "the model rambled with no json", null, ctx);
   ok(e4.status === "failed" && fs.existsSync(path.join(jsonDir, `junk.${e4 && sha256(Buffer.from("fake pdf 4")).slice(0, 8)}.raw.txt`)), "unparseable → failed + raw text saved");
+  const dupInv = { ...GOOD_INV, bill_no: "MG-2001", parts_subtotal: 700, invoice_total: 700,
+    parts: [
+      { part_name: "CLIP FASTENER", part_number: "T90467-A", qty: 1, unit_cost: 350, total_cost: 350, grade: "Unknown", unit_basis: "each" },
+      { part_name: "CLIP FASTENER", part_number: "T90467-A", qty: 1, unit_cost: 350, total_cost: 350, grade: "Unknown", unit_basis: "each" },
+    ] };
+  const e5 = processResult({ name: "MG-2001.pdf", hash: sha256(Buffer.from("fake pdf 5")) }, JSON.stringify(dupInv), null, ctx);
+  ok(e5.status === "review" && /duplicate/i.test(e5.review_reason) && !/reconcil|missing|misread/i.test(e5.review_reason),
+     "reconciling totals with a repeated line → review for the duplicate alone, not a totals mismatch");
 
   manifest.files[file.hash] = e1;
   manifest.files[sha256(Buffer.from("fake pdf 3"))] = e3;

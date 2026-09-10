@@ -48,7 +48,7 @@ import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import XLSX from "xlsx";
 import { OCR_SYS, OCR_USER_TEXT } from "../src/ocrPrompt.js";
-import { validateInvoice, reconcileInvoice } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, findDuplicateLines } from "../src/pipeline.js";
 
 const API = process.env.PARTSINDEX_API_BASE || "https://api.anthropic.com/v1"; // override for tests only
 const API_VERSION = "2023-06-01";
@@ -137,8 +137,13 @@ export function processResult(file, rawText, usage, ctx) {
   }
 
   const rec = reconcileInvoice(inv.parts, inv);
-  const review = rec.ok === false;
-  const reason = review ? `extracted lines sum S$${rec.sum} but printed ${rec.basis} is S$${rec.stated} (diff S$${rec.diff}) — lines may be missing or misread` : "";
+  const totalsReview = rec.ok === false;
+  const dupNames = findDuplicateLines(inv.parts);
+  const reasons = [];
+  if (totalsReview) reasons.push(`extracted lines sum S$${rec.sum} but printed ${rec.basis} is S$${rec.stated} (diff S$${rec.diff}) — lines may be missing or misread`);
+  if (dupNames.length) reasons.push(`possible duplicate line(s): ${dupNames.join(", ")} — same part, qty & price repeated; verify before counting as separate quotes`);
+  const review = reasons.length > 0;
+  const reason = reasons.join(" · ");
 
   const jsonName = `${safeName(file.name)}.${file.hash.slice(0, 8)}.json`;
   fs.writeFileSync(path.join(ctx.jsonDir, jsonName), JSON.stringify({ ...inv, _review: review, _review_reason: reason, _source_file: file.name, _sha256: file.hash }, null, 2));

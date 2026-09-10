@@ -23,13 +23,13 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
   "Volkswagen","Mitsubishi","Suzuki","Subaru","Lexus","Mitsubishi Fuso","Porsche","Chevrolet"];
 
 import { DEMO_18 } from "./demoData.js";
-import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice,
+import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice, findDuplicateLines,
   normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker } from "./datasource.js";
 
-const APP_VERSION = "1.14.0";
+const APP_VERSION = "1.15.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -212,6 +212,7 @@ export default function App() {
     try { localStorage.setItem(UI_MODE_KEY, m); } catch {}
     if (m === "simple") setTab((t) => (ADVANCED_TABS.has(t) ? "dashboard" : t));
   };
+  const [testOcr, setTestOcr] = useState(false); // OCR without saving — for demoing/trialling without skewing the benchmark
   const excelRef = useRef(), invRef = useRef();
   // StrictMode (dev) runs mount effects twice — setup → cleanup → setup — on the
   // SAME fiber, so this ref persists between the two invocations and gates the
@@ -326,7 +327,9 @@ export default function App() {
 
   const addRaw = (raws, label, extra = {}) => {
     const enr = raws.map(enrichPart);
-    commit((prev) => ({ ...prev, parts: [...prev.parts, ...enr] })); // functional: never builds on a stale snapshot
+    // Test mode: OCR and preview only, never written to the dataset — so a demo
+    // or trial run can never accidentally skew the live benchmark.
+    if (!extra.dryRun) commit((prev) => ({ ...prev, parts: [...prev.parts, ...enr] })); // functional: never builds on a stale snapshot
 
     const uniq = (xs) => [...new Set(xs.filter(Boolean))];
     const detail = {
@@ -336,9 +339,9 @@ export default function App() {
       makes: uniq(enr.map((p) => p.make)),
       bills: uniq(enr.map((p) => p.bill_no)),
     };
-    logEvent(extra.kind || "ingest", `+${enr.length} parts from ${label}${extra.note ? ` · ${extra.note}` : ""}`, {
-      action: extra.action || (extra.kind === "ocr" ? "OCR invoice" : "Excel import"),
-      source: label, count: enr.length, status: extra.status || "ok", detail,
+    logEvent(extra.kind || "ingest", `${extra.dryRun ? "TEST — not saved" : `+${enr.length} parts`} from ${label}${extra.note ? ` · ${extra.note}` : ""}`, {
+      action: extra.dryRun ? "OCR test (not saved)" : extra.action || (extra.kind === "ocr" ? "OCR invoice" : "Excel import"),
+      source: label, count: enr.length, status: extra.dryRun ? "info" : extra.status || "ok", detail,
     });
   };
 
@@ -361,20 +364,33 @@ export default function App() {
         }
         // Reconciliation gate: extracted line sum vs the invoice's own printed subtotal/total.
         const rec = reconcileInvoice(j.parts || [], j);
-        const flagged = rec.ok === false;
+        const totalsFlagged = rec.ok === false;
+        // Duplicate-line gate: same part/qty/price repeated on one invoice — a genuine
+        // double-entry or a legitimate repeat, but either way worth a human's eyes.
+        const dupNames = findDuplicateLines(j.parts || []);
+        const reasons = [];
+        if (totalsFlagged) reasons.push(`Extracted lines sum S$${rec.sum} but printed ${rec.basis} is S$${rec.stated} (diff S$${rec.diff}) — lines may be missing or misread`);
+        if (dupNames.length) reasons.push(`Possible duplicate line(s): ${dupNames.join(", ")} — same part, qty & price repeated; verify before counting as separate quotes`);
+        const flagged = reasons.length > 0;
         const meta = { supplier: j.supplier_name, bill_no: j.bill_no, bill_date: j.bill_date, make: j.make, model: j.model,
           doc_type: j.doc_type, gst: j.gst_treatment,
-          review: flagged, review_reason: flagged ? `Extracted lines sum S$${rec.sum} but printed ${rec.basis} is S$${rec.stated} (diff S$${rec.diff}) — lines may be missing or misread` : "" };
-        const note = flagged
-          ? `⚠ totals do not reconcile (extracted S$${rec.sum} vs printed S$${rec.stated}) — held for review`
-          : rec.ok === null
-            ? "no printed subtotal/total to reconcile against — spot-check advised"
-            : `totals reconcile ✓ (S$${rec.sum} vs printed ${rec.basis})`;
+          review: flagged, review_reason: reasons.join(" · ") };
+        const noteBits = [];
+        if (totalsFlagged) noteBits.push(`totals do not reconcile (extracted S$${rec.sum} vs printed S$${rec.stated})`);
+        if (dupNames.length) noteBits.push(`${dupNames.length} possible duplicate line(s)`);
+        const note = testOcr
+          ? "TEST MODE — OCR'd only, not saved to the dataset"
+          : flagged
+            ? `⚠ ${noteBits.join(" · ")} — held for review`
+            : rec.ok === null
+              ? "no printed subtotal/total to reconcile against — spot-check advised"
+              : `totals reconcile ✓ (S$${rec.sum} vs printed ${rec.basis})`;
         addRaw((j.parts || []).map((p) => ({ ...p, ...meta, src: "ocr" })), f.name, {
-          kind: "ocr", action: "OCR invoice", status: flagged ? "warn" : rec.ok === null ? "info" : "ok", note,
+          kind: "ocr", action: "OCR invoice", status: testOcr ? "info" : flagged ? "warn" : rec.ok === null ? "info" : "ok", note, dryRun: testOcr,
           detail: { model: ocrModel, bill_no: j.bill_no, supplier: j.supplier_name, vehicle_make: j.make, vehicle_model: j.model,
-            doc_type: j.doc_type, gst: j.gst_treatment, reconcile: flagged ? "mismatch" : rec.ok === null ? "no basis" : "ok",
-            extracted_sum: rec.sum, printed_total: rec.stated, reconcile_basis: rec.basis, reconcile_diff: rec.diff, held_for_review: flagged },
+            doc_type: j.doc_type, gst: j.gst_treatment, reconcile: totalsFlagged ? "mismatch" : rec.ok === null ? "no basis" : "ok",
+            extracted_sum: rec.sum, printed_total: rec.stated, reconcile_basis: rec.basis, reconcile_diff: rec.diff,
+            duplicate_lines: dupNames, held_for_review: flagged, test_mode: testOcr },
         });
       } catch (err) { logEvent("error", `OCR failed for ${f.name}: ${err.message}`, { action: "OCR failed", source: f.name, status: "error", detail: { model: ocrModel, error: err.message } }); } }
     setLoading(null); e.target.value = "";
@@ -456,7 +472,7 @@ export default function App() {
       <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
         {tab === "demo" && <DemoLookup {...{ clusters, parts, cfg, setCfg }} />}
-        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel }} />}
+        {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel, testOcr, setTestOcr }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
         {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct, ocrModel }} />}
@@ -953,17 +969,38 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
     </div>
   );
 }
-function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel }) {
+// Coarse category for a review reason, for the held-for-review breakdown below.
+// The only two generators today are the totals-reconciliation gate and the
+// duplicate-line gate, so this stays a simple pattern match rather than a
+// stored field — extend both together if a third gate is added.
+function reviewReasonCategory(reason) {
+  const hasDup = /duplicate line/i.test(reason);
+  const hasMismatch = /lines sum|reconcile/i.test(reason);
+  if (hasDup && hasMismatch) return "Totals mismatch + duplicate line";
+  if (hasDup) return "Duplicate line";
+  if (hasMismatch) return "Totals mismatch";
+  return "Other";
+}
+function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel, testOcr, setTestOcr }) {
   // Group flagged lines by bill for the review queue.
   const flaggedBills = useMemo(() => {
     const g = {};
     parts.filter((p) => p.review).forEach((p) => { (g[p.bill_no] ||= { bill_no: p.bill_no, supplier: p.supplier, reason: p.review_reason, lines: [] }).lines.push(p); });
     return Object.values(g);
   }, [parts]);
+  const reasonCounts = useMemo(() => {
+    const c = {};
+    flaggedBills.forEach((b) => { const cat = reviewReasonCategory(b.reason); c[cat] = (c[cat] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [flaggedBills]);
   return (<div className="pi-2col">
     {flaggedBills.length > 0 && (
       <Card title={`Needs review — ${flaggedBills.length} bill${flaggedBills.length > 1 ? "s" : ""} held back`} span="1 / -1">
-        <p style={{ color: MUTE, fontSize: 12, lineHeight: 1.6 }}>These OCR'd bills failed the totals-reconciliation check: the sum of extracted lines does not match the invoice's own printed subtotal. They are <b style={{ color: AMBER }}>excluded from all benchmarks</b> until you accept or discard them. Check the lines against the original PDF, then decide.</p>
+        <p style={{ color: MUTE, fontSize: 12, lineHeight: 1.6 }}>These OCR'd bills failed the totals-reconciliation check, had a possible duplicate line, or both. They are <b style={{ color: AMBER }}>excluded from all benchmarks</b> until you accept or discard them. Check the lines against the original PDF, then decide.</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0" }}>
+          {reasonCounts.map(([cat, n]) => (
+            <span key={cat} style={{ fontSize: 11, color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 20, padding: "3px 10px" }}>{cat} · {n}</span>))}
+        </div>
         {flaggedBills.map((b) => (
           <div key={b.bill_no} style={{ border: `1px solid ${AMBER}`, borderRadius: 10, padding: 12, marginTop: 10, background: "rgba(232,163,61,.07)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -986,8 +1023,11 @@ function Ingest({ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, cl
       <label style={{ display: "block", fontSize: 11, color: MUTE, textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 700, margin: "10px 0 5px" }}>Claude model</label>
       <select value={ocrModel} onChange={(e) => setOcrModel(e.target.value)} style={inp(320)}>
         {OCR_MODELS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
+      <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: testOcr ? AMBER : MUTE, margin: "10px 0 2px", cursor: "pointer" }}
+        title="Read the invoice and show the result, but never write it to the dataset — safe for demos and trial runs.">
+        <input type="checkbox" checked={testOcr} onChange={(e) => setTestOcr(e.target.checked)} /> Test mode — OCR only, don't save to the dataset</label>
       <input ref={invRef} type="file" accept=".pdf,image/*" multiple onChange={onInvoice} style={{ display: "none" }} />
-      <div><button onClick={() => invRef.current.click()} style={btn(TEAL_L, "#fff")}>Choose invoices to OCR</button></div>
+      <div style={{ marginTop: 8 }}><button onClick={() => invRef.current.click()} style={btn(testOcr ? AMBER : TEAL_L, testOcr ? TEAL_D : "#fff")}>{testOcr ? "Choose invoices to OCR (test — won't save)" : "Choose invoices to OCR"}</button></div>
       <p style={{ color: MUTE, fontSize: 11, marginTop: 10 }}>The choice persists in this browser and applies to this button; the batch runner takes the same choice via <span style={{ fontFamily: "ui-monospace,monospace", color: TEAL_L }}>--model {ocrModel}</span>. In a deployed static site, route this through a serverless proxy so the API key stays server-side.</p></Card>
     <Card title="Activity"><ActivityLog events={events} /></Card>
     <Card title="Dataset actions">
