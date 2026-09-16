@@ -25,7 +25,7 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice, findDuplicateLines,
-  normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
+  normPN, similarity, posConflict, categorise, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker, loadClaims, saveClaim, deleteClaim, CLAIMS_CAP } from "./datasource.js";
@@ -1485,27 +1485,83 @@ function MNormalisation({ clusters }) {
 }
 
 /* ---------- Assess a claim: match an incoming estimate to the benchmark ---------- */
-// Find the best benchmark cluster for one estimate line. Exact normalised part number wins;
-// otherwise fuzzy name within the same make (if a make is supplied).
+// Find the best benchmark cluster for one estimate line, using whichever algorithm
+// cfg.mode selects — mirrors the mode buildClusters used to build the reference, so
+// "Exact part no only" never falls back to a name guess, "Category" never does either,
+// and only "Hybrid"/"Fuzzy part name" ever compare names.
+function bestNameMatch(nm, clusters, line, cfg) {
+  let best = null, bestScore = 0;
+  clusters.forEach((c) => {
+    if (line.make && cfg.sameMake && c.make !== "Unknown" && line.make.toLowerCase() !== c.make.toLowerCase()) return;
+    if (posConflict(nm, c.label, cfg.sepSide)) return; // positions are stripped as stopwords before scoring, so guard them here
+    const s = Math.max(...c.names.map((n) => similarity(nm, n, cfg.tokenWeight)));
+    if (s > bestScore) { bestScore = s; best = c; }
+  });
+  return { best, bestScore };
+}
 function matchLine(line, clusters, cfg) {
   const npn = normPN(line.part_number || "");
+  const nm = line.part_name || "";
+  const noMatch = (best, bestScore) => ({ cluster: null, how: "no match", score: 0,
+    near: best ? { label: best.label, make: best.make, model: modelLabel(best), score: +bestScore.toFixed(2) } : null });
+
+  if (cfg.mode === "exact-pn") {
+    // Exact part number only — a line with no part number (or no exact hit) does not match,
+    // it never falls back to a name guess.
+    if (npn) {
+      const exact = clusters.find((c) => c.pns.includes(npn));
+      if (exact) return { cluster: exact, how: "part number", score: 1 };
+    }
+    return noMatch(null, 0);
+  }
+
+  if (cfg.mode === "category") {
+    // Same categoriser used to build the reference clusters, so a line lands in the
+    // same bucket its category was grouped into.
+    if (!nm) return noMatch(null, 0);
+    const lineCat = categorise(nm);
+    const cand = clusters.find((c) => c.cat === lineCat &&
+      (!(line.make && cfg.sameMake) || c.make === "Unknown" || line.make.toLowerCase() === c.make.toLowerCase()));
+    return cand ? { cluster: cand, how: "category", score: 1 } : noMatch(null, 0);
+  }
+
+  if (cfg.mode === "fuzzy-name") {
+    // Name similarity only — never checks the part number, even if one is present.
+    if (!nm) return noMatch(null, 0);
+    const { best, bestScore } = bestNameMatch(nm, clusters, line, cfg);
+    return best && bestScore >= cfg.threshold ? { cluster: best, how: "name", score: +bestScore.toFixed(2) } : noMatch(best, bestScore);
+  }
+
+  // ---- hybrid (default): exact part number first, then fuzzy-name bridge ----
   if (npn) {
     const exact = clusters.find((c) => c.pns.includes(npn));
     if (exact) return { cluster: exact, how: "part number", score: 1 };
   }
-  const nm = line.part_name || "";
-  let best = null, bestScore = 0;
   if (nm) {
-    clusters.forEach((c) => {
-      if (line.make && cfg.sameMake && c.make !== "Unknown" && line.make.toLowerCase() !== c.make.toLowerCase()) return;
-      if (posConflict(nm, c.label, cfg.sepSide)) return; // positions are stripped as stopwords before scoring, so guard them here
-      const s = Math.max(...c.names.map((n) => similarity(nm, n, cfg.tokenWeight)));
-      if (s > bestScore) { bestScore = s; best = c; }
-    });
+    const { best, bestScore } = bestNameMatch(nm, clusters, line, cfg);
     if (best && bestScore >= cfg.threshold) return { cluster: best, how: "name", score: +bestScore.toFixed(2) };
+    return noMatch(best, bestScore);
   }
-  // No match — but keep the nearest rejected candidate so the UI can explain WHY.
-  return { cluster: null, how: "no match", score: 0, near: best ? { label: best.label, make: best.make, model: modelLabel(best), score: +bestScore.toFixed(2) } : null };
+  return noMatch(null, 0);
+}
+
+// Matches a set of estimate lines against a set of clusters under one cfg, producing the
+// row shape AssessResultBlock renders. Shared by the live Assess tab and by Claim History's
+// "re-assess with a different mode" — so both compute results the same way.
+function assessLines(lines, clusters, cfg, inflPct) {
+  return lines.map((l, idx) => {
+    const m = matchLine({ part_number: l.pn, part_name: l.name, make: l.make }, clusters, cfg);
+    const bench = m.cluster ? m.cluster.med : null;
+    const over = bench ? +(l.quoted - bench).toFixed(2) : null;
+    const overPct = bench ? +(((l.quoted - bench) / bench) * 100).toFixed(0) : null;
+    const flagged = overPct != null && overPct >= inflPct;
+    // Tukey upper fence: statistically defensible outlier bound (Q3 + 1.5·IQR).
+    // Only meaningful on a reliable cluster (n ≥ the configurable floor, cfg.minQuotes).
+    const uf = m.cluster && m.cluster.reliable && Number.isFinite(m.cluster.upperFence) ? m.cluster.upperFence : null;
+    const aboveFence = uf != null && l.quoted > uf;
+    return { _id: idx, pn: l.pn || "—", name: l.name || "—", make: l.make || "", quoted: l.quoted, bench, over, overPct,
+      how: m.how, score: m.score, near: m.near || null, n: m.cluster ? m.cluster.n : 0, flagged, uf, aboveFence, cluster: m.cluster };
+  });
 }
 
 const SAMPLE_ESTIMATE = `MBA213 906 67 01, HEADLAMP UNIT, 2600
@@ -1565,7 +1621,7 @@ function AssessResultBlock({ rows, cfg }) {
             <tr onClick={() => setOpenRow(isOpen ? null : r._id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
               <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
               <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
-              <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
+              <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : r.how === "category" ? ICE : MUTE, fontSize: 11 }}>{r.how}</td>
               <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
               <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
               <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
@@ -1577,7 +1633,7 @@ function AssessResultBlock({ rows, cfg }) {
                 : <span style={{ color: MUTE, fontSize: 11 }} title={`Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
             {isOpen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
               {r.cluster ? (<div>
-                <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
+                <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : r.how === "category" ? ICE : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : r.how === "category" ? " — same category" + (cfg.sameMake ? " and make" : "") : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
                 <QuoteLines c={r.cluster} /></div>)
               : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
                   ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Configuration tab or add the part number to the estimate line.</>
@@ -1591,12 +1647,16 @@ function AssessResultBlock({ rows, cfg }) {
   </>);
 }
 
-// Read-only history of past assessments, saved to this browser's localStorage
-// (see CLAIMS_KEY). Always visible under the estimate box — no button needed
-// to reveal it. Reuses AssessResultBlock so a reopened claim looks exactly
-// like it did when it was saved, including its own matching-config snapshot.
-function ClaimHistoryModal({ claims, onClose, onDelete }) {
+// History of past assessments, saved to this browser's localStorage (see CLAIMS_KEY).
+// Always visible under the estimate box — no button needed to reveal it. Reuses
+// AssessResultBlock so a reopened claim looks exactly like it did when it was saved,
+// including its own matching-config snapshot — but the mode selector below lets the
+// same saved lines be re-matched live under a different mode, without touching the
+// saved record, so a "what if we'd used exact part number only" check doesn't require
+// re-running the original estimate through the Assess tab.
+function ClaimHistoryModal({ claims, parts, onClose, onDelete }) {
   const [openId, setOpenId] = useState(null);
+  const [modeOverride, setModeOverride] = useState(null);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,18,24,.72)", zIndex: 100, display: "flex", justifyContent: "center", padding: "5vh 16px", overflowY: "auto" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: INK, border: `1px solid ${LINE}`, borderRadius: 12, width: "min(980px, 100%)", height: "fit-content", padding: 20, marginBottom: "5vh" }}>
@@ -1615,7 +1675,7 @@ function ClaimHistoryModal({ claims, onClose, onDelete }) {
           const vehicle = [c.make, c.model].filter(Boolean).join(" ");
           return (
             <div key={c.id} style={{ border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 10, overflow: "hidden" }}>
-              <div onClick={() => setOpenId(isOpen ? null : c.id)} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px 14px", cursor: "pointer", background: PANEL }}>
+              <div onClick={() => { setOpenId(isOpen ? null : c.id); setModeOverride(null); }} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px 14px", cursor: "pointer", background: PANEL }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <span style={{ color: LIME }}>{isOpen ? "▾" : "▸"}</span>
                   <b style={{ color: TEXT }}>{c.claimRef || "(no claim ref)"}</b>
@@ -1635,13 +1695,33 @@ function ClaimHistoryModal({ claims, onClose, onDelete }) {
                     style={{ ...btn("transparent", RED), marginTop: 0, padding: "6px 10px", fontSize: 11.5, border: `1px solid ${RED}` }}>Delete</button>
                 </div>
               </div>
-              {isOpen && <div style={{ padding: 14 }}>
-                {(c.workshop || vehicle || c.plate) && <p style={{ color: MUTE, fontSize: 12, marginTop: 0, marginBottom: 12 }}>
-                  {c.workshop && <>Workshop: <b style={{ color: TEXT }}>{c.workshop}</b>&nbsp;&nbsp;</>}
-                  {vehicle && <>Vehicle: <b style={{ color: TEXT }}>{vehicle}</b>&nbsp;&nbsp;</>}
-                  {c.plate && <>Plate: <b style={{ color: TEXT }}>{c.plate}</b></>}
-                </p>}
-                <AssessResultBlock rows={c.rows} cfg={c.cfg || {}} /></div>}
+              {isOpen && (() => {
+                const savedMode = c.cfg?.mode;
+                const isOverride = modeOverride && modeOverride !== savedMode;
+                const effCfg = isOverride ? { ...(c.cfg || {}), mode: modeOverride } : (c.cfg || {});
+                // Re-run the same saved lines' pn/name/quoted through the chosen mode's clusters —
+                // never mutates or re-saves the claim record itself.
+                const effRows = isOverride
+                  ? assessLines(
+                      c.rows.map((r) => ({ pn: r.pn === "—" ? "" : r.pn, name: r.name === "—" ? "" : r.name, quoted: r.quoted, make: r.make })),
+                      buildClusters(parts.filter((p) => !p.review), effCfg), effCfg, c.inflPct ?? 15)
+                  : c.rows;
+                return (<div style={{ padding: 14 }}>
+                  {(c.workshop || vehicle || c.plate) && <p style={{ color: MUTE, fontSize: 12, marginTop: 0, marginBottom: 12 }}>
+                    {c.workshop && <>Workshop: <b style={{ color: TEXT }}>{c.workshop}</b>&nbsp;&nbsp;</>}
+                    {vehicle && <>Vehicle: <b style={{ color: TEXT }}>{vehicle}</b>&nbsp;&nbsp;</>}
+                    {c.plate && <>Plate: <b style={{ color: TEXT }}>{c.plate}</b></>}
+                  </p>}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11.5, color: MUTE }}>Re-assess these lines with mode:</span>
+                    <select value={modeOverride || savedMode || "hybrid"} onChange={(e) => setModeOverride(e.target.value)} style={inp(210)}>
+                      {MATCH_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    {isOverride && <span style={{ fontSize: 11, color: AMBER }} title="This re-match is live and local — the saved record keeps its original mode and rows.">
+                      live re-match, not saved — originally saved as {MATCH_MODE_LABELS[savedMode] || savedMode || "mode n/a"}</span>}
+                  </div>
+                  <AssessResultBlock rows={effRows} cfg={effCfg} /></div>);
+              })()}
             </div>);
         })}
       </div>
@@ -1690,27 +1770,17 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
   };
 
   const run = (raw) => {
-    const lines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    const out = lines.map((l, idx) => {
+    const rawLines = (raw || text).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const lines = rawLines.map((l) => {
       // accept "part_no, name, price" or "part_no | name | price" (make optional 4th)
       const parts = l.split(/\s*[|,\t]\s*/);
       let [pn, name, price, make] = parts;
       // if only 2 fields, assume name, price
       if (parts.length === 2) { pn = ""; name = parts[0]; price = parts[1]; }
       const quoted = parseFloat(String(price || "").replace(/[^\d.]/g, "")) || 0;
-      const m = matchLine({ part_number: pn, part_name: name, make }, clusters, cfg);
-      const bench = m.cluster ? m.cluster.med : null;
-      const over = bench ? +(quoted - bench).toFixed(2) : null;
-      const overPct = bench ? +(((quoted - bench) / bench) * 100).toFixed(0) : null;
-      const flagged = overPct != null && overPct >= inflPct;
-      // Tukey upper fence: statistically defensible outlier bound (Q3 + 1.5·IQR).
-      // Only meaningful on a reliable cluster (n ≥ the configurable floor, cfg.minQuotes).
-      const uf = m.cluster && m.cluster.reliable && Number.isFinite(m.cluster.upperFence) ? m.cluster.upperFence : null;
-      const aboveFence = uf != null && quoted > uf;
-      return { _id: idx, pn: pn || "—", name: name || "—", quoted, bench, over, overPct, how: m.how, score: m.score, near: m.near || null,
-        n: m.cluster ? m.cluster.n : 0, flagged, uf, aboveFence, cluster: m.cluster };
+      return { pn, name, quoted, make };
     });
-    setRows(out);
+    setRows(assessLines(lines, clusters, cfg, inflPct));
   };
 
   // Metadata common to both the exported Excel pack and a saved claim-history
@@ -1785,7 +1855,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         <b style={{ color: TEXT }}>Save to claim history</b> keeps this assessment{usingSharedBackend ? " in the shared reference (visible to every user)" : " in this browser"} so it can be reopened later. <b style={{ color: TEXT }}>Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
     </>)}
 
-    {showHistory && <ClaimHistoryModal claims={claims} onClose={() => setShowHistory(false)} onDelete={handleDeleteClaim} />}
+    {showHistory && <ClaimHistoryModal claims={claims} parts={parts} onClose={() => setShowHistory(false)} onDelete={handleDeleteClaim} />}
   </>);
 }
 
