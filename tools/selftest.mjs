@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit, categorise } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams } from "./batch-ocr.mjs";
 
 let failures = 0;
@@ -296,6 +296,43 @@ console.log("dispersion stats (IQR / SD / CV)");
   ok(exact.length === 3, "exact-pn keeps part-number-less lines apart instead of pooling them");
   ok(exact.every((c) => c.n === 1), "each part-number-less line stands alone, so no bogus multi-quote median");
   ok(exact.every((c) => c.pns.length === 0), "a part-number-less cluster carries no part number to match on");
+}
+
+/* ---- categorise: a component must beat the assembly it is named against ----
+   Real names from the live dataset. Matching the assembly first put a S$2 clip, a S$55 grille and
+   a S$600 bumper face in one "Front Bumper" median spanning 300×. */
+{
+  const cat = (name, want) => ok(categorise(name) === want, `"${name}" → ${want}` + (categorise(name) === want ? "" : ` (got ${categorise(name)})`));
+  // The bumper family: only the bumper itself stays in Front Bumper.
+  cat("Front Bumper", "Front Bumper");
+  cat("Face, FR Bumper", "Front Bumper");
+  cat("Grille, FR Bumper", "Grille");
+  cat("FRT BUMPER GRILLE LH", "Grille");            // component named LAST, not first
+  cat("Garnish, FR Bumper, CTR", "Garnish/Trim");
+  cat("Rein, FR Bumper, UPR", "Bumper Reinforcement");
+  cat("Clip, FR Bumper", "Consumable/Fastener");
+  cat("FR BUMPER CLIP", "Consumable/Fastener");
+  cat("FRT BUMPER SPONGE", "Bumper Bracket/Retainer");
+  // A belt is a restraint, not furniture; an airbag is not a generic electronic module…
+  cat("Front Seat Belt RH", "Seat Belt");
+  cat("Passenger Airbag", "Airbag");
+  cat("Airbag Control Module", "Electronic Module"); // …but its CONTROL UNIT still is
+  // Written in either word order.
+  cat("Bonnet Hinge RH", "Hood/Bonnet Hinge");
+  cat("HINGE, BONNET RH", "Hood/Bonnet Hinge");
+  cat("BONNET LOCK BKT", "Lock/Mechanism");
+  // Promoting Consumable/Fastener above the assemblies must not let " mark " eat a marker lamp.
+  cat("Lamp Assy, Side Marker, LH", "Signal/Marker Lamp");
+  // Assemblies still resolve normally.
+  cat("FR Fender LH", "Fender");
+  cat("Headlamp Assy LH", "Headlamp");
+  cat("Front Door LH", "Door Panel");
+
+  // A stored part must pick up an improved rule without a re-import: upgradePart RECOMPUTES cat,
+  // and ltype with it, so a clip stored as a bumper leaves the benchmark population.
+  const stale = upgradePart({ part_name: "Clip, FR Bumper", part_number: "", cat: "Front Bumper", ltype: "Supplier Part", doc_type: "Tax Invoice", qty: 1, unit: 2, total: 2 });
+  ok(stale.cat === "Consumable/Fastener", "upgradePart re-derives a stale stored category");
+  ok(stale.ltype === "Consumable / Fastener", "…and the line type that follows from it, so the clip drops out of the benchmark");
 }
 
 /* ---- benchmark recency window (cfg.maxAgeYears) ---- */

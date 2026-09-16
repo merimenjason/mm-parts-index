@@ -2,6 +2,71 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.17.0 — 16 September 2026
+
+Feedback from the "Parts Ref Database Discussion" review call, plus three
+matcher bugs found by running the **live** dataset (246 invoices, 1,406 usable
+parts) rather than the 18-bill demo. Clean build; self-tests 110 → 140.
+
+- **FIXED: the matching mode did not govern matching.** `cfg.mode` chose how the
+  *reference* was clustered, but `matchLine()` ignored it entirely and always
+  tried exact part number and then fell back to fuzzy name. So **Exact part no
+  only** still matched a line that had no part number, and the **Matched via**
+  column read `name` whatever mode was selected. Each mode now has its own
+  branch: `exact-pn` never falls back to a name guess, `category` matches through
+  the same `categorise()` used to build the clusters, `fuzzy-name` ignores the
+  part number entirely, and `hybrid` keeps its part-number-first / name-bridge
+  behaviour. A **category** match is a new `Matched via` value.
+- **FIXED: a dash-only part number was treated as a real one.** `normPN()`
+  stripped the ASCII hyphen but not the dash variants a browser or OS
+  substitutes for one (en dash, em dash, minus sign, non-breaking hyphen), so a
+  field typed as a "none" placeholder survived normalisation as a non-empty
+  string and could spuriously exact-match another line carrying the same
+  leftover character. All are stripped now.
+- **FIXED: exact-pn pooled every part-number-less line into one cluster.**
+  `buildClusters` keyed them to a shared `"?"` bucket, so on the live data all 64
+  such lines formed a single "benchmark" — median S$199.20 across a passenger
+  airbag, a dashboard, a catalytic converter, bonnet hinges and motorbike
+  footmats — which sorted to the **top** of the list because it had the most
+  members. Hybrid mode already keyed these per-part; exact-pn now does the same.
+- **FIXED: category rules let an assembly swallow its own components.**
+  Categorisation is first-match-wins over an ordered list, and `Front Bumper` sat
+  above `Grille` and `Consumable/Fastener` — so `Clip, FR Bumper` (S$2),
+  `Grille, FR Bumper` (S$55) and `Rein, FR Bumper, UPR` (S$45) all landed in the
+  bumper median beside a S$600 bumper face, a 300× spread that looked like
+  market variance but was four different parts. `CAT_RULES` is now two tiers —
+  `COMPONENT_RULES` then `ASSEMBLY_RULES` — so the specific part wins over the
+  assembly it is named against, in either word order (`Clip, FR Bumper` and
+  `FRT BUMPER GRILLE LH`). On the live data **132 lines (9.4%) recategorise**:
+  Front Bumper goes from 124 lines (S$2–1,900) to 95 (S$5–1,900), and 27
+  S$1–2 clips leave the benchmark population as consumables. New categories
+  **Seat Belt** (14 lines that were diluting Seat), **Airbag** and
+  **Garnish/Trim**; an airbag *control module* still reads as electronics.
+- **CHANGED: `upgradePart` recomputes `cat` and `ltype`** instead of preserving
+  stored values. Both are purely derived from the part name and nothing edits
+  them by hand, so this makes an improved category rule reach the parts already
+  in the reference on the next page load — no re-import.
+- **ADDED: benchmark recency window (`cfg.maxAgeYears`).** Build the benchmark
+  from **All dates** (default) or the last 2 / 3 / 5 / 10 years, so a price from
+  several years ago need not sit in the same median as a current one — the live
+  data spans 2016 to 2025 bimodally. Bills with no printed date are always kept:
+  an undated bill is not *known* to be old. The window is hashed into the
+  snapshot id and recorded in the detailed report.
+- **ADDED: re-assess a saved claim under a different mode.** A reopened Claim
+  History entry gets a mode selector that re-matches its saved lines live
+  against clusters built for the chosen mode, without touching the saved record.
+- **CHANGED: Simple mode is now genuinely simple.** It shows only **Dashboard**,
+  **Benchmark** and **Assess a Claim**; Add Bills, Parts Ledger, Configuration,
+  Analytics, Coverage and Method Notes move behind **Detailed**. The matching
+  configuration is reachable without leaving Benchmark — a collapsed panel at
+  the top of that tab, sharing one `MatchConfig` component with the Configuration
+  tab so the two can never drift. Explanatory prose on the three Simple tabs is
+  hidden in Simple (instructional text, empty states and tooltips stay), the
+  **Grade** column is dropped from the Benchmark results table (it is blank on
+  all but a handful of real bills), and Assess a Claim's seven stat cards
+  collapse to one line carrying the two figures an assessor answers for:
+  potential over-claim and lines flagged.
+
 ## 1.16.0 — 16 September 2026
 
 Claim History, further team feedback from the "Sharing of Supplier Bill

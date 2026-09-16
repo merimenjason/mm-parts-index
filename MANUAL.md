@@ -74,6 +74,30 @@ tab**:
 - **Same make / Same model** — keep parts apart across makes and, crucially, across models — so a Camry headlamp never merges with a Hilux one even under bridging.
 - **Positional veto** *(always on, v1.12.0)* — positional tokens (`FR`, `RH`, …) are stripped as stopwords before similarity scoring so spelling variants merge; identity, however, is preserved by a signature read from the *raw* name. Names that explicitly conflict on an axis never merge, at any threshold: **front vs rear**, **upper vs lower**, **inner vs outer**. A name with no positional token never blocks. The veto also applies when matching estimate lines in Assess a Claim.
 - **Separate LH / RH** *(off by default)* — additionally keeps left and right counterparts in separate clusters. Off is the policy default: side variants are the same part for pricing (see `eval/README.md`), and pooling them doubles the quotes behind each median. Both settings are disclosed in the dispute-pack summary.
+- **Bills used** *(v1.17.0; All dates by default)* — build the benchmark only from bills within the last 2 / 3 / 5 / 10 years, so a price from several years ago need not sit in the same median as a current one. The live dataset spans 2016 to 2025 **bimodally** — a handful of 2016–18 bills, a multi-year gap, then the bulk in 2025 — which is what this is for. Bills with **no printed date are always kept**: an undated bill is not *known* to be old, and dropping it would silently shrink the reference. The window is hashed into the snapshot id and written to the dispute-pack summary.
+
+> **The mode governs matching too, not just clustering (v1.17.0).** Before this,
+> `cfg.mode` chose how the reference was clustered while `matchLine()` always
+> tried exact part number and then fell back to fuzzy name — so **Exact part no
+> only** still matched a line with no part number, and **Matched via** read
+> `name` whatever was selected. Each mode now has its own matching branch, and
+> `Matched via` reports what actually happened: `part number`, `name`,
+> `category`, or `no match`.
+
+**Categorisation: component before assembly (v1.17.0).** `categorise()` is
+first-match-wins over an ordered list, so a rule matching the *assembly* a part
+belongs to will swallow the part itself unless the specific rule runs first. SG
+bills name a small part by what it is and then where it goes, in either order —
+`Clip, FR Bumper` and `FRT BUMPER GRILLE LH` — and matching `fr bumper` first put
+a S$2 clip, a S$55 grille and a S$45 reinforcement in the same median as a S$600
+bumper face: a 300× spread that reads as market variance but is four different
+parts. `CAT_RULES` is therefore built as `COMPONENT_RULES` followed by
+`ASSEMBLY_RULES`. On the live data this recategorises **132 lines (9.4%)**;
+Front Bumper narrows from 124 lines (S$2–1,900) to 95 (S$5–1,900) and 27 clips
+at S$1–2 leave the benchmark population as consumables. Because `cat` and
+`ltype` are purely derived from the part name, `upgradePart` **recomputes** them
+on load — so improving a rule reaches parts already in the reference without a
+re-import.
 
 **Why hybrid rather than name-only?** Name-only matching over-merges — two
 genuinely different Mercedes distance sensors (LH/RH) share the name "DISTANCE
@@ -113,18 +137,27 @@ grows.
 ## 5. Tabs & how to use them
 
 A **Simple / Detailed** toggle in the tab bar (top right, persisted per
-browser) opens in **Simple** by default, hiding Analytics, Coverage and
-Method Notes for a first-time or non-technical reviewer; click **Detailed**
-to reveal them. As of v1.15.0 the tabs are named **Benchmark** (was Demo),
-**Add Bills** (was Ingest) and **Configuration** (was Benchmark) — the
-matching-configuration functionality itself is unchanged, only the labels.
+browser) opens in **Simple** by default. As of v1.17.0 Simple shows only the
+three tabs an assessor works in — **Dashboard**, **Benchmark** and **Assess a
+Claim** — and hides **Add Bills**, **Parts Ledger**, **Configuration**,
+**Analytics**, **Coverage** and **Method Notes**; click **Detailed** to reveal
+them. Simple also hides the explanatory prose on those three tabs (instructional
+text, empty states and hover tooltips stay), drops the **Grade** column from the
+Benchmark results table, and collapses Assess a Claim's seven stat cards to a
+single line carrying potential over-claim and lines flagged. Nothing is lost —
+Detailed restores all of it. The matching configuration stays reachable in
+Simple as a collapsed panel at the top of the **Benchmark** tab.
+
+As of v1.15.0 the tabs are named **Benchmark** (was Demo), **Add Bills** (was
+Ingest) and **Configuration** (was Benchmark) — the matching-configuration
+functionality itself is unchanged, only the labels.
 
 - **Dashboard** — KPI tiles, make-coverage bars, top fuzzy-matched benchmarks. In the browser-only build the 18-bill demo **loads automatically on first visit**, so this is populated immediately (with the shared Turso backend the app starts empty until you upload or seed — see §7). **Click any KPI tile** to open an inline breakdown, then **click a row inside it** to drill a second level into the underlying part lines (an invoice → its parts, a category → its parts, a make → its parts, a cluster band → its clusters). **Click any listed benchmark part** to expand the individual quotes behind it.
-- **Benchmark** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. A **Min quotes for reliable spread** slider (1–30, default 4) sits beside the results count and shares `cfg.minQuotes` with the Configuration tab, so tightening or loosening the reliability floor here moves the `*` advisory markers everywhere at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** in the **leftmost column** of any result row adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
+- **Benchmark** — a plain-language benchmark *lookup* built for showing the reference to stakeholders. A collapsed **Matching configuration** panel sits at the top (v1.17.0), showing the current mode, make/model constraints and recency window at a glance and expanding to the full controls — it is the same `MatchConfig` component the Configuration tab renders, writing the same `cfg`, so the two can never drift and the settings are reachable without leaving Simple mode. (The **Min quotes for reliable spread** slider that used to sit loose beside the results count now lives inside this panel.) Filter by **make** and **model** (the model list narrows to the chosen make), type into **part name contains** / **part number contains** (the part-number filter is normalisation-aware, so `52119` matches `T52119-06971`), or use the **global search** box to match across name, number, make, model and category at once. Each matching benchmark shows its **median** and **mean** unit price; **click any row** to reveal every underlying supplier quote — supplier, bill number, date, grade, price, and whether the line was read by Claude OCR or imported from Excel. Build a **Worklist** as you go: the **+** in the **leftmost column** of any result row adds that part to a shortlist shown between the search and the results (or **+ Add all shown** to add the whole filtered set), and the worklist exports to **Excel** (a Worklist sheet plus an Evidence sheet of every underlying quote) or **PDF** (a printable benchmark table followed by an evidence table of the quotes behind each part). Every worklist row is itself expandable — click it to see its source quotes inline — and both exports carry that evidence. The PDF library loads on demand, so it never weighs down the app until used.
 - **Add Bills** — *Bulk upload* Claude-OCR'd spreadsheets (flexible column matching); *OCR invoices* (raw PDFs/images via the serverless proxy, with a **Test mode** toggle to preview a read without saving it); reload-demo; **Export .xlsx**; clear; a held-for-review queue with a category breakdown (totals mismatch / duplicate line — see §6); activity log.
 - **Parts Ledger** — every enriched line with **Make** and **Model** columns; search + filter by make / line-type.
-- **Configuration** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (1–30, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The same slider is mirrored on the **Benchmark** tab (both write the shared `cfg.minQuotes`). The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the detailed report (dispute pack). Click a row to reveal its quotes.
-- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR using the same model and proxy as bill ingestion. A **model indicator** beside the upload button shows which Claude model is active (change it on the Add Bills tab's picker). Extracted lines fill the textarea and the assessment auto-runs; when the document prints them, the OCR read also captures the **workshop name, vehicle plate, make and model**. Each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The **Export Detailed Report** button (a "dispute pack" internally) records the IQR band, the statistical upper bound and the above-bound flag per line. **Save to claim history** keeps the whole assessment — plus any workshop/plate/make/model an OCR read found — for later; the **Claim history (N)** button opens a modal listing every saved claim, each reopenable to the same result view with its own re-export and delete. The inverse of building the reference — putting it to work on a live claim.
+- **Configuration** — the matching configuration (§3) + the clustered median table with **Make**, **Model** and Basis columns. An **IQR band** column shows the middle-50% price range (Q1–Q3) beside each median; a **`*`** marks clusters below the reliability floor, where spread is advisory. A **Min quotes for reliable spread** slider (1–30, default 4) sets that floor: clusters with fewer quotes are labelled advisory and are excluded from the statistical outlier bound used in Assess. The same controls render at the top of the **Benchmark** tab — one shared `MatchConfig` component, one `cfg`, so a change in either place is the same change. The floor is part of the reproducibility snapshot (it changes which claim lines are flagged), so it is hashed into the snapshot id and recorded in the detailed report (dispute pack). Click a row to reveal its quotes.
+- **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR using the same model and proxy as bill ingestion. A **model indicator** beside the upload button shows which Claude model is active (change it on the Add Bills tab's picker). Extracted lines fill the textarea and the assessment auto-runs; when the document prints them, the OCR read also captures the **workshop name, vehicle plate, make and model**. Each line is matched to the benchmark (part number first, then name) and compared to its median, producing a per-line variance and a total **potential over-claim**, with lines above the % threshold flagged. A **Stat. bound** column additionally flags any line above the **Tukey upper fence** (Q3 + 1.5 × IQR) of its benchmark with an **ABOVE BOUND** badge, and a KPI tile counts them — a statistically defensible outlier call (above the observed price range, not merely above the median) that only fires on clusters at or above the reliability floor. The **Export Detailed Report** button (a "dispute pack" internally) records the IQR band, the statistical upper bound and the above-bound flag per line. **Save to claim history** keeps the whole assessment — plus any workshop/plate/make/model an OCR read found — for later; the **Claim history (N)** button opens a modal listing every saved claim, each reopenable to the same result view with its own re-export and delete. A reopened claim carries a **mode selector** (v1.17.0): pick a different matching mode and its saved lines are re-matched live against clusters built for that mode — a "what if we had used exact part number only" check without re-running the estimate — while the saved record keeps its original mode and rows untouched. The inverse of building the reference — putting it to work on a live claim.
 - **Analytics** *(Detailed mode)* — the 8 methods (§4); the median-benchmark view is also click-to-expand.
 - **Coverage** *(Detailed mode)* — make & category coverage vs the success criteria, against 20 common SG makes; a **Grade mix by make** chart shows the OEM/OES/Aftermarket/Used-Recon/Unknown split behind each make's benchmark.
 - **Method Notes** *(Detailed mode)* — short reference for each analytic + the matching rationale.
@@ -161,6 +194,41 @@ what lands in the dataset. Output columns map onto: `Supplier, Bill No, Bill
 Date, Make, Model, Doc Type, Part Name, Part Number, Qty, Unit Cost, Total
 Cost`. Upload via *Bulk upload*, or use the app's *OCR invoices* button which
 does the JSON step for you.
+
+### Make capture — a known gap in the current dataset (v1.17.0)
+
+On the live reference, **345 of 1,406 usable parts (24.5%) carry make
+`Unknown`** — a larger group than Toyota. Worth understanding before trying to
+fix it, because the obvious repairs do not work:
+
+- **Bill-level propagation fails.** Only **8** of the 345 sit on a bill where
+  another line resolves to a known make; the other 310 are on bills where *every*
+  line is Unknown. There is nothing to propagate from.
+- **Part-number prefix inference barely helps.** The existing `MAKE_PREFIX` rules
+  recover **0** of 345. Adding plausible new ones (Mercedes `A` + 10 digits,
+  Hyundai/Kia, Toyota) reaches roughly a quarter at best, with real risk of
+  mis-attribution.
+- **Nothing else in the row carries it.** No part name mentions a marque, and
+  only 16 of the 345 have a model stored.
+
+The reason is upstream: the batch runner **does** request an invoice-level
+`make` (`OCR_SYS` in `src/ocrPrompt.js`) and **does** emit a `Make` column
+(`invoiceToRows` in `tools/batch-ocr.mjs`), but the prompt tells the model to
+leave it blank rather than guess, and for these bills it came back empty.
+
+**Recovery path, cheapest first.** `writeOutputs()` rebuilds the import
+spreadsheet from the per-invoice JSON already saved under `<outDir>/json/`,
+driven by the manifest — so **check those JSONs first**. If `make` is populated
+there, regenerate the workbook and re-import: no new API calls, no cost. If it is
+empty there too, the make was genuinely never captured and those bills need
+**re-OCR with a firmer make instruction** (the manifest dedupes by SHA-256, so
+force reprocessing for the affected files rather than re-running all 246).
+
+Two things make this cheaper than it sounds: the fix is a **re-import**, not a
+rebuild of the app's data model, and it is **per-bill** — only the invoices whose
+make came back empty need re-reading. Consider tightening the prompt to infer
+make from a chassis or part-number prefix when one is legible, since that is
+where the signal actually is on these bills.
 
 ---
 

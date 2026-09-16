@@ -12,26 +12,53 @@ export function normPN(pn = "") {
   p = p.replace(/\(.*?\)/g, "").split("/")[0].replace(/\s*9{3,}$/, "").replace(/[\s\-–—−‑.]/g, "");
   return p.trim();
 }
-export const CAT_RULES = [
+/* Categorisation is first-match-wins over an ordered list, so a rule that matches the ASSEMBLY a
+   part belongs to will swallow the part itself unless the specific rule is consulted first. SG
+   bills name a small part by what it IS and then where it goes, in either order — "Clip, FR Bumper"
+   and "FRT BUMPER GRILLE LH" — so matching "fr bumper" first put a S$2 clip, a S$55 grille, a S$45
+   reinforcement and a S$600 bumper face in one cluster spanning 300×. COMPONENT rules therefore run
+   before ASSEMBLY rules, and within each tier the more specific rule comes first. */
+export const COMPONENT_RULES = [
+  // Specific lamps lead: "side marker" must be claimed before Consumable/Fastener's " mark ".
   ["Fog Lamp", ["fog lamp","fog"]], ["Signal/Marker Lamp", ["turn signal","signal len","side marker","ambient lamp"]],
-  ["Headlamp", ["headlamp","head lamp","h lamp","h/lamp","hlamp"]], ["Bumper Reinforcement", ["reinforcment","reinforcement","reinf"]],
+  // Bills write this pair in either order — "BONNET HINGE RH" and "HINGE, BONNET RH" — and without
+  // the reversed forms the second reads as a generic Lock/Mechanism hinge.
+  ["Hood/Bonnet Hinge", ["bonnet hinge","hood hinge","hinge,hood","hinge, hood","hinge hood","hinge,bonnet","hinge, bonnet","hinge bonnet"]],
+  ["Bumper Reinforcement", ["reinforcment","reinforcement","reinf","rein,"]],
   ["Bumper Bracket/Retainer", ["bumper stay","bumper bracket","retainer","bumper side","sponge","lower bracket"]],
-  ["Front Bumper", ["front bumper","frt bumper","fr bumper","face,fr bumper","bumper set","trim bumper","cover bumper","bumper 09","bumper fr"]],
-  ["Bumper Cover/Tow", ["tow cover","cover towing","cover strip","spoiler"]], ["Grille", ["grille","garnish,fr bumper"]],
+  ["Grille", ["grille"]],
+  // A garnish is a trim strip, not a grille: wiper, licence-plate and corner garnishes were pooling
+  // into the grille median. Kept separate so each holds one kind of part.
+  ["Garnish/Trim", ["garnish","moulding","molding"]],
   ["Fender Liner/Mudguard", ["fender liner","wheel mud","mudguard","fender shield","mudflat","wheel house","wheel arch"]],
+  ["Door Handle", ["door handle"]],
+  ["Radiator Ancillary", ["radiator guide","air guide","radiator bracket","spare tank","reservoir","radiator clip"]],
+  // A belt is a restraint, not furniture: pooling it with Seat blended S$315 belts into S$1000+ seats.
+  ["Seat Belt", ["seat belt","seatbelt","belt buckle"]],
+  // Electronic Module before Airbag so an airbag CONTROL UNIT reads as electronics, not as an airbag.
+  ["Electronic Module", ["control unit","ecu","module","cable reel","antenna"]],
+  ["Airbag", ["airbag","air bag"]],
+  ["Sensor", ["sensor"]],
+  ["Seal/Weatherstrip", ["weatherstrip","sealing","seal ","insulation"]],
+  ["Lock/Mechanism", ["lock","hinge","stiffener"]],
+  // The generic words here are space-padded so they match a standalone token, never inside a longer
+  // word — otherwise promoting this rule above the assemblies would swallow "MARKER", "PLATE" etc.
+  ["Consumable/Fastener", ["clip","rivet","bolt","screw"," nut"," plug","grommet","treenail"," tape "," logo ","emblem","sticker"," label "," mark ","sundry"]],
+];
+export const ASSEMBLY_RULES = [
+  ["Headlamp", ["headlamp","head lamp","h lamp","h/lamp","hlamp"]],
+  ["Front Bumper", ["front bumper","frt bumper","fr bumper","face,fr bumper","bumper set","trim bumper","cover bumper","bumper 09","bumper fr"]],
+  ["Bumper Cover/Tow", ["tow cover","cover towing","cover strip","spoiler"]],
   ["Fender", ["fender","apron"]], ["Mirror", ["mirror"]], ["Glass", ["windshield","windscreen","w/s glass","fixed window","glass"]],
-  ["Door Handle", ["door handle"]], ["Door Panel", ["door"]], ["Hood/Bonnet Hinge", ["bonnet hinge","hood hinge"]],
-  ["Hood/Bonnet", ["hood","bonnet"]], ["Wiper", ["wiper"]], ["Absorber/Damper", ["absorber","damper","spring element"]],
-  ["Sensor", ["sensor"]], ["Radiator Ancillary", ["radiator guide","air guide","radiator bracket","spare tank","reservoir","radiator clip"]],
+  ["Door Panel", ["door"]], ["Hood/Bonnet", ["hood","bonnet"]], ["Wiper", ["wiper"]],
+  ["Absorber/Damper", ["absorber","damper","spring element"]],
   ["Radiator/Cooling", ["radiator","coolant","condenser","cooling fan","fan"]],
   ["Suspension/Steering Arm", ["tie rod","ball joint","lower arm","knuckle","control arm","stabilizer","anti roll","hub bearing","subframe"]],
   ["Steering Gear", ["steering gear","gear assy, steering","gear box"]],
   ["Structural Panel", ["cross member","panel sub-assy","reinforcement assy","chassis frame","pillar","bulkhead","support panel","valance","cowl","member"]],
   ["Seat", ["seat"]], ["Dashboard", ["dashboard","instrument","meter assy","console"]],
-  ["Electronic Module", ["control unit","ecu","module","cable reel","airbag","antenna"]],
-  ["Seal/Weatherstrip", ["weatherstrip","sealing","seal ","insulation"]], ["Lock/Mechanism", ["lock","hinge","stiffener"]],
-  ["Consumable/Fastener", ["clip","rivet","bolt","screw"," nut","plug","grommet","treenail","tape","logo","mark","emblem","sticker","label","sundry"]],
 ];
+export const CAT_RULES = [...COMPONENT_RULES, ...ASSEMBLY_RULES];
 export function categorise(name = "") {
   const n = " " + String(name).toLowerCase() + " ";
   for (const [cat, keys] of CAT_RULES) if (keys.some((k) => n.includes(k))) return cat;
@@ -403,8 +430,11 @@ export function upgradePart(p) {
     // matches — e.g. a persisted "Mercedes" / "MERCEDES BENZ" becomes "Mercedes-Benz".
     make: canonMake(p.make && p.make !== "Unknown" ? p.make : inferMake(p.part_number, "")),
     npn: p.npn != null ? p.npn : normPN(p.part_number),
-    cat: p.cat || categorise(p.part_name),
-    ltype: p.ltype || lineType(p.doc_type, p.cat || categorise(p.part_name)),
+    // cat and ltype are PURELY derived from the part name — nothing in the app edits them by hand —
+    // so recompute rather than preserve. Keeping a stored value would mean an improvement to the
+    // category rules never reached the parts already in the reference without a re-import.
+    cat: categorise(p.part_name),
+    ltype: lineType(p.doc_type, categorise(p.part_name)),
     qty, unit, total,
     grade: GRADES.includes(p.grade) ? p.grade : inferGrade(p.part_name, p.grade),
     unit_basis: UNIT_BASES.includes(p.unit_basis) ? p.unit_basis : inferUnitBasis(p.part_name, p.unit_basis),

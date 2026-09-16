@@ -59,6 +59,26 @@ the Configuration tab, along with similarity threshold, token-vs-spelling weight
 same-make/same-model constraints. As real volume builds and identical part
 numbers recur, prefer Hybrid.
 
+The selected mode governs **both** halves of the job: how supplier lines are
+clustered into the reference, and how an incoming claim line is matched against
+it. **Exact part no only** therefore reports *no match* for a line with no part
+number rather than falling back to a name guess, and the **Matched via** column
+reflects the mode actually in force (`part number`, `name`, `category`, or
+`no match`).
+
+A **benchmark recency window** (All dates by default, or the last 2 / 3 / 5 /
+10 years) keeps an old price out of a current median. Bills with no printed date
+are always kept — an undated bill is not *known* to be old. The window is part
+of the reproducibility snapshot, so it is hashed into the snapshot id and
+recorded in the detailed report.
+
+Categorisation runs **component rules before assembly rules**. SG bills name a
+small part by what it is and then where it goes, in either order — `Clip, FR
+Bumper` and `FRT BUMPER GRILLE LH` — so matching the assembly first pooled a
+S$2 clip, a S$55 grille and a S$600 bumper face into one "Front Bumper" median.
+Because `cat` is purely derived from the part name, improving a rule reaches the
+parts already stored on the next load, with no re-import.
+
 ---
 
 ### Data quality & validation
