@@ -52,6 +52,17 @@ const UI_MODE_KEY = "partsindex_ui_mode";
 // Tabs hidden in "Simple" mode — deeper-dive views a layperson doesn't need day to day.
 const ADVANCED_TABS = new Set(["analytics", "coverage", "methods"]);
 
+// Matching modes offered on the Configuration tab. Single source of truth so the
+// Configuration select, the live Assess a Claim result, and any reopened Claim
+// History entry always show the same label for a given cfg.mode value.
+const MATCH_MODES = [
+  ["fuzzy-name", "Fuzzy part name only"],
+  ["hybrid", "Hybrid (part no → name bridge)"],
+  ["exact-pn", "Exact part no only"],
+  ["category", "Category + make"],
+];
+const MATCH_MODE_LABELS = Object.fromEntries(MATCH_MODES);
+
 // Summary stats shared by the live assessment and any saved claim being reviewed.
 function assessStats(rows) {
   const matched = rows.filter((r) => r.bench != null);
@@ -1195,10 +1206,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
       <div style={{ display: "flex", gap: 22, flexWrap: "wrap", alignItems: "center" }}>
         <label style={{ fontSize: 12.5 }}>Mode&nbsp;
           <select value={cfg.mode} onChange={(e) => set("mode", e.target.value)} style={inp(210)}>
-            <option value="fuzzy-name">Fuzzy part name only</option>
-            <option value="hybrid">Hybrid (part no → name bridge)</option>
-            <option value="exact-pn">Exact part no only</option>
-            <option value="category">Category + make</option>
+            {MATCH_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select></label>
         {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <>
           <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1534,6 +1542,11 @@ function AssessResultBlock({ rows, cfg }) {
   const { matched, totQuoted, totBench, totOver, flagged, aboveFence } = assessStats(rows);
 
   return (<>
+    <p style={{ color: MUTE, fontSize: 11.5, margin: "10px 0 0" }}>
+      Matched using <b style={{ color: TEAL_L }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}</b>
+      {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <> · similarity ≥ <b style={{ color: TEXT }}>{cfg.threshold}</b></>}
+      {cfg.sameMake && " · same make"}{cfg.sameModel && " · same model"} — the matching configuration in effect when this assessment was run.
+    </p>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
       {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
         ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
@@ -1611,6 +1624,7 @@ function ClaimHistoryModal({ claims, onClose, onDelete }) {
                   {vehicle && <span style={{ fontSize: 11.5, color: TEXT }}>{vehicle}</span>}
                   {c.plate && <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace", border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px" }}>{c.plate}</span>}
                   <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="Benchmark snapshot id at the time this claim was assessed">snapshot {c.snapshotId}</span>
+                  <span style={{ fontSize: 10.5, color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 4, padding: "1px 5px" }} title="Matching mode used for this assessment (see Configuration tab)">{MATCH_MODE_LABELS[c.cfg?.mode] || c.cfg?.mode || "mode n/a"}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
                   <span style={{ fontSize: 12, color: totOver > 0 ? RED : LIME }}>over-claim S${totOver.toFixed(0)}</span>
