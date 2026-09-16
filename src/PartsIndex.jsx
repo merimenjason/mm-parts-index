@@ -1602,21 +1602,24 @@ function ClaimHistoryModal({ claims, onClose, onDelete }) {
           const vehicle = [c.make, c.model].filter(Boolean).join(" ");
           return (
             <div key={c.id} style={{ border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 10, overflow: "hidden" }}>
-              <div onClick={() => setOpenId(isOpen ? null : c.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", background: PANEL, flexWrap: "wrap" }}>
-                <span style={{ color: LIME }}>{isOpen ? "▾" : "▸"}</span>
-                <b style={{ color: TEXT }}>{c.claimRef || "(no claim ref)"}</b>
-                <span style={{ fontSize: 11, color: MUTE }}>{fmtEventTs(c.savedAt)}</span>
-                {c.workshop && <span style={{ fontSize: 11.5, color: TEAL_L }}>{c.workshop}</span>}
-                {vehicle && <span style={{ fontSize: 11.5, color: TEXT }}>{vehicle}</span>}
-                {c.plate && <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace", border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px" }}>{c.plate}</span>}
-                <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="Benchmark snapshot id at the time this claim was assessed">snapshot {c.snapshotId}</span>
-                <div style={{ flex: 1 }} />
-                <span style={{ fontSize: 12, color: totOver > 0 ? RED : LIME }}>over-claim S${totOver.toFixed(0)}</span>
-                <span style={{ fontSize: 12, color: flagged.length ? RED : MUTE }}>{flagged.length} flagged</span>
-                <button onClick={(e) => { e.stopPropagation(); downloadDisputePack(c.rows, c.cfg || {}, { claimRef: c.claimRef, generatedAt: new Date(c.savedAt).toLocaleString("en-SG"), appVersion: APP_VERSION, snapshotId: c.snapshotId, invoices: c.invoices, usableLines: c.usableLines, inflPct: c.inflPct }); }}
-                  style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, padding: "6px 10px", fontSize: 11.5 }}>Export ⬇</button>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
-                  style={{ ...btn("transparent", RED), marginTop: 0, padding: "6px 10px", fontSize: 11.5, border: `1px solid ${RED}` }}>Delete</button>
+              <div onClick={() => setOpenId(isOpen ? null : c.id)} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px 14px", cursor: "pointer", background: PANEL }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ color: LIME }}>{isOpen ? "▾" : "▸"}</span>
+                  <b style={{ color: TEXT }}>{c.claimRef || "(no claim ref)"}</b>
+                  <span style={{ fontSize: 11, color: MUTE }}>{fmtEventTs(c.savedAt)}</span>
+                  {c.workshop && <span style={{ fontSize: 11.5, color: TEAL_L }}>{c.workshop}</span>}
+                  {vehicle && <span style={{ fontSize: 11.5, color: TEXT }}>{vehicle}</span>}
+                  {c.plate && <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace", border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px" }}>{c.plate}</span>}
+                  <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="Benchmark snapshot id at the time this claim was assessed">snapshot {c.snapshotId}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                  <span style={{ fontSize: 12, color: totOver > 0 ? RED : LIME }}>over-claim S${totOver.toFixed(0)}</span>
+                  <span style={{ fontSize: 12, color: flagged.length ? RED : MUTE }}>{flagged.length} flagged</span>
+                  <button onClick={(e) => { e.stopPropagation(); downloadDisputePack(c.rows, c.cfg || {}, { claimRef: c.claimRef, generatedAt: new Date(c.savedAt).toLocaleString("en-SG"), appVersion: APP_VERSION, snapshotId: c.snapshotId, invoices: c.invoices, usableLines: c.usableLines, inflPct: c.inflPct }); }}
+                    style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, padding: "6px 10px", fontSize: 11.5 }}>Export ⬇</button>
+                  <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+                    style={{ ...btn("transparent", RED), marginTop: 0, padding: "6px 10px", fontSize: 11.5, border: `1px solid ${RED}` }}>Delete</button>
+                </div>
               </div>
               {isOpen && <div style={{ padding: 14 }}>
                 {(c.workshop || vehicle || c.plate) && <p style={{ color: MUTE, fontSize: 12, marginTop: 0, marginBottom: 12 }}>
