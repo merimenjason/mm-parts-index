@@ -263,11 +263,26 @@ export function modelKey(p) { return String(p.model || "").replace(/\(.*?\)/g, "
    same part), then optionally BRIDGE groups whose names are fuzzy-similar within the same make
    (and model, if enabled) — so OEM/aftermarket variants merge, but a Camry headlamp never merges
    with a Hilux headlamp. */
+// True when a part's bill is recent enough for cfg.maxAgeYears (0 / unset = no limit). An undated
+// bill is kept: it is not KNOWN to be old, and dropping it would silently shrink the reference.
+export function withinAge(p, maxAgeYears) {
+  if (!maxAgeYears) return true;
+  const d = parseDate(p.bill_date);
+  if (!d) return true;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - maxAgeYears);
+  return d >= cutoff;
+}
+
 export function buildClusters(parts, cfg) {
-  const usable = parts.filter((p) => p.ltype === "Supplier Part" && !p.review);
+  const usable = parts.filter((p) => p.ltype === "Supplier Part" && !p.review && withinAge(p, cfg.maxAgeYears));
 
   if (cfg.mode === "exact-pn") {
-    const g = {}; usable.forEach((p) => { const k = p.npn || "?"; (g[k] = g[k] || []).push(p); });
+    // Parts with no part number each stand alone (same key scheme as hybrid below). Bucketing them
+    // together under one shared key pooled every part-number-less line in the dataset into a single
+    // cluster whose median mixed airbags, hinges and footmats, and which sorted to the top of the
+    // benchmark list because it had the most members.
+    const g = {}; usable.forEach((p) => { const k = p.npn || ("~" + p.id); (g[k] = g[k] || []).push(p); });
     return Object.values(g).map((mem) => makeCluster(mem, cfg)).sort((a, b) => b.n - a.n);
   }
   if (cfg.mode === "category") {
@@ -516,6 +531,7 @@ export function buildDisputePack(rows, cfg, meta) {
     ["Token weight", cfg.tokenWeight],
     ["Same make required", cfg.sameMake ? "yes" : "no"],
     ["Same model required", cfg.sameModel ? "yes" : "no"],
+    ["Bills used", cfg.maxAgeYears ? `last ${cfg.maxAgeYears} years (undated bills kept)` : "all dates"],
     ["Grades kept separate", cfg.sepGrade !== false ? "yes" : "no"],
     ["Front/rear kept separate", "yes (always)"],
     ["LH/RH kept separate", cfg.sepSide ? "yes" : "no"],

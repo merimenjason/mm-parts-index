@@ -284,6 +284,37 @@ console.log("dispersion stats (IQR / SD / CV)");
   // …and split when the adjuster opts in.
   const split = buildClusters(lrParts, { mode: "fuzzy-name", threshold: 0.65, tokenWeight: 0.6, sameMake: true, sepSide: true });
   ok(split.length === 2, "sepSide:true keeps LH and RH in separate clusters");
+
+  // Regression (shipped bug): exact-pn keyed every part-number-less line to one shared "?" bucket,
+  // pooling unrelated parts into a single high-count cluster that sorted to the top of the list.
+  const noPnParts = [
+    { part_name: "PASSENGER AIRBAG", part_number: "", qty: 1, unit_cost: 2340, total_cost: 2340, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B5", make: "Honda" },
+    { part_name: "BONNET HINGE RH", part_number: "", qty: 1, unit_cost: 25, total_cost: 25, doc_type: "Tax Invoice", supplier: "S2", bill_no: "B6", make: "Honda" },
+    { part_name: "FOOTMAT STAY", part_number: "-", qty: 1, unit_cost: 60, total_cost: 60, doc_type: "Tax Invoice", supplier: "S3", bill_no: "B7", make: "Honda" },
+  ].map(enrichPart);
+  const exact = buildClusters(noPnParts, { mode: "exact-pn", sameMake: true });
+  ok(exact.length === 3, "exact-pn keeps part-number-less lines apart instead of pooling them");
+  ok(exact.every((c) => c.n === 1), "each part-number-less line stands alone, so no bogus multi-quote median");
+  ok(exact.every((c) => c.pns.length === 0), "a part-number-less cluster carries no part number to match on");
+}
+
+/* ---- benchmark recency window (cfg.maxAgeYears) ---- */
+{
+  const yr = (y) => `01/06/${y}`;
+  const now = new Date().getFullYear();
+  const dated = [
+    { part_name: "HEADLAMP", part_number: "PN-1", qty: 1, unit_cost: 300, total_cost: 300, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B1", bill_date: yr(now - 1), make: "Toyota" },
+    { part_name: "HEADLAMP", part_number: "PN-1", qty: 1, unit_cost: 900, total_cost: 900, doc_type: "Tax Invoice", supplier: "S2", bill_no: "B2", bill_date: yr(now - 8), make: "Toyota" },
+  ].map(enrichPart);
+  const all = buildClusters(dated, { mode: "exact-pn", sameMake: true });
+  ok(all[0].n === 2, "no window set: every bill feeds the benchmark");
+  const recent = buildClusters(dated, { mode: "exact-pn", sameMake: true, maxAgeYears: 3 });
+  ok(recent[0].n === 1 && recent[0].med === 300, "a 3-year window drops the 8-year-old bill from the median");
+  const wide = buildClusters(dated, { mode: "exact-pn", sameMake: true, maxAgeYears: 10 });
+  ok(wide[0].n === 2, "a 10-year window keeps both");
+  // An undated bill is not KNOWN to be old — dropping it would silently shrink the reference.
+  const undated = [{ part_name: "GRILLE", part_number: "PN-2", qty: 1, unit_cost: 100, total_cost: 100, doc_type: "Tax Invoice", supplier: "S1", bill_no: "B3", make: "Toyota" }].map(enrichPart);
+  ok(buildClusters(undated, { mode: "exact-pn", maxAgeYears: 2 })[0].n === 1, "a bill with no printed date survives the window");
 }
 
 /* ---- parseDate accepts both bill and ISO forms ---- */

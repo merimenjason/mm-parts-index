@@ -65,6 +65,10 @@ const MATCH_MODES = [
 ];
 const MATCH_MODE_LABELS = Object.fromEntries(MATCH_MODES);
 
+// Benchmark recency windows. 0 = every bill, whatever its date.
+const BILL_AGES = [[0, "All dates"], [2, "Last 2 years"], [3, "Last 3 years"], [5, "Last 5 years"], [10, "Last 10 years"]];
+const BILL_AGE_LABELS = Object.fromEntries(BILL_AGES);
+
 // Summary stats shared by the live assessment and any saved claim being reviewed.
 function assessStats(rows) {
   const matched = rows.filter((r) => r.bench != null);
@@ -220,7 +224,7 @@ export default function App() {
   const [loading, setLoading] = useState(null);
   const [events, setEvents] = useState([]);   // persistent activity log
   const [q, setQ] = useState(""), [fMake, setFMake] = useState("All"), [fType, setFType] = useState("All");
-  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true, sepSide: false, minQuotes: 4 });
+  const [cfg, setCfg] = useState({ mode: "fuzzy-name", threshold: 0.65, sameMake: true, sameModel: false, tokenWeight: 0.6, bridge: false, sepGrade: true, sepSide: false, minQuotes: 4, maxAgeYears: 0 });
   const [method, setMethod] = useState("benchmark");
   const [inflPct, setInflPct] = useState(30);
   const [ocrModel, setOcrModelState] = useState(() => {
@@ -621,6 +625,11 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
     }).sort((a, b) => b.n - a.n || b.med - a.med);
   }, [clusters, g, fMake, fModel, fName, wantPN]);
 
+  // Grade is blank on the overwhelming majority of real supplier bills, so Simple mode drops the
+  // column rather than showing a wall of dashes; Detailed still has it.
+  const resultCols = detailed ? DEMO_RESULT_COLS : DEMO_RESULT_COLS.filter(([, , k]) => k !== "grade");
+  const resultSpan = resultCols.length + 1; // + the Add column
+
   const anyFilter = g || fMake !== "All" || fModel !== "All" || fName || fPN;
   const clear = () => { setG(""); setFMake("All"); setFModel("All"); setFName(""); setFPN(""); setOpen(null); };
   const sel = { ...inp("100%"), cursor: "pointer" };
@@ -716,7 +725,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
       <button onClick={() => setShowCfg((v) => !v)} title="How supplier quotes are grouped into the benchmarks you are searching"
         style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", background: "none", border: "none", cursor: "pointer", color: TEXT, fontSize: 13, fontWeight: 700, textAlign: "left" }}>
         <span style={{ color: LIME }}>{showCfg ? "▾" : "▸"}</span>Matching configuration
-        <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTE }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}{cfg.sameMake ? " · same make" : ""}{cfg.sameModel ? " · same model" : ""}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTE }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}{cfg.sameMake ? " · same make" : ""}{cfg.sameModel ? " · same model" : ""}{cfg.maxAgeYears ? " · " + BILL_AGE_LABELS[cfg.maxAgeYears] : ""}</span>
       </button>
       {showCfg && <div style={{ padding: "0 18px 16px" }}><MatchConfig cfg={cfg} setCfg={setCfg} detailed={detailed} /></div>}
     </div>
@@ -784,7 +793,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
 
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 16 }}>
       <table style={tableStyle}>
-        <thead><tr style={{ background: PANEL }}><th style={{ ...th, textAlign: "center" }}>Add</th>{DEMO_RESULT_COLS.map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
+        <thead><tr style={{ background: PANEL }}><th style={{ ...th, textAlign: "center" }}>Add</th>{resultCols.map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
         <tbody>{sortRows(results, sort, DEMO_RESULT_ACC).slice(0, 300).map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
             <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.10)" : "transparent" }}>
@@ -793,13 +802,13 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
                   style={{ width: 24, height: 24, borderRadius: 6, cursor: "pointer", fontSize: 14, lineHeight: 1, fontWeight: 700, border: `1px solid ${inWork(c) ? LIME : LINE}`, background: inWork(c) ? LIME : "transparent", color: inWork(c) ? TEAL_D : LIME }}>{inWork(c) ? "✓" : "+"}</button></td>
               <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
               <td style={td}>{c.make}</td><td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...td, color: MUTE }}>{c.cat}</td>
-              <td style={td}>{c.grade !== "Unknown" ? <span style={{ fontSize: 10, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER }}>{c.gradeMixed ? "Mixed" : c.grade}</span> : <span style={{ color: MUTE }}>—</span>}</td>
+              {detailed && <td style={td}>{c.grade !== "Unknown" ? <span style={{ fontSize: 10, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER }}>{c.gradeMixed ? "Mixed" : c.grade}</span> : <span style={{ color: MUTE }}>—</span>}</td>}
               <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.suppliers.length}</td>
               <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}{c.n > 1 && !c.reliable ? <span title="Fewer quotes than the reliability floor — indicative only" style={{ color: MUTE }}>*</span> : ""}</td>
               <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}–{c.max}</td></tr>
-            {isOpen && <tr style={{ background: "#082430" }}><td colSpan={11} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
+            {isOpen && <tr style={{ background: "#082430" }}><td colSpan={resultSpan} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
               <div style={{ marginBottom: 8, lineHeight: 1.7 }}>
                 <b style={{ color: TEXT }}>{c.label}</b> · {c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""} — <b style={{ color: LIME }}>median S${c.med}</b>, mean S${c.avg}, from <b style={{ color: TEXT }}>{c.n}</b> quote{c.n > 1 ? "s" : ""} across {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}. Range S${c.min}–{c.max}{c.n > 1 ? <> · IQR band S${c.q1}–S${c.q3}{Number.isFinite(c.cv) ? ` · CV ${c.cv}%` : ""}</> : ""}.
                 {c.n > 1 && !c.reliable && <span style={{ color: AMBER }}> Thin data — treat as indicative until more bills accumulate.</span>}
@@ -808,7 +817,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
               <QuoteLines c={c} showSource />
             </td></tr>}
           </React.Fragment>); })}
-          {!results.length && <tr><td colSpan={11} style={{ ...td, textAlign: "center", color: MUTE, padding: "26px 12px" }}>No benchmark matches these filters. Broaden the search or clear a filter.</td></tr>}
+          {!results.length && <tr><td colSpan={resultSpan} style={{ ...td, textAlign: "center", color: MUTE, padding: "26px 12px" }}>No benchmark matches these filters. Broaden the search or clear a filter.</td></tr>}
         </tbody></table></div>
     {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Lime rows have 2+ quotes and give a defensible benchmark; a <b>*</b> on the median flags a cluster below the reliability floor (indicative only). Use the <b style={{ color: LIME }}>+</b> to add a part to your <b>Worklist</b> above — build a shortlist to check, then export it to Excel or PDF. Prices are per-each unit prices; per-pair / per-set lines are grouped separately. Click any row to reveal every underlying supplier quote — supplier, bill number, date, grade and whether it was read by Claude OCR or imported from Excel.</p>}
   </>);
@@ -1230,6 +1239,10 @@ function MatchConfig({ cfg, setCfg, detailed }) {
           <input type="checkbox" checked={!!cfg.sepSide} onChange={(e) => set("sepSide", e.target.checked)} /> Separate LH / RH</label>
         <label style={{ fontSize: 12.5 }} title="A cluster with fewer quotes than this shows its IQR band as advisory (marked *), and Assess a Claim will not apply the statistical outlier bound (Q3 + 1.5×IQR) to it. Raise it to be stricter about thin data, lower it to surface bounds sooner.">Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b><br />
           <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
+        <label style={{ fontSize: 12.5 }} title="Build the benchmark only from bills within this window, so a price from several years ago does not sit in the same median as a current one. Bills with no printed date are always kept — an undated bill is not known to be old.">Bills used&nbsp;
+          <select value={cfg.maxAgeYears ?? 0} onChange={(e) => set("maxAgeYears", +e.target.value)} style={inp(150)}>
+            {BILL_AGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select></label>
       </div>
       {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Fuzzy part name</b> (the default) clusters parts whose names are similar — good for forming multi-quote medians on a small dataset. <b>Hybrid</b> is the more conservative option: it groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack — and only bridges different part numbers by name when you turn bridging on (bridged rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column). Use <b>Same make</b>/<b>Same model</b> to stop, say, a Camry headlamp merging with a Hilux one, and the similarity/token sliders to tune name matching. As real volume builds and identical part numbers recur, prefer Hybrid for the most defensible number.</p>}
   </>);
@@ -1616,7 +1629,8 @@ function AssessResultBlock({ rows, cfg, detailed }) {
     {detailed && <p style={{ color: MUTE, fontSize: 11.5, margin: "10px 0 0" }}>
       Matched using <b style={{ color: TEAL_L }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}</b>
       {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <> · similarity ≥ <b style={{ color: TEXT }}>{cfg.threshold}</b></>}
-      {cfg.sameMake && " · same make"}{cfg.sameModel && " · same model"} — the matching configuration in effect when this assessment was run.
+      {cfg.sameMake && " · same make"}{cfg.sameModel && " · same model"}
+      {cfg.maxAgeYears ? <> · bills from the <b style={{ color: TEXT }}>last {cfg.maxAgeYears} years</b></> : ""} — the matching configuration in effect when this assessment was run.
     </p>}
     {detailed
       ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
