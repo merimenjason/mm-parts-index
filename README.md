@@ -30,13 +30,14 @@ up front.
 - **Hybrid part-number-first matching** — the benchmark groups by exact (normalised) **part number** first — the identifier supplier bills carry that PeerIndex/eSource lack — then can optionally *bridge* different part numbers whose names are similar within the same make/model (OEM vs aftermarket). Same-model separation stops a Camry headlamp merging with a Hilux one, and a **Basis** column marks whether each benchmark rests on one part number (PN) or a looser name bridge (≈). Configurable on the Configuration tab (bridging is off by default for the most defensible number).
 - **Assess a Claim** — paste an incoming repairer estimate (part no · description · quoted price per line), or **upload the estimate document** (PDF / image) and let Claude read it via OCR. A model indicator beside the upload button shows which Claude model will be used (set on the Add Bills tab). Each line is matched to the benchmark, producing a line-by-line variance report against the benchmark, with total quoted vs benchmark, **potential over-claim**, and flagged lines. This is the inverse of building the reference — it puts the reference to work on a live claim.
 - **Detailed report export** — the **Export Detailed Report** button turns an assessment into the attachable audit trail (a "dispute pack" internally): an Excel with a **Summary** (claim ref, matching settings, totals, a **benchmark snapshot id**), the **Line Assessment**, and an **Evidence** sheet listing *every underlying supplier quote* behind every benchmark used (make · model · supplier · bill no · date · grade · price · source). Same snapshot id = same data + same settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.
+- **Claim History** — the **Save to claim history** button keeps a completed assessment (the full line-by-line result, its matching-config snapshot, and, when an OCR read of the estimate found them, the workshop name / vehicle plate / make / model) so it can be reopened or re-exported later without re-pasting the estimate. Reachable via the **Claim history (N)** button, which opens a modal listing every saved claim newest-first; each expands to the same result table and can be re-exported or deleted. Persists to `localStorage` by default, or the shared Turso DB via `/api/claims` when the backend is on — same switch as the dataset and activity log (see **Persistence**, below).
 - **Benchmark lookup tab + worklist** — a stakeholder-facing benchmark search: filter by make/model, part name or part number (normalisation-aware, so `52119` finds `T52119-06971`), or a global search across all fields, and read each part's **median** and **mean** unit price. Every result drills down to the underlying supplier quotes with full provenance (supplier, bill number, date, grade, and Claude-OCR vs Excel source). Add results to a **Worklist** with the `+` button and export the shortlist to **Excel** (worklist + evidence sheets) or **PDF** (a benchmark table plus an evidence table of the quotes behind each part); worklist rows are expandable to their source quotes, and both exports include that evidence. The PDF library loads on demand so it never bloats the main bundle.
 - **Make _and_ model everywhere** — the vehicle **model** is shown alongside make across every tab (Configuration, Parts Ledger, Benchmark, Analytics, Dashboard), in every drill-down, and in both the Excel export and the detailed report. Clusters that legitimately span models carry a `+N` marker with a hover listing them, so the median is never quietly attributed to a single model.
 - **Eight live analytics** — median benchmark, inflation flagging, confidence scoring, supplier dispersion, price trend, cross-source agreement, accuracy validation, and a normalisation view. All selectable under the **Analytics** tab (Detailed mode).
 - **Dispersion measures (IQR / SD / CV)** — every benchmark carries the interquartile range (Q1–Q3), sample standard deviation and coefficient of variation. The Configuration tab shows an **IQR band** column (a `*` marks clusters below the reliability floor, where spread is advisory); the dispersion and confidence analytics surface SD and CV; and **Assess a Claim** flags any estimate line above the **Tukey upper fence** (Q3 + 1.5·IQR) as `ABOVE BOUND` — a statistically defensible outlier, harder to dispute than a bare percentage. A **Min quotes for reliable spread** slider (range 1–30, default 4, on both the Configuration and Benchmark tabs, writing the shared `cfg.minQuotes`) sets that floor and, since it changes which lines are flagged, is folded into the reproducibility snapshot. Quantiles use Excel's PERCENTILE.INC and SD uses STDEV.S (n−1) so every figure reconciles against a spreadsheet.
 - **Quote drill-down everywhere** — click any benchmark part (Dashboard, Configuration tab) and **any row in any of the eight Analytics views** to expand the evidence behind the number: inflation flags open the offending bill plus the full cluster, confidence scores open a component-by-component breakdown (depth / diversity / recency bars), dispersion opens the cheapest-vs-dearest gap with a grade caution, trend strips list their lines in date order, agreement rows show the verdict arithmetic, accuracy signals expand to line-level list-vs-net and per-bill provenance, and normalisation rows reveal every raw spelling that was merged. The same applies outside Analytics: **Parts Ledger** lines open their full record (GST, grade, basis, normalised PN, source, bill context) plus the benchmark they feed; **Assess a Claim** rows open the match evidence — or, for unmatched lines, the closest rejected candidate and why it fell short; **Coverage** makes/categories and the Dashboard coverage bars expand into their part lines.
 - **KPI drill-down (two levels)** — click any dashboard KPI tile (Invoices, Part lines, Usable parts, Fuzzy clusters, Makes covered, Benchmark-ready) to open an inline breakdown, then **click any row in that panel** to expand the individual part lines behind it (invoice → its parts, category → its parts, make → its parts, cluster band → its clusters).
-- **Coverage report** — by make and category, against the project's success criteria.
+- **Coverage report** — by make and category, against the project's success criteria, against the 20 common SG makes (Toyota through newer entrants like BYD, Tesla and MG). A **Grade mix by make** stacked-bar chart (OEM Genuine / OES / Aftermarket / Used-Recon / Unknown per make) lets a reviewer spot at a glance when a make's benchmark rests on one grade of quote versus several.
 - **Sortable tables everywhere** — every data table sorts on any column: click a header to order **A→Z**, click again for **Z→A** (▲/▼ marks the active column). Money and percentages sort as numbers, text alphabetically. Covers the Parts Ledger, Configuration, Benchmark results + worklist, Assess-a-Claim results, all eight Analytics views and every Dashboard KPI drill-down. Sorting collapses any open drill-down so the evidence always matches the row above it.
 - **Persistent, drill-downable activity log** — the Add Bills tab's *Activity* panel records every ingest, OCR, review and dataset action as a structured event with a **date-and-time stamp**, kind, status and affected-line count, and **persists it** (localStorage by default, or the shared Turso DB via `/api/activity` when the backend is on) so the history survives reloads. Click any entry to drill into its detail — for OCR that includes the **Claude model used** and the **totals-reconciliation** outcome; for imports the suppliers/makes/bills touched — and filter the stream by kind.
 - **Duplicate-line detection** — a line item repeated within the same invoice (same part number, qty and price) holds the bill for review instead of silently double-counting that quote in the benchmark. Shared logic between the app and the batch OCR runner.
@@ -189,9 +190,9 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 | **Add Bills** | Excel upload, live OCR (with a "Test mode" toggle to preview an OCR read without saving it), reload-demo, export, clear, a held-for-review queue with a reason breakdown (totals mismatch / duplicate line), and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
 | **Parts Ledger** | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
 | **Configuration** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
-| **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence; **Export Detailed Report** produces the attachable audit trail |
+| **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence; **Export Detailed Report** produces the attachable audit trail; **Save to claim history** keeps the assessment (plus any workshop/plate/make/model OCR found) for later, reopened via the **Claim history** modal |
 | **Analytics** *(Detailed mode)* | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
-| **Coverage** *(Detailed mode)* | Make & category coverage vs the success criteria |
+| **Coverage** *(Detailed mode)* | Make & category coverage vs the success criteria; a **Grade mix by make** chart |
 | **Method Notes** *(Detailed mode)* | What each analytic computes and why |
 
 A **Simple / Detailed** toggle in the tab bar (top right) switches between a
@@ -318,19 +319,28 @@ like the OCR proxy:
 
 ```
 src/datasource.js   loadDataset()/saveDataset() + loadEvents()/appendEvent()
-      │                — both switch on VITE_DATA_BACKEND
-      │  fetch /api/parts   ·   fetch /api/activity
+      │              + loadClaims()/saveClaim()/deleteClaim()
+      │                — all switch on VITE_DATA_BACKEND
+      │  fetch /api/parts  ·  fetch /api/activity  ·  fetch /api/claims
       ▼
 api/parts.js        GET → { parts:[…] } ;  POST → replace/append
 api/activity.js     GET → { events:[…] } ; POST → append one event
+api/claims.js       GET → { claims:[…] }; POST → save one; DELETE → remove one
 api/_db.js          libSQL client, schema, upsert/replace + getActivity/appendActivity
-                    (server-only, holds the token)
+                    + getClaims/saveClaim/deleteClaim (server-only, holds the token)
 ```
 
 The **activity log** rides the same rails as the dataset: `loadEvents()` /
 `appendEvent()` in `src/datasource.js` write to `localStorage` by default or the
 shared DB via `/api/activity` when `VITE_DATA_BACKEND=api`, so the Add Bills tab's
 history is durable and (on the shared backend) shared across users.
+
+The **Assess a Claim tab's Claim History** rides the same rails: `loadClaims()` /
+`saveClaim()` / `deleteClaim()` write to `localStorage` by default, or the shared
+DB via `/api/claims`. A saved claim carries the full assessed lines (including
+match evidence, for re-export) plus any workshop name / vehicle plate / make /
+model an OCR read of the estimate found — so on the shared backend, every
+reviewer sees the same claim history.
 
 `src/pipeline.js` is untouched — it operates on plain arrays, so it doesn't care
 whether the array came from `localStorage` or a `SELECT`. That existing
@@ -349,11 +359,22 @@ CREATE TABLE parts (
   grade TEXT, unit_basis TEXT, gst TEXT, review INTEGER, review_reason TEXT
 );
 
--- Append-only activity/ingest log (schema_version 2). One row per event; the
--- detail column is a JSON blob the Add Bills tab expands for drill-down.
+-- Append-only activity/ingest log. One row per event; the detail column is a
+-- JSON blob the Add Bills tab expands for drill-down.
 CREATE TABLE activity (
   id TEXT PRIMARY KEY, ts TEXT, kind TEXT, action TEXT, message TEXT,
   source TEXT, count INTEGER, status TEXT, detail TEXT
+);
+
+-- Claim History (schema_version 3, added v1.16.0) — one row per saved
+-- assessment from Assess a Claim. cfg/rows are JSON blobs: rows carries the
+-- full assessed lines including cluster evidence, so a reopened claim
+-- renders identically and can still be re-exported.
+CREATE TABLE claims (
+  id TEXT PRIMARY KEY, saved_at TEXT, claim_ref TEXT, workshop TEXT,
+  plate TEXT, make TEXT, model TEXT, snapshot_id TEXT, infl_pct REAL,
+  invoices INTEGER, usable_lines INTEGER, app_version TEXT,
+  generated_at TEXT, cfg TEXT, rows TEXT
 );
 ```
 
@@ -404,7 +425,8 @@ partsindex/
 │  ├─ ocr.js                      ← serverless OCR proxy (keeps API key server-side)
 │  ├─ parts.js                    ← serverless dataset endpoint (GET/POST → shared DB)
 │  ├─ activity.js                 ← serverless activity-log endpoint (GET/POST → shared DB)
-│  └─ _db.js                      ← libSQL/Turso client + schema (parts + activity) + upsert (server-only, holds the token)
+│  ├─ claims.js                   ← serverless Claim History endpoint (GET/POST/DELETE → shared DB)
+│  └─ _db.js                      ← libSQL/Turso client + schema (parts + activity + claims) + upsert (server-only, holds the token)
 ├─ .github/workflows/
 │  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
 ├─ public/
@@ -429,7 +451,7 @@ partsindex/
 └─ src/
    ├─ main.jsx
    ├─ index.css
-   ├─ datasource.js               ← loadDataset/saveDataset + loadEvents/appendEvent — switch localStorage ↔ /api/parts · /api/activity (VITE_DATA_BACKEND)
+   ├─ datasource.js               ← loadDataset/saveDataset + loadEvents/appendEvent + loadClaims/saveClaim/deleteClaim — switch localStorage ↔ /api/parts · /api/activity · /api/claims (VITE_DATA_BACKEND)
    ├─ ocrPrompt.js                ← the tuned OCR prompt — single source of truth (app + runner)
    ├─ pipeline.js                 ← pure enrichment + matcher + validation + dispute pack (shared by app, eval, tools)
    ├─ demoData.js                 ← embedded 174-line demo dataset

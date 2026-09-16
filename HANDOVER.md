@@ -251,18 +251,35 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.15.0** (Layperson simplification pass, September 2026).
-Working: full ingest
-(Excel + live OCR + batch runner, with a Test-mode toggle and a duplicate-line
-detection gate alongside the totals-reconciliation gate), hybrid matcher with
-grade / basis / model / **positional** guards, nine tabs — a Simple/Detailed
-toggle (Simple by default) shows six and hides Analytics/Coverage/Method
-Notes — including the stakeholder Benchmark lookup (shared *Min quotes* floor
-slider, leftmost `+` add control) with Worklist and Excel/PDF export, eight
-analytics views, Assess a Claim with **estimate OCR upload**, Tukey-fence
-flags and the **Export Detailed Report** button, drill-down everywhere, a
-masthead *Github Repository* link, 110 self-tests, eval harness that replays
-the exact production merge decision.
+**Version 1.16.0** (Claim History + shared-backend persistence pass,
+September 2026). Working: full ingest (Excel + live OCR + batch runner, with
+a Test-mode toggle and a duplicate-line detection gate alongside the
+totals-reconciliation gate), hybrid matcher with grade / basis / model /
+**positional** guards, nine tabs — a Simple/Detailed toggle (Simple by
+default) shows six and hides Analytics/Coverage/Method Notes — including the
+stakeholder Benchmark lookup (shared *Min quotes* floor slider, leftmost `+`
+add control) with Worklist and Excel/PDF export, eight analytics views,
+Coverage with a make-vs-grade mix chart against 20 common SG makes, Assess a
+Claim with **estimate OCR upload** (now also capturing workshop/plate/
+make/model when printed), Tukey-fence flags, the **Export Detailed Report**
+button and a **Claim History** (save/reopen/re-export/delete, persisted
+locally or on the shared Turso DB), drill-down everywhere, a masthead
+*Github Repository* link, 110 self-tests, eval harness that replays the
+exact production merge decision.
+
+**1.16.0** added **Claim History** to Assess a Claim: a **Save to claim
+history** button keeps a completed assessment (full result, matching-config
+snapshot, and any workshop/plate/make/model an OCR read found) so it can be
+reopened or re-exported later without re-pasting the estimate, via a **Claim
+history (N)** modal listing every saved claim. Extended the estimate-OCR
+schema (`ESTIMATE_OCR_SYS`) to extract `model`/`plate` as separate fields.
+Extended the local/shared-DB split (`src/datasource.js`, `api/_db.js`) with
+`loadClaims`/`saveClaim`/`deleteClaim` and a new `/api/claims` endpoint,
+backed by a new `claims` table (`SCHEMA_VERSION` 3) — purely additive, so
+existing `parts`/`activity` data and deployments are unaffected. Also, from
+further team feedback on the same review call: extended `SG_MAKES` with BYD,
+Tesla and MG (17 → 20), and added a **Grade mix by make** stacked-bar chart
+to the Coverage tab. See CHANGELOG 1.16.0.
 
 **1.15.0** simplified the UI for a non-technical audience, prompted by team
 feedback in the "Sharing of Supplier Bill Extraction project" review call
@@ -410,5 +427,6 @@ the rationale and the honesty rules live there.
 | Snapshot id | `PIX-<dataHash>-<cfgHash>` — reproducibility stamp on every export |
 | Review queue | Bills failing totals reconciliation or the duplicate-line gate, held out of all benchmarks (Add Bills tab) |
 | Dispute pack | Three-sheet Excel (Summary / Line Assessment / Evidence), exported via the "Export Detailed Report" button on Assess |
+| Claim History | Saved Assess-a-Claim assessments (result + config snapshot + any OCR'd workshop/plate/make/model), reopenable via the "Claim history (N)" modal; local or shared-DB per `VITE_DATA_BACKEND` |
 | Gold set | Human-labelled part pairs used to measure matcher precision/recall |
 | Dispute-grade | The eval operating point: max recall at ≥95% precision |

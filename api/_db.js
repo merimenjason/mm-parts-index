@@ -52,7 +52,19 @@ export const ACTIVITY_COLUMNS = [
   "id", "ts", "kind", "action", "message", "source", "count", "status", "detail",
 ];
 
-export const SCHEMA_VERSION = 2;
+/* Claim History (Assess a Claim tab): one row per saved assessment. `cfg` and
+   `rows` are stored as JSON blobs — `rows` carries the full assessed lines
+   including cluster evidence (same shape the app already builds in memory),
+   so a reopened claim renders identically and can still be re-exported.
+   Keep in lockstep with the record built in Assess()'s handleSaveClaim
+   (src/PartsIndex.jsx) and the claims backend in src/datasource.js. */
+export const CLAIM_COLUMNS = [
+  "id", "saved_at", "claim_ref", "workshop", "plate", "make", "model",
+  "snapshot_id", "infl_pct", "invoices", "usable_lines", "app_version",
+  "generated_at", "cfg", "rows",
+];
+
+export const SCHEMA_VERSION = 3;
 
 let _client = null;
 
@@ -114,12 +126,33 @@ export async function ensureSchema() {
        status   TEXT,            -- ok | warn | error | info
        detail   TEXT             -- JSON blob of extra fields for drill-down
      )`,
+    // Claim History (Assess a Claim tab) — one row per saved assessment, shared
+    // across users on the shared backend. `cfg` and `rows` are JSON blobs (see
+    // CLAIM_COLUMNS above).
+    `CREATE TABLE IF NOT EXISTS claims (
+       id            TEXT PRIMARY KEY,
+       saved_at      TEXT,           -- ISO-8601 timestamp the claim was saved
+       claim_ref     TEXT,
+       workshop      TEXT,           -- OCR-extracted repairer name, if any
+       plate         TEXT,           -- OCR-extracted vehicle plate, if any
+       make          TEXT,
+       model         TEXT,
+       snapshot_id   TEXT,           -- benchmark snapshot id at save time
+       infl_pct      REAL,
+       invoices      INTEGER,
+       usable_lines  INTEGER,
+       app_version   TEXT,
+       generated_at  TEXT,
+       cfg           TEXT,           -- JSON: matching config snapshot
+       rows          TEXT            -- JSON: assessed lines incl. cluster evidence
+     )`,
     // Indexes for the app's common lookups (make filter, PN search, dedup) and
-    // the activity log's newest-first read.
+    // the activity log's / claim history's newest-first read.
     `CREATE INDEX IF NOT EXISTS idx_parts_make ON parts(make)`,
     `CREATE INDEX IF NOT EXISTS idx_parts_npn  ON parts(npn)`,
     `CREATE INDEX IF NOT EXISTS idx_parts_bill ON parts(supplier, bill_no)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_ts ON activity(ts)`,
+    `CREATE INDEX IF NOT EXISTS idx_claims_saved_at ON claims(saved_at)`,
     { sql: `INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)`, args: [String(SCHEMA_VERSION)] },
   ], "write");
 }
@@ -213,5 +246,58 @@ export async function appendActivity(ev) {
     return ev[c] ?? null;
   });
   await db().execute({ sql, args });
+  return 1;
+}
+
+/* ---- claim history ---- */
+
+/* Turn a stored claims row back into the record shape the app builds in
+   handleSaveClaim (src/PartsIndex.jsx), parsing the cfg/rows JSON blobs
+   (tolerating a malformed one rather than throwing). */
+function rowToClaim(row) {
+  let cfg = {}, rows = [];
+  if (row.cfg) { try { cfg = JSON.parse(row.cfg); } catch { cfg = {}; } }
+  if (row.rows) { try { rows = JSON.parse(row.rows); } catch { rows = []; } }
+  return {
+    id: row.id, savedAt: row.saved_at, claimRef: row.claim_ref || "",
+    workshop: row.workshop || "", plate: row.plate || "", make: row.make || "", model: row.model || "",
+    snapshotId: row.snapshot_id || "", inflPct: Number(row.infl_pct) || 0,
+    invoices: Number(row.invoices) || 0, usableLines: Number(row.usable_lines) || 0,
+    appVersion: row.app_version || "", generatedAt: row.generated_at || "",
+    cfg, rows,
+  };
+}
+
+/* Read the most recent saved claims, newest first. Mirrors getActivity: a
+   small LIMIT keeps the payload light on the shared backend. */
+export async function getClaims(limit = 200) {
+  const n = Math.max(1, Math.min(1000, Number(limit) || 200));
+  const res = await db().execute({ sql: "SELECT * FROM claims ORDER BY saved_at DESC LIMIT ?", args: [n] });
+  return res.rows.map(rowToClaim);
+}
+
+/* Save (insert or replace) one claim. Idempotent on id, like appendActivity —
+   a retried POST just rewrites the same row. cfg/rows are JSON-stringified
+   into their text columns. */
+export async function saveClaim(c) {
+  if (!c || typeof c !== "object" || !c.id) return 0;
+  const placeholders = CLAIM_COLUMNS.map(() => "?").join(", ");
+  const sql = `INSERT OR REPLACE INTO claims (${CLAIM_COLUMNS.join(", ")}) VALUES (${placeholders})`;
+  const camel = { claim_ref: "claimRef", snapshot_id: "snapshotId", infl_pct: "inflPct",
+    usable_lines: "usableLines", app_version: "appVersion", generated_at: "generatedAt", saved_at: "savedAt" };
+  const args = CLAIM_COLUMNS.map((col) => {
+    if (col === "cfg") return JSON.stringify(c.cfg || {});
+    if (col === "rows") return JSON.stringify(c.rows || []);
+    const key = camel[col] || col;
+    return c[key] ?? null;
+  });
+  await db().execute({ sql, args });
+  return 1;
+}
+
+/* Delete one claim by id. */
+export async function deleteClaim(id) {
+  if (!id) return 0;
+  await db().execute({ sql: "DELETE FROM claims WHERE id = ?", args: [id] });
   return 1;
 }

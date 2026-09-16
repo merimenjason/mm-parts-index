@@ -28,9 +28,9 @@ import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileIn
   normPN, similarity, posConflict, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
-  hasSeededMarker, setSeededMarker } from "./datasource.js";
+  hasSeededMarker, setSeededMarker, loadClaims, saveClaim, deleteClaim, CLAIMS_CAP } from "./datasource.js";
 
-const APP_VERSION = "1.15.0";
+const APP_VERSION = "1.16.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -51,6 +51,17 @@ const MODEL_KEY = "partsindex_ocr_model";
 const UI_MODE_KEY = "partsindex_ui_mode";
 // Tabs hidden in "Simple" mode — deeper-dive views a layperson doesn't need day to day.
 const ADVANCED_TABS = new Set(["analytics", "coverage", "methods"]);
+
+// Summary stats shared by the live assessment and any saved claim being reviewed.
+function assessStats(rows) {
+  const matched = rows.filter((r) => r.bench != null);
+  const totQuoted = matched.reduce((s, r) => s + r.quoted, 0);
+  const totBench = matched.reduce((s, r) => s + r.bench, 0);
+  const totOver = matched.reduce((s, r) => s + (r.over > 0 ? r.over : 0), 0);
+  const flagged = rows.filter((r) => r.flagged);
+  const aboveFence = rows.filter((r) => r.aboveFence);
+  return { matched, totQuoted, totBench, totOver, flagged, aboveFence };
+}
 
 /* ================= activity log =================
    The Ingest tab's activity history is a persistent, append-only stream of
@@ -146,7 +157,7 @@ async function ocrEstimate(base64, mediaType, isPdf, model) {
     const pr = p.quoted_price ?? 0;
     return pn ? `${pn}, ${nm}, ${pr}` : `${nm}, ${pr}`;
   });
-  return { text: lines.join("\n"), meta: { repairer: parsed.repairer, vehicle: parsed.vehicle, make: parsed.make, ref: parsed.estimate_ref, lineCount: lines.length } };
+  return { text: lines.join("\n"), meta: { repairer: parsed.repairer, vehicle: parsed.vehicle, make: parsed.make, model: parsed.model, plate: parsed.plate, ref: parsed.estimate_ref, lineCount: lines.length } };
 }
 
 /* ================= flexible Excel mapping ================= */
@@ -1495,16 +1506,149 @@ T81130-06590, HEAD LAMP RH, 420
 8R2998002, WIPER BLADES, 95
 9999-XXX, UNLISTED WIDGET, 300`;
 
+// Builds and downloads the Excel dispute pack — shared by the live "Export
+// Detailed Report" button and entries in the Claim History modal.
+function downloadDisputePack(rows, cfg, meta) {
+  const pack = buildDisputePack(rows, cfg, meta);
+  const wb = XLSX.utils.book_new();
+  const wsS = XLSX.utils.json_to_sheet(pack.summary); wsS["!cols"] = [{ wch: 30 }, { wch: 90 }];
+  const wsL = XLSX.utils.json_to_sheet(pack.lines); wsL["!cols"] = [{ wch: 5 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 11 }, { wch: 26 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 12 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 11 }, { wch: 17 }, { wch: 13 }, { wch: 18 }, { wch: 15 }, { wch: 13 }, { wch: 13 }, { wch: 23 }, { wch: 11 }, { wch: 10 }, { wch: 8 }];
+  const wsE = XLSX.utils.json_to_sheet(pack.evidence); wsE["!cols"] = [{ wch: 5 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 11 }, { wch: 12 }, { wch: 9 }, { wch: 12 }, { wch: 26 }];
+  XLSX.utils.book_append_sheet(wb, wsS, "Summary");
+  XLSX.utils.book_append_sheet(wb, wsL, "Line Assessment");
+  XLSX.utils.book_append_sheet(wb, wsE, "Evidence");
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `DisputePack_${(meta.claimRef || "claim").replace(/[^\w-]+/g, "_")}_${stamp}.xlsx`);
+}
+
+// Stats cards + result table + evidence drill-down — shared by the live
+// assessment (Assess a Claim tab) and any saved claim reopened from Claim
+// History, so the two views can never drift apart. `cfg` should be the
+// matching config that was live when `rows` were computed (a saved claim
+// stores its own snapshot so historical tooltips stay accurate even if the
+// Configuration tab's settings change later).
+function AssessResultBlock({ rows, cfg }) {
+  const [openRow, setOpenRow] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpenRow(null); toggle(k); };
+  const { matched, totQuoted, totBench, totOver, flagged, aboveFence } = assessStats(rows);
+
+  return (<>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
+      {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
+        ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
+        ["Potential over-claim S$", totOver.toFixed(0), totOver > 0 ? RED : LIME], ["Lines flagged", flagged.length, flagged.length ? RED : LIME],
+        ["Above IQR bound", aboveFence.length, aboveFence.length ? RED : LIME]]
+        .map(([l, v, c]) => (
+        <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
+          <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
+    </div>
+    <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
+      <table style={tableStyle}>
+        <thead><tr style={{ background: PANEL }}>{[["Part no","left","pn"],["Description","left","name"],["Matched via","left","how"],["Quotes","center","n"],["Quoted S$","right","quoted"],["Benchmark S$","right","bench"],["Variance S$","right","over"],["Variance %","right","overPct"],["Stat. bound","center","aboveFence"]].map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
+        <tbody>{sortRows(rows, sort).map((r) => { const isOpen = openRow === r._id; return (
+          <React.Fragment key={r._id}>
+            <tr onClick={() => setOpenRow(isOpen ? null : r._id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
+              <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
+              <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
+              <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
+              <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
+              <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
+              <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
+              <td style={{ ...td, textAlign: "right", fontWeight: 700, color: r.over > 0 ? RED : r.over < 0 ? LIME : MUTE }}>{r.over != null ? (r.over > 0 ? "+" : "") + r.over.toFixed(2) : "—"}</td>
+              <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td>
+              <td style={{ ...td, textAlign: "center" }}>{r.bench == null ? <span style={{ color: MUTE }}>—</span>
+                : r.aboveFence ? <span style={{ fontSize: 9.5, fontWeight: 700, color: RED, border: `1px solid ${RED}`, borderRadius: 4, padding: "1px 5px" }} title={`Quoted S$${r.quoted.toFixed(2)} exceeds the upper Tukey fence S$${r.uf} (Q3 + 1.5×IQR) across ${r.n} benchmark quotes — above the statistical range of observed prices, not merely above the median. A repairer can dispute a percentage; this is much harder to argue with.`}>ABOVE BOUND</span>
+                : r.uf != null ? <span style={{ color: MUTE, fontSize: 11 }} title={`Within the statistical range — upper bound is S$${r.uf} (Q3 + 1.5×IQR).`}>within</span>
+                : <span style={{ color: MUTE, fontSize: 11 }} title={`Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
+            {isOpen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
+              {r.cluster ? (<div>
+                <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
+                <QuoteLines c={r.cluster} /></div>)
+              : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
+                  ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Configuration tab or add the part number to the estimate line.</>
+                  : "No candidate cluster could be compared — the part is not in the reference yet, or the make constraint filtered everything out."}</div>)}
+            </td></tr>}
+          </React.Fragment>); })}</tbody></table></div>
+    <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+      {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
+      Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
+      Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.</p>
+  </>);
+}
+
+// Read-only history of past assessments, saved to this browser's localStorage
+// (see CLAIMS_KEY). Always visible under the estimate box — no button needed
+// to reveal it. Reuses AssessResultBlock so a reopened claim looks exactly
+// like it did when it was saved, including its own matching-config snapshot.
+function ClaimHistoryModal({ claims, onClose, onDelete }) {
+  const [openId, setOpenId] = useState(null);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,18,24,.72)", zIndex: 100, display: "flex", justifyContent: "center", padding: "5vh 16px", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: INK, border: `1px solid ${LINE}`, borderRadius: 12, width: "min(980px, 100%)", height: "fit-content", padding: 20, marginBottom: "5vh" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontSize: 16, color: TEXT }}>Claim history</h2>
+          <span style={{ fontSize: 11.5, color: MUTE }}>{claims.length} saved assessment{claims.length === 1 ? "" : "s"} — {usingSharedBackend ? "shared across every user of this reference" : "stored in this browser only"}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={onClose} style={{ ...btn(PANEL, TEXT), marginTop: 0, border: `1px solid ${LINE}` }}>Close</button>
+        </div>
+        {!claims.length && <p style={{ color: MUTE, fontSize: 12.5 }}>No saved assessments yet. Run an assessment on the Assess a Claim tab and click <b style={{ color: TEXT }}>Save to claim history</b>.</p>}
+        {claims.map((c) => {
+          const isOpen = openId === c.id;
+          const { totOver, flagged } = assessStats(c.rows);
+          // Vehicle/workshop details are only present when the estimate was read via OCR
+          // and the document printed them (see ESTIMATE_OCR_SYS) — absent for pasted text.
+          const vehicle = [c.make, c.model].filter(Boolean).join(" ");
+          return (
+            <div key={c.id} style={{ border: `1px solid ${LINE}`, borderRadius: 10, marginTop: 10, overflow: "hidden" }}>
+              <div onClick={() => setOpenId(isOpen ? null : c.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", background: PANEL, flexWrap: "wrap" }}>
+                <span style={{ color: LIME }}>{isOpen ? "▾" : "▸"}</span>
+                <b style={{ color: TEXT }}>{c.claimRef || "(no claim ref)"}</b>
+                <span style={{ fontSize: 11, color: MUTE }}>{fmtEventTs(c.savedAt)}</span>
+                {c.workshop && <span style={{ fontSize: 11.5, color: TEAL_L }}>{c.workshop}</span>}
+                {vehicle && <span style={{ fontSize: 11.5, color: TEXT }}>{vehicle}</span>}
+                {c.plate && <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace", border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 5px" }}>{c.plate}</span>}
+                <span style={{ fontSize: 11, color: MUTE, fontFamily: "ui-monospace,monospace" }} title="Benchmark snapshot id at the time this claim was assessed">snapshot {c.snapshotId}</span>
+                <div style={{ flex: 1 }} />
+                <span style={{ fontSize: 12, color: totOver > 0 ? RED : LIME }}>over-claim S${totOver.toFixed(0)}</span>
+                <span style={{ fontSize: 12, color: flagged.length ? RED : MUTE }}>{flagged.length} flagged</span>
+                <button onClick={(e) => { e.stopPropagation(); downloadDisputePack(c.rows, c.cfg || {}, { claimRef: c.claimRef, generatedAt: new Date(c.savedAt).toLocaleString("en-SG"), appVersion: APP_VERSION, snapshotId: c.snapshotId, invoices: c.invoices, usableLines: c.usableLines, inflPct: c.inflPct }); }}
+                  style={{ ...btn(TEAL_L, "#fff"), marginTop: 0, padding: "6px 10px", fontSize: 11.5 }}>Export ⬇</button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+                  style={{ ...btn("transparent", RED), marginTop: 0, padding: "6px 10px", fontSize: 11.5, border: `1px solid ${RED}` }}>Delete</button>
+              </div>
+              {isOpen && <div style={{ padding: 14 }}>
+                {(c.workshop || vehicle || c.plate) && <p style={{ color: MUTE, fontSize: 12, marginTop: 0, marginBottom: 12 }}>
+                  {c.workshop && <>Workshop: <b style={{ color: TEXT }}>{c.workshop}</b>&nbsp;&nbsp;</>}
+                  {vehicle && <>Vehicle: <b style={{ color: TEXT }}>{vehicle}</b>&nbsp;&nbsp;</>}
+                  {c.plate && <>Plate: <b style={{ color: TEXT }}>{c.plate}</b></>}
+                </p>}
+                <AssessResultBlock rows={c.rows} cfg={c.cfg || {}} /></div>}
+            </div>);
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState(null);
   const [claimRef, setClaimRef] = useState("");
-  const [openRow, setOpenRow] = useState(null);
   const [ocrBusy, setOcrBusy] = useState(null);   // null | "reading…" status string
-  const [ocrMeta, setOcrMeta] = useState(null);    // { repairer, vehicle, make, ref, lineCount }
+  const [ocrMeta, setOcrMeta] = useState(null);    // { repairer, vehicle, make, model, plate, ref, lineCount }
+  const [claims, setClaims] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
   const estRef = React.useRef(null);
-  const { sort, toggle } = useSort();
-  const onSort = (k) => { setOpenRow(null); toggle(k); };
+
+  // Claim History loads from whichever backend is active (see src/datasource.js):
+  // localStorage by default, or the shared Turso DB via /api/claims when
+  // VITE_DATA_BACKEND=api — same switch the parts dataset and activity log use.
+  useEffect(() => {
+    loadClaims().then((c) => setClaims(Array.isArray(c) ? c : []))
+      .catch((e) => console.error("claim history load failed:", e));
+  }, []);
 
   const handleEstimateOcr = async (e) => {
     const file = e.target.files?.[0];
@@ -1550,34 +1694,43 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
         n: m.cluster ? m.cluster.n : 0, flagged, uf, aboveFence, cluster: m.cluster };
     });
     setRows(out);
-    setOpenRow(null);
   };
 
-  const matched = rows ? rows.filter((r) => r.bench != null) : [];
-  const totQuoted = matched.reduce((s, r) => s + r.quoted, 0);
-  const totBench = matched.reduce((s, r) => s + r.bench, 0);
-  const totOver = matched.reduce((s, r) => s + (r.over > 0 ? r.over : 0), 0);
-  const flagged = rows ? rows.filter((r) => r.flagged) : [];
+  // Metadata common to both the exported Excel pack and a saved claim-history
+  // record: which benchmark snapshot this assessment was run against.
+  const currentMeta = () => ({
+    claimRef: claimRef.trim(), generatedAt: new Date().toLocaleString("en-SG"), appVersion: APP_VERSION,
+    snapshotId: snapshotId(parts.filter((p) => !p.review), cfg),
+    invoices: new Set(parts.map((p) => p.bill_no).filter(Boolean)).size,
+    usableLines: parts.filter((p) => p.ltype === "Supplier Part" && !p.review).length, inflPct,
+  });
 
   // The exportable audit trail: line assessment + every underlying supplier
   // quote, stamped with a benchmark snapshot id so the figures are reproducible.
-  const exportPack = () => {
-    const snap = snapshotId(parts.filter((p) => !p.review), cfg);
-    const meta = {
-      claimRef: claimRef.trim(), generatedAt: new Date().toLocaleString("en-SG"), appVersion: APP_VERSION,
-      snapshotId: snap, invoices: new Set(parts.map((p) => p.bill_no).filter(Boolean)).size,
-      usableLines: parts.filter((p) => p.ltype === "Supplier Part" && !p.review).length, inflPct,
+  const exportPack = () => downloadDisputePack(rows, cfg, currentMeta());
+
+  // Saves the current assessment (rows + the matching cfg it was run under)
+  // to Claim History — localStorage, or the shared Turso DB when the app is
+  // built with VITE_DATA_BACKEND=api (see src/datasource.js). Vehicle details
+  // are best-effort — only populated when the estimate was read via OCR and
+  // the document actually printed them; a pasted/typed estimate has none.
+  // Updates local state optimistically, then persists; on failure the record
+  // stays visible but flagged so the user knows it did not survive a reload.
+  const handleSaveClaim = async () => {
+    const rec = {
+      id: newEventId(), savedAt: new Date().toISOString(), cfg, rows, ...currentMeta(),
+      workshop: ocrMeta?.repairer || "", plate: ocrMeta?.plate || "",
+      make: ocrMeta?.make || "", model: ocrMeta?.model || "",
     };
-    const pack = buildDisputePack(rows, cfg, meta);
-    const wb = XLSX.utils.book_new();
-    const wsS = XLSX.utils.json_to_sheet(pack.summary); wsS["!cols"] = [{ wch: 30 }, { wch: 90 }];
-    const wsL = XLSX.utils.json_to_sheet(pack.lines); wsL["!cols"] = [{ wch: 5 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 11 }, { wch: 26 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 12 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 11 }, { wch: 17 }, { wch: 13 }, { wch: 18 }, { wch: 15 }, { wch: 13 }, { wch: 13 }, { wch: 23 }, { wch: 11 }, { wch: 10 }, { wch: 8 }];
-    const wsE = XLSX.utils.json_to_sheet(pack.evidence); wsE["!cols"] = [{ wch: 5 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 11 }, { wch: 12 }, { wch: 9 }, { wch: 12 }, { wch: 26 }];
-    XLSX.utils.book_append_sheet(wb, wsS, "Summary");
-    XLSX.utils.book_append_sheet(wb, wsL, "Line Assessment");
-    XLSX.utils.book_append_sheet(wb, wsE, "Evidence");
-    const stamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `DisputePack_${(claimRef.trim() || "claim").replace(/[^\w-]+/g, "_")}_${stamp}.xlsx`);
+    setClaims((prev) => [rec, ...prev].slice(0, CLAIMS_CAP));
+    const res = await saveClaim(rec);
+    if (!res.ok) alert("Could not save to claim history: " + (res.error?.message || "unknown error"));
+  };
+  const handleDeleteClaim = async (id) => {
+    if (!window.confirm("Remove this saved assessment from claim history?")) return;
+    setClaims((prev) => prev.filter((c) => c.id !== id));
+    const res = await deleteClaim(id);
+    if (!res.ok) alert("Could not delete from claim history: " + (res.error?.message || "unknown error"));
   };
 
   return (<>
@@ -1586,7 +1739,7 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
       <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={SAMPLE_ESTIMATE}
         style={{ width: "100%", minHeight: 120, marginTop: 6, background: "#082430", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, padding: 11, fontSize: 12.5, fontFamily: "ui-monospace,monospace", outline: "none", resize: "vertical" }} />
       {ocrMeta && <div style={{ fontSize: 11, color: TEAL_L, marginTop: 4 }}>
-        Read {ocrMeta.lineCount} part line{ocrMeta.lineCount !== 1 ? "s" : ""} from estimate{ocrMeta.repairer ? ` · ${ocrMeta.repairer}` : ""}{ocrMeta.vehicle ? ` · ${ocrMeta.vehicle}` : ""}{ocrMeta.make ? ` · ${ocrMeta.make}` : ""}{ocrMeta.ref ? ` · ref ${ocrMeta.ref}` : ""}
+        Read {ocrMeta.lineCount} part line{ocrMeta.lineCount !== 1 ? "s" : ""} from estimate{ocrMeta.repairer ? ` · ${ocrMeta.repairer}` : ""}{ocrMeta.vehicle ? ` · ${ocrMeta.vehicle}` : ""}{ocrMeta.make ? ` · ${ocrMeta.make}` : ""}{ocrMeta.model ? ` ${ocrMeta.model}` : ""}{ocrMeta.plate ? ` · plate ${ocrMeta.plate}` : ""}{ocrMeta.ref ? ` · ref ${ocrMeta.ref}` : ""}
       </div>}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
         <button onClick={() => run()} style={{ ...btn(LIME, TEAL_D), marginTop: 0 }}>Assess estimate</button>
@@ -1600,55 +1753,22 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
           <input type="range" min="5" max="100" step="5" value={inflPct} onChange={(e) => setInflPct(+e.target.value)} style={{ width: 160, verticalAlign: "middle" }} /></span>
         <div style={{ flex: 1 }} />
         <input value={claimRef} onChange={(e) => setClaimRef(e.target.value)} placeholder="Claim ref (optional)" style={{ ...inp(160), marginTop: 0 }} />
+        <button onClick={handleSaveClaim} disabled={!rows} title={rows ? (usingSharedBackend ? "Save this assessment to the shared claim history" : "Save this assessment to claim history (stored in this browser only)") : "Assess an estimate first"}
+          style={{ ...btn(rows ? LIME : "#1E4E60", rows ? TEAL_D : MUTE), marginTop: 0, cursor: rows ? "pointer" : "not-allowed" }}>Save to claim history</button>
         <button onClick={exportPack} disabled={!rows} title={rows ? "Excel: summary + line assessment + every underlying supplier quote, stamped with a benchmark snapshot id" : "Assess an estimate first"}
           style={{ ...btn(rows ? TEAL_L : "#1E4E60", rows ? INK : MUTE), marginTop: 0, cursor: rows ? "pointer" : "not-allowed" }}>Export Detailed Report ⬇</button>
+        <button onClick={() => setShowHistory(true)} title="Reopen or re-export a previously saved assessment"
+          style={{ ...btn(PANEL, TEXT), marginTop: 0, border: `1px solid ${LINE}`, cursor: "pointer" }}>Claim history ({claims.length})</button>
       </div>
     </Card>
 
     {rows && (<>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
-        {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
-          ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
-          ["Potential over-claim S$", totOver.toFixed(0), totOver > 0 ? RED : LIME], ["Lines flagged", flagged.length, flagged.length ? RED : LIME],
-          ["Above IQR bound", rows.filter((r) => r.aboveFence).length, rows.some((r) => r.aboveFence) ? RED : LIME]]
-          .map(([l, v, c]) => (
-          <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
-            <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
-      </div>
-      <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
-        <table style={tableStyle}>
-          <thead><tr style={{ background: PANEL }}>{[["Part no","left","pn"],["Description","left","name"],["Matched via","left","how"],["Quotes","center","n"],["Quoted S$","right","quoted"],["Benchmark S$","right","bench"],["Variance S$","right","over"],["Variance %","right","overPct"],["Stat. bound","center","aboveFence"]].map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
-          <tbody>{sortRows(rows, sort).map((r) => { const isOpen = openRow === r._id; return (
-            <React.Fragment key={r._id}>
-              <tr onClick={() => setOpenRow(isOpen ? null : r._id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
-                <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
-                <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
-                <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : MUTE, fontSize: 11 }}>{r.how}</td>
-                <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
-                <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
-                <td style={{ ...td, textAlign: "right", color: LIME }}>{r.bench != null ? r.bench.toFixed(2) : "—"}</td>
-                <td style={{ ...td, textAlign: "right", fontWeight: 700, color: r.over > 0 ? RED : r.over < 0 ? LIME : MUTE }}>{r.over != null ? (r.over > 0 ? "+" : "") + r.over.toFixed(2) : "—"}</td>
-                <td style={{ ...td, textAlign: "right", color: r.overPct > 0 ? RED : r.overPct < 0 ? LIME : MUTE }}>{r.overPct != null ? (r.overPct > 0 ? "+" : "") + r.overPct + "%" : "—"}</td>
-                <td style={{ ...td, textAlign: "center" }}>{r.bench == null ? <span style={{ color: MUTE }}>—</span>
-                  : r.aboveFence ? <span style={{ fontSize: 9.5, fontWeight: 700, color: RED, border: `1px solid ${RED}`, borderRadius: 4, padding: "1px 5px" }} title={`Quoted S$${r.quoted.toFixed(2)} exceeds the upper Tukey fence S$${r.uf} (Q3 + 1.5×IQR) across ${r.n} benchmark quotes — above the statistical range of observed prices, not merely above the median. A repairer can dispute a percentage; this is much harder to argue with.`}>ABOVE BOUND</span>
-                  : r.uf != null ? <span style={{ color: MUTE, fontSize: 11 }} title={`Within the statistical range — upper bound is S$${r.uf} (Q3 + 1.5×IQR).`}>within</span>
-                  : <span style={{ color: MUTE, fontSize: 11 }} title={`Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
-              {isOpen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
-                {r.cluster ? (<div>
-                  <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
-                  <QuoteLines c={r.cluster} /></div>)
-                : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
-                    ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Configuration tab or add the part number to the estimate line.</>
-                    : "No candidate cluster could be compared — the part is not in the reference yet, or the make constraint filtered everything out."}</div>)}
-              </td></tr>}
-            </React.Fragment>); })}</tbody></table></div>
-      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
-        {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
-        Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
-        Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.
-        <b style={{ color: TEXT }}> Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
+      <AssessResultBlock rows={rows} cfg={cfg} />
+      <p style={{ color: MUTE, fontSize: 11.5, marginTop: -4, lineHeight: 1.5 }}>
+        <b style={{ color: TEXT }}>Save to claim history</b> keeps this assessment{usingSharedBackend ? " in the shared reference (visible to every user)" : " in this browser"} so it can be reopened later. <b style={{ color: TEXT }}>Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
     </>)}
+
+    {showHistory && <ClaimHistoryModal claims={claims} onClose={() => setShowHistory(false)} onDelete={handleDeleteClaim} />}
   </>);
 }
 

@@ -21,6 +21,8 @@ const KEY = "partsindex_dataset_v3";
 const EVENTS_KEY = "partsindex_activity_v1"; // persistent ingest/activity log
 const EVENTS_CAP = 500;                      // keep the most recent N events
 const SEEDED_KEY = "partsindex_seeded_v1";  // "this browser has held data" marker (localStorage build only)
+const CLAIMS_KEY = "partsindex_claims_v1";  // saved Claim History (Assess a Claim tab)
+const CLAIMS_CAP = 200;                      // keep the most recent N saved claims
 
 /* ---- "has this browser ever held data?" marker (localStorage build) ----
    Set on the first successful dataset save (real import/OCR) AND when the demo
@@ -98,6 +100,46 @@ async function apiAppendEvent(ev) {
   return { ok: true };
 }
 
+/* ---- claim history: localStorage backend ---- */
+function localLoadClaims() {
+  try { const v = localStorage.getItem(CLAIMS_KEY); const a = v ? JSON.parse(v) : []; return Array.isArray(a) ? a : []; }
+  catch { return []; }
+}
+function localSaveClaim(c) {
+  try {
+    const next = [c, ...localLoadClaims().filter((x) => x.id !== c.id)].slice(0, CLAIMS_CAP);
+    localStorage.setItem(CLAIMS_KEY, JSON.stringify(next));
+    return { ok: true };
+  } catch (e) { console.error(e); return { ok: false, error: e }; }
+}
+function localDeleteClaim(id) {
+  try {
+    localStorage.setItem(CLAIMS_KEY, JSON.stringify(localLoadClaims().filter((c) => c.id !== id)));
+    return { ok: true };
+  } catch (e) { console.error(e); return { ok: false, error: e }; }
+}
+
+/* ---- claim history: shared-DB backend (via /api/claims) ---- */
+async function apiLoadClaims(limit = CLAIMS_CAP) {
+  const res = await fetch(`/api/claims?limit=${limit}`, { method: "GET" });
+  if (!res.ok) throw new Error(`GET /api/claims failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data.claims) ? data.claims : [];
+}
+async function apiSaveClaim(c) {
+  const res = await fetch("/api/claims", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claim: c }),
+  });
+  if (!res.ok) { const t = await res.text().catch(() => ""); return { ok: false, error: new Error(`POST /api/claims ${res.status}: ${t}`) }; }
+  return { ok: true };
+}
+async function apiDeleteClaim(id) {
+  const res = await fetch(`/api/claims?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) { const t = await res.text().catch(() => ""); return { ok: false, error: new Error(`DELETE /api/claims ${res.status}: ${t}`) }; }
+  return { ok: true };
+}
+
 export const DATA_BACKEND = BACKEND;
 export const usingSharedBackend = BACKEND === "api";
 // decideInit (the pure first-load decision) lives in pipeline.js so the browser
@@ -126,3 +168,19 @@ export async function loadEvents(limit = EVENTS_CAP) {
 export async function appendEvent(ev) {
   return BACKEND === "api" ? apiAppendEvent(ev) : localAppendEvent(ev);
 }
+
+/* ---- claim history API (mirrors the dataset switch) ----
+   Saved assessments from the Assess a Claim tab — localStorage by default, or
+   the shared Turso DB via /api/claims. On the shared backend, saved claims
+   (and vehicle details an OCR read found: workshop, plate, make, model) are
+   visible to every user of the reference. */
+export async function loadClaims(limit = CLAIMS_CAP) {
+  return BACKEND === "api" ? apiLoadClaims(limit) : localLoadClaims();
+}
+export async function saveClaim(c) {
+  return BACKEND === "api" ? apiSaveClaim(c) : localSaveClaim(c);
+}
+export async function deleteClaim(id) {
+  return BACKEND === "api" ? apiDeleteClaim(id) : localDeleteClaim(id);
+}
+export { CLAIMS_CAP };

@@ -2,6 +2,44 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.16.0 — 16 September 2026
+
+Claim History, further team feedback from the "Sharing of Supplier Bill
+Extraction project" review call, and a shared-backend persistence pass.
+Clean build; self-tests unchanged (persistence layers aren't Node-testable
+without a live/local DB — see the manual claims-DB checks run this session).
+
+- **ADDED: Claim History (Assess a Claim tab).** A **Save to claim history**
+  button keeps a completed assessment — the full line-by-line result and the
+  matching-config snapshot it ran under — so it can be reopened or re-exported
+  later without re-pasting the estimate. A **Claim history (N)** button opens
+  a modal listing every saved claim newest-first, each expandable to the same
+  result table (stats cards, sortable rows, match-evidence drill-down) with
+  its own **Export** and **Delete**.
+- **ADDED: vehicle-detail capture from OCR.** The estimate-OCR schema
+  (`ESTIMATE_OCR_SYS` in `src/ocrPrompt.js`) now extracts `model` and `plate`
+  as separate fields alongside the existing workshop name and make, when the
+  document prints them. A saved claim carries whichever of workshop / plate /
+  make / model an OCR read actually found (empty for a pasted/typed
+  estimate), shown in the Claim History list and detail view.
+- **ADDED: shared-backend persistence for Claim History.** Extends the
+  existing local/shared-DB split (`src/datasource.js`) with
+  `loadClaims`/`saveClaim`/`deleteClaim`: `localStorage` by default, or the
+  shared Turso DB via a new `/api/claims` endpoint when `VITE_DATA_BACKEND=api`
+  — same switch the parts dataset and activity log already use. Adds a new
+  `claims` table (`api/_db.js`, `SCHEMA_VERSION` 3) purely additively —
+  `ensureSchema()` only ever does `CREATE TABLE IF NOT EXISTS`, so existing
+  `parts`/`activity` data and deployments are unaffected.
+- **ADDED: newer SG makes on Coverage.** `SG_MAKES` extended with BYD, Tesla
+  and MG (17 → 20 makes) so coverage reporting doesn't silently omit newer
+  entrants.
+- **ADDED: Grade mix by make chart (Coverage tab).** A stacked horizontal-bar
+  chart (OEM Genuine / OES / Aftermarket / Used-Recon / Unknown per make) so a
+  reviewer can spot at a glance when a make's benchmark rests on one grade of
+  quote versus several. Palette is a validated one-hue ordinal teal ramp plus
+  a neutral gray for Unknown, checked with the dataviz skill's palette
+  validator against the app's dark surface.
+
 ## 1.15.0 — 10 September 2026
 
 Layperson simplification pass, prompted by team feedback in the "Sharing of

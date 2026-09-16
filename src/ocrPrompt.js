@@ -66,6 +66,8 @@ Schema:
   "repairer": string,       // workshop name if shown, else ""
   "vehicle": string,        // free text as printed
   "make": string,           // vehicle make if printed, else ""
+  "model": string,          // vehicle model if printed, else ""
+  "plate": string,          // vehicle registration plate/number if printed, else ""
   "estimate_ref": string,   // estimate/quotation number if printed, else ""
   "parts": [
     {
