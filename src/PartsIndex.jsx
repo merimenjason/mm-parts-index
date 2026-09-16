@@ -49,8 +49,10 @@ const OCR_MODELS = [
 ];
 const MODEL_KEY = "partsindex_ocr_model";
 const UI_MODE_KEY = "partsindex_ui_mode";
-// Tabs hidden in "Simple" mode — deeper-dive views a layperson doesn't need day to day.
-const ADVANCED_TABS = new Set(["analytics", "coverage", "methods"]);
+// Tabs hidden in "Simple" mode. Simple leaves only the three an assessor actually works in —
+// Dashboard, Benchmark, Assess a Claim — with the matching controls reachable from the top of
+// Benchmark, so the data-entry and deeper-dive views stay out of the way until asked for.
+const ADVANCED_TABS = new Set(["upload", "parts", "bench", "analytics", "coverage", "methods"]);
 
 // Matching modes offered on the Configuration tab. Single source of truth so the
 // Configuration select, the live Assess a Claim result, and any reopened Claim
@@ -473,17 +475,17 @@ export default function App() {
               </div></div>}
       </div>
       <div style={{ background: TEAL, padding: "0 calc(var(--pi-gutter) - 4px)", display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-        <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Benchmark" /><Tab id="upload" label="Add Bills" />
-        <Tab id="parts" label="Parts Ledger" /><Tab id="bench" label="Configuration" />
+        <Tab id="dashboard" label="Dashboard" /><Tab id="demo" label="Benchmark" />
         <Tab id="assess" label="Assess a Claim" />
         {uiMode === "detailed" && <>
-          <Tab id="analytics" label="Analytics" />
+          <Tab id="upload" label="Add Bills" /><Tab id="parts" label="Parts Ledger" />
+          <Tab id="bench" label="Configuration" /><Tab id="analytics" label="Analytics" />
           <Tab id="coverage" label="Coverage" /><Tab id="methods" label="Method Notes" />
         </>}
         <div style={{ flex: 1 }} />
         <div role="group" aria-label="Display mode" style={{ display: "flex", margin: "6px 0", background: TEAL_D, borderRadius: 8, padding: 2 }}>
           {["simple", "detailed"].map((m) => (
-            <button key={m} onClick={() => setUiMode(m)} title={m === "simple" ? "Hide Analytics, Coverage and Method Notes" : "Show all tabs"} style={{
+            <button key={m} onClick={() => setUiMode(m)} title={m === "simple" ? "Show only Dashboard, Benchmark and Assess a Claim, and hide the explanatory notes" : "Show every tab and the full explanatory detail"} style={{
               padding: "6px 12px", background: uiMode === m ? LIME : "none", color: uiMode === m ? TEAL_D : "#BFE6EF",
               border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700, fontSize: 12, letterSpacing: ".02em" }}>
               {m === "simple" ? "Simple" : "Detailed"}
@@ -493,12 +495,12 @@ export default function App() {
       </div>
 
       <div style={{ padding: "var(--pi-gutter)", maxWidth: 1240, margin: "0 auto" }}>
-        {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => setTab("upload")} />}
-        {tab === "demo" && <DemoLookup {...{ clusters, parts, cfg, setCfg }} />}
+        {tab === "dashboard" && <Dashboard parts={parts} clusters={clusters} kpis={kpis} onDemo={loadDemo} onGo={() => { setUiMode("detailed"); setTab("upload"); }} />}
+        {tab === "demo" && <DemoLookup {...{ clusters, parts, cfg, setCfg, detailed: uiMode === "detailed" }} />}
         {tab === "upload" && <Ingest {...{ excelRef, invRef, onExcel, onInvoice, loadDemo, exportXlsx, clearAll, parts, events, acceptBill, discardBill, ocrModel, setOcrModel, testOcr, setTestOcr }} />}
         {tab === "parts" && <Ledger {...{ q, setQ, fMake, setFMake, fType, setFType, makes, filtered, parts, clusters }} />}
         {tab === "bench" && <Benchmark {...{ cfg, setCfg, clusters }} />}
-        {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct, ocrModel }} />}
+        {tab === "assess" && <Assess {...{ parts, clusters, cfg, inflPct, setInflPct, ocrModel, detailed: uiMode === "detailed" }} />}
         {tab === "analytics" && <Analytics {...{ parts, clusters, cfg, method, setMethod, inflPct, setInflPct }} />}
         {tab === "coverage" && <Coverage {...{ parts, clusters }} />}
         {tab === "methods" && <MethodNotes />}
@@ -586,7 +588,8 @@ const DEMO_RESULT_COLS = [["Part","left","label"],["Make","left","make"],["Model
 const DEMO_RESULT_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, grade: (c) => c.grade, n: (c) => c.n, sup: (c) => c.suppliers.length, med: (c) => c.med, avg: (c) => c.avg, range: (c) => c.min };
 const DEMO_WORK_COLS = [["Part","left","label"],["Make","left","make"],["Model","left","model"],["Category","left","cat"],["Quotes","right","n"],["Median S$","right","med"],["Mean S$","right","avg"]];
 const DEMO_WORK_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, n: (c) => c.n, med: (c) => c.med, avg: (c) => c.avg };
-function DemoLookup({ clusters, parts, cfg, setCfg }) {
+function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
+  const [showCfg, setShowCfg] = useState(false);  // matching config — collapsed until asked for
   const [g, setG] = useState("");          // global search
   const [fMake, setFMake] = useState("All");
   const [fModel, setFModel] = useState("All");
@@ -709,8 +712,16 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
     </div>);
 
   return (<>
+    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, marginBottom: 16 }}>
+      <button onClick={() => setShowCfg((v) => !v)} title="How supplier quotes are grouped into the benchmarks you are searching"
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", background: "none", border: "none", cursor: "pointer", color: TEXT, fontSize: 13, fontWeight: 700, textAlign: "left" }}>
+        <span style={{ color: LIME }}>{showCfg ? "▾" : "▸"}</span>Matching configuration
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTE }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}{cfg.sameMake ? " · same make" : ""}{cfg.sameModel ? " · same model" : ""}</span>
+      </button>
+      {showCfg && <div style={{ padding: "0 18px 16px" }}><MatchConfig cfg={cfg} setCfg={setCfg} detailed={detailed} /></div>}
+    </div>
     <Card title="Look up a part's benchmark price">
-      <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Search the reference by <b style={{ color: TEXT }}>make &amp; model</b>, by <b style={{ color: TEXT }}>part name or number</b>, or with a free-text search across everything. Each match shows the <b style={{ color: LIME }}>median</b> and <b>mean</b> unit price; click a row to see every supplier quote behind it and where it came from.</p>
+      <p style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6, marginTop: -4 }}>Search the reference by <b style={{ color: TEXT }}>make &amp; model</b>, by <b style={{ color: TEXT }}>part name or number</b>, or with a free-text search across everything.{detailed && <> Each match shows the <b style={{ color: LIME }}>median</b> and <b>mean</b> unit price; click a row to see every supplier quote behind it and where it came from.</>}</p>
       <div style={{ marginTop: 12 }}>
         <input value={g} onChange={(e) => setG(e.target.value)} placeholder="🔍  Global search — e.g. “toyota headlamp”, a part number, a supplier…"
           style={{ ...inp("100%"), padding: "11px 13px", fontSize: 13 }} />
@@ -727,9 +738,6 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <span style={{ fontSize: 12.5, color: MUTE }}><b style={{ color: results.length ? LIME : MUTE }}>{results.length}</b> benchmark{results.length === 1 ? "" : "s"} match{anyFilter ? " your filters" : ""}</span>
-        {setCfg && cfg && <label style={{ fontSize: 12, color: MUTE, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }} title="A cluster with fewer quotes than this shows its median with a * and its spread as advisory. Shared with the Configuration tab. Raise it to be stricter about thin data, lower it to treat small clusters as reliable.">
-          Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b>
-          <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => setCfg({ ...cfg, minQuotes: +e.target.value })} style={{ width: 130 }} /></label>}
         <div style={{ flex: 1 }} />
         {results.length > 0 && <button onClick={addAllShown} style={{ ...btn("transparent", LIME), marginTop: 0, padding: "8px 12px", border: `1px solid ${LIME}` }}>+ Add all shown</button>}
         {anyFilter && <button onClick={clear} style={{ ...btn(ICE, TEAL_D), marginTop: 0, padding: "8px 14px" }}>Clear</button>}
@@ -802,7 +810,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg }) {
           </React.Fragment>); })}
           {!results.length && <tr><td colSpan={11} style={{ ...td, textAlign: "center", color: MUTE, padding: "26px 12px" }}>No benchmark matches these filters. Broaden the search or clear a filter.</td></tr>}
         </tbody></table></div>
-    <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Lime rows have 2+ quotes and give a defensible benchmark; a <b>*</b> on the median flags a cluster below the reliability floor (indicative only). Use the <b style={{ color: LIME }}>+</b> to add a part to your <b>Worklist</b> above — build a shortlist to check, then export it to Excel or PDF. Prices are per-each unit prices; per-pair / per-set lines are grouped separately. Click any row to reveal every underlying supplier quote — supplier, bill number, date, grade and whether it was read by Claude OCR or imported from Excel.</p>
+    {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Lime rows have 2+ quotes and give a defensible benchmark; a <b>*</b> on the median flags a cluster below the reliability floor (indicative only). Use the <b style={{ color: LIME }}>+</b> to add a part to your <b>Worklist</b> above — build a shortlist to check, then export it to Excel or PDF. Prices are per-each unit prices; per-pair / per-set lines are grouped separately. Click any row to reveal every underlying supplier quote — supplier, bill number, date, grade and whether it was read by Claude OCR or imported from Excel.</p>}
   </>);
 }
 
@@ -860,7 +868,7 @@ function Dashboard({ parts, clusters, kpis, onDemo, onGo }) {
                 {isOpen && <div style={{ padding: "2px 0 8px 16px", fontSize: 11, color: MUTE }}><QuoteLines c={c} /></div>}
               </div>); })}
           {clusters.filter((c) => c.n > 1).length === 0 &&
-            <div style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6 }}>No clusters with 2+ quotes at the current matching setting. Loosen the threshold on the Configuration tab.</div>}
+            <div style={{ color: MUTE, fontSize: 12.5, lineHeight: 1.6 }}>No clusters with 2+ quotes at the current matching setting. Loosen the threshold under <b style={{ color: TEXT }}>Matching configuration</b> at the top of the Benchmark tab.</div>}
         </Card>
       </div>
     )}
@@ -1194,15 +1202,11 @@ const BENCH_COLS = [
   { h: "Spread", k: "spread", a: "right", get: (c) => c.spread },
   { h: "IQR band", k: "iqr", a: "right", get: (c) => (c.n > 1 ? c.q1 : null) },
 ];
-function Benchmark({ cfg, setCfg, clusters }) {
-  const [open, setOpen] = useState(null);
-  const { sort, toggle } = useSort();
-  const onSort = (k) => { setOpen(null); toggle(k); };
-  const benchAcc = useMemo(() => Object.fromEntries(BENCH_COLS.map((c) => [c.k, c.get])), []);
-  const sortedClusters = useMemo(() => sortRows(clusters, sort, benchAcc), [clusters, sort, benchAcc]);
+// The matching controls, shared by the Configuration tab and the collapsible panel at the top of
+// the Benchmark tab — one component so the two can never drift, and both edit the same cfg state.
+function MatchConfig({ cfg, setCfg, detailed }) {
   const set = (k, v) => setCfg({ ...cfg, [k]: v });
   return (<>
-    <Card title="Matching configuration">
       <div style={{ display: "flex", gap: 22, flexWrap: "wrap", alignItems: "center" }}>
         <label style={{ fontSize: 12.5 }}>Mode&nbsp;
           <select value={cfg.mode} onChange={(e) => set("mode", e.target.value)} style={inp(210)}>
@@ -1227,8 +1231,19 @@ function Benchmark({ cfg, setCfg, clusters }) {
         <label style={{ fontSize: 12.5 }} title="A cluster with fewer quotes than this shows its IQR band as advisory (marked *), and Assess a Claim will not apply the statistical outlier bound (Q3 + 1.5×IQR) to it. Raise it to be stricter about thin data, lower it to surface bounds sooner.">Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b><br />
           <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
       </div>
-      <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Fuzzy part name</b> (the default) clusters parts whose names are similar — good for forming multi-quote medians on a small dataset. <b>Hybrid</b> is the more conservative option: it groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack — and only bridges different part numbers by name when you turn bridging on (bridged rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column). Use <b>Same make</b>/<b>Same model</b> to stop, say, a Camry headlamp merging with a Hilux one, and the similarity/token sliders to tune name matching. As real volume builds and identical part numbers recur, prefer Hybrid for the most defensible number.</p>
-    </Card>
+      {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}><b style={{ color: LIME }}>Fuzzy part name</b> (the default) clusters parts whose names are similar — good for forming multi-quote medians on a small dataset. <b>Hybrid</b> is the more conservative option: it groups by exact part number first — the identifier supplier bills carry that PeerIndex/eSource lack — and only bridges different part numbers by name when you turn bridging on (bridged rows are marked <b style={{ color: AMBER }}>≈</b> in the <b>Basis</b> column). Use <b>Same make</b>/<b>Same model</b> to stop, say, a Camry headlamp merging with a Hilux one, and the similarity/token sliders to tune name matching. As real volume builds and identical part numbers recur, prefer Hybrid for the most defensible number.</p>}
+  </>);
+}
+
+function Benchmark({ cfg, setCfg, clusters }) {
+  const [open, setOpen] = useState(null);
+  const { sort, toggle } = useSort();
+  const onSort = (k) => { setOpen(null); toggle(k); };
+  const benchAcc = useMemo(() => Object.fromEntries(BENCH_COLS.map((c) => [c.k, c.get])), []);
+  const sortedClusters = useMemo(() => sortRows(clusters, sort, benchAcc), [clusters, sort, benchAcc]);
+  return (<>
+    {/* The Configuration tab only renders in Detailed mode, so its copy always shows the full notes. */}
+    <Card title="Matching configuration"><MatchConfig cfg={cfg} setCfg={setCfg} detailed /></Card>
     <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. The <b>IQR band</b> is the middle 50% of quotes (Q1–Q3) — a tight band means the median is well-supported, a wide one means quotes disagree; a <b>*</b> marks a thin cluster (fewer than {cfg.minQuotes ?? 4} quotes) where the spread is only advisory. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
@@ -1591,28 +1606,35 @@ function downloadDisputePack(rows, cfg, meta) {
 // matching config that was live when `rows` were computed (a saved claim
 // stores its own snapshot so historical tooltips stay accurate even if the
 // Configuration tab's settings change later).
-function AssessResultBlock({ rows, cfg }) {
+function AssessResultBlock({ rows, cfg, detailed }) {
   const [openRow, setOpenRow] = useState(null);
   const { sort, toggle } = useSort();
   const onSort = (k) => { setOpenRow(null); toggle(k); };
   const { matched, totQuoted, totBench, totOver, flagged, aboveFence } = assessStats(rows);
 
   return (<>
-    <p style={{ color: MUTE, fontSize: 11.5, margin: "10px 0 0" }}>
+    {detailed && <p style={{ color: MUTE, fontSize: 11.5, margin: "10px 0 0" }}>
       Matched using <b style={{ color: TEAL_L }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}</b>
       {(cfg.mode === "hybrid" || cfg.mode === "fuzzy-name") && <> · similarity ≥ <b style={{ color: TEXT }}>{cfg.threshold}</b></>}
       {cfg.sameMake && " · same make"}{cfg.sameModel && " · same model"} — the matching configuration in effect when this assessment was run.
-    </p>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
-      {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
-        ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
-        ["Potential over-claim S$", totOver.toFixed(0), totOver > 0 ? RED : LIME], ["Lines flagged", flagged.length, flagged.length ? RED : LIME],
-        ["Above IQR bound", aboveFence.length, aboveFence.length ? RED : LIME]]
-        .map(([l, v, c]) => (
-        <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px" }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
-          <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
-    </div>
+    </p>}
+    {detailed
+      ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "16px 0" }}>
+          {[["Lines assessed", rows.length, "#fff"], ["Matched to benchmark", matched.length, TEAL_L],
+            ["Quoted total S$", totQuoted.toFixed(0), "#fff"], ["Benchmark total S$", totBench.toFixed(0), LIME],
+            ["Potential over-claim S$", totOver.toFixed(0), totOver > 0 ? RED : LIME], ["Lines flagged", flagged.length, flagged.length ? RED : LIME],
+            ["Above IQR bound", aboveFence.length, aboveFence.length ? RED : LIME]]
+            .map(([l, v, c]) => (
+            <div key={l} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
+              <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>{l}</div></div>))}
+        </div>
+      // Simple mode keeps only the two figures the assessor is actually answering for.
+      : <p style={{ fontSize: 13, color: MUTE, margin: "14px 0 10px" }}>
+          Potential over-claim <b style={{ fontSize: 16, color: totOver > 0 ? RED : LIME }}>S${totOver.toFixed(0)}</b>
+          <span style={{ margin: "0 10px", color: LINE }}>·</span>
+          <b style={{ fontSize: 16, color: flagged.length ? RED : LIME }}>{flagged.length}</b> line{flagged.length === 1 ? "" : "s"} flagged
+        </p>}
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{[["Part no","left","pn"],["Description","left","name"],["Matched via","left","how"],["Quotes","center","n"],["Quoted S$","right","quoted"],["Benchmark S$","right","bench"],["Variance S$","right","over"],["Variance %","right","overPct"],["Stat. bound","center","aboveFence"]].map(([h,a,k]) => <SortTh key={k} label={h} sortKey={k} sort={sort} toggle={onSort} align={a} />)}</tr></thead>
@@ -1640,10 +1662,10 @@ function AssessResultBlock({ rows, cfg }) {
                   : "No candidate cluster could be compared — the part is not in the reference yet, or the make constraint filtered everything out."}</div>)}
             </td></tr>}
           </React.Fragment>); })}</tbody></table></div>
-    <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+    {(detailed || matched.length < rows.length) && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
       {matched.length < rows.length && <span>{rows.length - matched.length} line(s) had no benchmark match (unlisted part or make mismatch) — shown greyed. </span>}
-      Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
-      Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.</p>
+      {detailed && <>Click any result row to see its match evidence — the quotes behind the benchmark it was compared to — or, for unmatched lines, the closest rejected candidate and why it fell short.
+      Potential over-claim sums only the lines quoted above benchmark. Benchmarks marked with few quotes are indicative until more supplier bills accumulate; treat low-sample medians with caution and cross-check the flagged lines against the source bills.</>}</p>}
   </>);
 }
 
@@ -1654,7 +1676,7 @@ function AssessResultBlock({ rows, cfg }) {
 // same saved lines be re-matched live under a different mode, without touching the
 // saved record, so a "what if we'd used exact part number only" check doesn't require
 // re-running the original estimate through the Assess tab.
-function ClaimHistoryModal({ claims, parts, onClose, onDelete }) {
+function ClaimHistoryModal({ claims, parts, detailed, onClose, onDelete }) {
   const [openId, setOpenId] = useState(null);
   const [modeOverride, setModeOverride] = useState(null);
   return (
@@ -1720,7 +1742,7 @@ function ClaimHistoryModal({ claims, parts, onClose, onDelete }) {
                     {isOverride && <span style={{ fontSize: 11, color: AMBER }} title="This re-match is live and local — the saved record keeps its original mode and rows.">
                       live re-match, not saved — originally saved as {MATCH_MODE_LABELS[savedMode] || savedMode || "mode n/a"}</span>}
                   </div>
-                  <AssessResultBlock rows={effRows} cfg={effCfg} /></div>);
+                  <AssessResultBlock rows={effRows} cfg={effCfg} detailed={detailed} /></div>);
               })()}
             </div>);
         })}
@@ -1729,7 +1751,7 @@ function ClaimHistoryModal({ claims, parts, onClose, onDelete }) {
   );
 }
 
-function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
+function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel, detailed }) {
   const [text, setText] = useState("");
   const [rows, setRows] = useState(null);
   const [claimRef, setClaimRef] = useState("");
@@ -1850,12 +1872,12 @@ function Assess({ parts, clusters, cfg, inflPct, setInflPct, ocrModel }) {
     </Card>
 
     {rows && (<>
-      <AssessResultBlock rows={rows} cfg={cfg} />
-      <p style={{ color: MUTE, fontSize: 11.5, marginTop: -4, lineHeight: 1.5 }}>
-        <b style={{ color: TEXT }}>Save to claim history</b> keeps this assessment{usingSharedBackend ? " in the shared reference (visible to every user)" : " in this browser"} so it can be reopened later. <b style={{ color: TEXT }}>Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>
+      <AssessResultBlock rows={rows} cfg={cfg} detailed={detailed} />
+      {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: -4, lineHeight: 1.5 }}>
+        <b style={{ color: TEXT }}>Save to claim history</b> keeps this assessment{usingSharedBackend ? " in the shared reference (visible to every user)" : " in this browser"} so it can be reopened later. <b style={{ color: TEXT }}>Export Detailed Report</b> produces the attachable audit trail: this assessment plus every underlying supplier quote (supplier, bill no, date, grade, price), stamped with a benchmark <i>snapshot id</i> — same id means same data and same matching settings, so a figure quoted in a negotiation stays reproducible after new bills shift the median.</p>}
     </>)}
 
-    {showHistory && <ClaimHistoryModal claims={claims} parts={parts} onClose={() => setShowHistory(false)} onDelete={handleDeleteClaim} />}
+    {showHistory && <ClaimHistoryModal claims={claims} parts={parts} detailed={detailed} onClose={() => setShowHistory(false)} onDelete={handleDeleteClaim} />}
   </>);
 }
 
