@@ -5,7 +5,11 @@
 /* ================= enrichment pipeline ================= */
 export function normPN(pn = "") {
   let p = String(pn).toUpperCase().trim();
-  p = p.replace(/\(.*?\)/g, "").split("/")[0].replace(/\s*9{3,}$/, "").replace(/[\s\-.]/g, "");
+  // Strip plain hyphen AND the dash variants a browser/OS "smart punctuation" substitutes for
+  // one (en dash –, em dash —, minus sign −, non-breaking hyphen ‑) — otherwise a lone dash
+  // typed as a "no part number" placeholder can survive normalisation as a non-empty string,
+  // which would then look like a real (and spuriously matchable) part number in exact-pn mode.
+  p = p.replace(/\(.*?\)/g, "").split("/")[0].replace(/\s*9{3,}$/, "").replace(/[\s\-–—−‑.]/g, "");
   return p.trim();
 }
 export const CAT_RULES = [
