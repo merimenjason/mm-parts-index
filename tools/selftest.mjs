@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit, categorise } from "../src/pipeline.js";
-import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams } from "./batch-ocr.mjs";
+import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams, makeFromFilename } from "./batch-ocr.mjs";
+import { buildMakeIndex, planRow } from "./backfill-make.mjs";
 
 let failures = 0;
 const ok = (cond, name) => { console.log(`${cond ? "  ✓" : "  ✗ FAIL"} ${name}`); if (!cond) failures++; };
@@ -382,6 +383,101 @@ console.log("decideInit — first-load seed decision (auto-seed guard)");
   // Malformed stored shape (no parts array) is treated as absent, so the marker still guards it.
   ok(decideInit({ isShared: false, stored: { parts: "oops" }, seededBefore: true }) === "empty-returning", "local: a malformed stored blob falls through to the marker guard");
   ok(decideInit({ isShared: false, stored: {}, seededBefore: false }) === "seed-first-run", "local: a malformed stored blob on a fresh browser still seeds");
+}
+
+/* ---- make recovery from the filing convention <date>-<insurer>-<MAKE>-<n> ----
+   Supplier bills often don't print the vehicle make at all, so the filename is
+   the only record of it. This must recover the make WITHOUT ever overriding one
+   the OCR actually read off the page. ---- */
+console.log("makeFromFilename — recovering the make a bill never printed");
+{
+  ok(makeFromFilename("2025-05-20-Allianz Insurance Singapore Pte. Ltd.-TOYOTA-1.PDF") === "Toyota",
+     "reads the make segment and canonicalises it");
+  // The one make whose own name contains a dash — the walk must take both segments.
+  ok(makeFromFilename("2025-08-17-Allianz Insurance Singapore Pte. Ltd.-MERCEDES-BENZ-10.JPG") === "Mercedes-Benz",
+     "MERCEDES-BENZ spans two segments and still resolves to one make");
+  // Insurer names are mixed case, so the right-to-left walk stops at them. If it
+  // didn't, "Ltd." would be swept into the make.
+  ok(makeFromFilename("2025-08-29-HL Assurance Pte Ltd-NISSAN-17.PDF") === "Nissan",
+     "the walk stops at the mixed-case insurer");
+  // Marques that only reached CANON_MAKES via the scanned corpus.
+  ok(makeFromFilename("2025-09-18-AIG-SKODA-22.PDF") === "Skoda", "SKODA canonicalises rather than staying shouty");
+  ok(makeFromFilename("2025-09-18-AIG-BYD-22.PDF") === "BYD", "BYD is an acronym and keeps its case");
+  // Anything off-convention yields nothing rather than a guess.
+  ok(makeFromFilename("scan0012.pdf") === "", "an off-convention filename yields no make, not a guess");
+  ok(makeFromFilename("2025-05-20-Some Insurer-1.PDF") === "", "a filename with no make segment yields nothing");
+  ok(makeFromFilename("") === "", "an empty filename yields nothing");
+}
+
+console.log("processResult — filename make is a FALLBACK, never an override");
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-make-"));
+  const ctx = { jsonDir: dir, seen: new Map() };
+  const read = (n) => JSON.parse(fs.readFileSync(path.join(dir, n), "utf8"));
+
+  // The page said Toyota; the filename says Honda. The page is the evidence.
+  const a = processResult({ name: "2025-01-01-Insurer Pte Ltd-HONDA-1.PDF", hash: "a".repeat(64) },
+    JSON.stringify(GOOD_INV), null, ctx);
+  ok(read(a.json).make === "Toyota" && read(a.json)._make_source === "ocr",
+     "an OCR-captured make wins over the filename");
+
+  // The page printed no make at all — this is the 1-in-3 case the fallback exists for.
+  const blank = { ...GOOD_INV, bill_no: "MG-1002", make: "" };
+  const b = processResult({ name: "2025-01-01-Insurer Pte Ltd-HONDA-2.PDF", hash: "b".repeat(64) },
+    JSON.stringify(blank), null, ctx);
+  ok(read(b.json).make === "Honda" && read(b.json)._make_source === "filename",
+     "a blank make falls back to the filename, tagged as such");
+
+  // "Unknown" is what validateInvoice leaves for a missing make — treat it as blank.
+  const unk = { ...GOOD_INV, bill_no: "MG-1003", make: "Unknown" };
+  const c = processResult({ name: "2025-01-01-Insurer Pte Ltd-KIA-3.PDF", hash: "c".repeat(64) },
+    JSON.stringify(unk), null, ctx);
+  ok(read(c.json).make === "Kia", '"Unknown" counts as no make and takes the fallback');
+
+  // Neither source has one: don't invent a make.
+  const d = processResult({ name: "scan0044.pdf", hash: "d".repeat(64) },
+    JSON.stringify({ ...GOOD_INV, bill_no: "MG-1004", make: "" }), null, ctx);
+  ok(read(d.json)._make_source === "none", "no make anywhere leaves it unset rather than guessed");
+
+  // Variant spellings fold onto one marque, or the same car clusters twice.
+  const e = processResult({ name: "2025-01-01-Insurer Pte Ltd-BMW-5.PDF", hash: "e".repeat(64) },
+    JSON.stringify({ ...GOOD_INV, bill_no: "MG-1005", make: "MERCEDES BENZ" }), null, ctx);
+  ok(read(e.json).make === "Mercedes-Benz", "an OCR make is canonicalised too, not just the fallback");
+
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+console.log("backfill-make — rewriting makes already in the reference");
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-bf-"));
+  const put = (n, o) => fs.writeFileSync(path.join(dir, n), JSON.stringify(o));
+  put("1.json", { supplier_name: "Min Ghee", bill_no: "MG-1", make: "", _source_file: "2025-01-01-Insurer Pte Ltd-KIA-1.PDF" });
+  put("2.json", { supplier_name: "Min Ghee", bill_no: "MG-2", make: "Toyota", _source_file: "2025-01-01-Insurer Pte Ltd-HONDA-2.PDF" });
+  put("3.json", { supplier_name: "Min Ghee", bill_no: "", make: "Mazda", _source_file: "2025-01-01-Insurer Pte Ltd-MAZDA-3.PDF" });
+  put("notes.txt", {});
+
+  const { index, stats } = buildMakeIndex(dir);
+  ok(stats.files === 3 && index.size === 2, "non-JSON files are skipped; an invoice with no bill no has no join key");
+  ok(stats.noKey === 1 && stats.fromOcr === 1 && stats.fromFilename === 1, "index reports where each make came from");
+  ok(index.get("min ghee|mg-2").make === "Toyota", "the OCR make survives into the index, not the filename's Honda");
+
+  // Case and stray whitespace must not break the join — the DB's stored supplier
+  // string is whatever the OCR read, and it is not normalised on write.
+  ok(planRow({ id: "x", supplier: " MIN GHEE ", bill_no: "mg-1", make: "Unknown" }, index, {}).to === "Kia",
+     "the supplier + bill no join is case- and whitespace-insensitive");
+  ok(planRow({ id: "x", supplier: "Min Ghee", bill_no: "MG-2", make: "Nissan" }, index, {}) === null,
+     "a row that already has a make is left alone");
+  ok(planRow({ id: "x", supplier: "Nobody", bill_no: "ZZ-9", make: "" }, index, {}) === null,
+     "an unmatched row is left blank rather than guessed at");
+  // --canon is opt-in: without it, an odd spelling is not touched.
+  ok(planRow({ id: "x", supplier: "Min Ghee", bill_no: "MG-2", make: "Mercedes" }, index, {}) === null,
+     "canonicalisation stays off unless asked for");
+  ok(planRow({ id: "x", supplier: "Min Ghee", bill_no: "MG-2", make: "Mercedes" }, index, { canon: true }).to === "Mercedes-Benz",
+     "--canon folds a variant spelling onto the canonical make");
+  ok(planRow({ id: "x", supplier: "Min Ghee", bill_no: "MG-2", make: "Toyota" }, index, { canon: true }) === null,
+     "--canon proposes no change for a make already canonical");
+
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");

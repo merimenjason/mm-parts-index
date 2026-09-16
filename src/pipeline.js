@@ -75,7 +75,11 @@ export const MAKE_PREFIX = [
    bill that prints "Mercedes", "MERCEDES BENZ" or "Merc" must be folded onto
    "Mercedes-Benz" or it shows as a separate/absent make. */
 export const CANON_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Benz","BMW","Audi",
-  "Volkswagen","Mitsubishi Fuso","Mitsubishi","Suzuki","Subaru","Lexus","Porsche","Chevrolet"];
+  "Volkswagen","Mitsubishi Fuso","Mitsubishi","Suzuki","Subaru","Lexus","Porsche","Chevrolet",
+  // Also present in the scanned corpus. A make absent from this list is returned
+  // untouched, so an upper-case "SKODA" recovered from a filename would sit next
+  // to a bill's "Skoda" as two separate makes in the coverage list.
+  "Tesla","BYD","Skoda","Opel","Peugeot","Scania","Land Rover","Jaguar","Volvo","Ford","MG","Isuzu"];
 const MAKE_ALIASES = {
   mercedes: "Mercedes-Benz", mercedesbenz: "Mercedes-Benz", merc: "Mercedes-Benz", benz: "Mercedes-Benz", mb: "Mercedes-Benz",
   vw: "Volkswagen", volks: "Volkswagen", volkswagon: "Volkswagen",

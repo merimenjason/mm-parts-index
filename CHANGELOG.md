@@ -2,6 +2,36 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.17.1 — 16 September 2026
+
+Recovers the vehicle make on the ~third of scanned bills that never printed one.
+Clean build; self-tests 140 → 160.
+
+- **The batch OCR runner now falls back to the filename for the make.** Supplier
+  bills frequently do not print the make anywhere — it belongs to the claim file,
+  not the invoice — so the OCR legitimately returned nothing for 54 of 182
+  documents (389 part lines, 32.7%). The scans are filed as
+  `<date>-<insurer>-<MAKE>-<n>.<ext>`, so `makeFromFilename()` recovers it from
+  there. It is a **fallback only**: a make the model actually read off the page
+  always wins, because the filename is a clerk's label and the page is the
+  evidence. Each invoice JSON now records `_make_source` (`ocr` / `filename` /
+  `none`) so a reviewer can tell the two apart.
+- **Makes are canonicalised on extraction.** The runner already had
+  `canonMake()` available in `src/pipeline.js` but was not applying it, so one
+  marque reached the reference as `Mercedes` (18 bills), `Mercedes-Benz` (4) and
+  `MERCEDES BENZ` (1). `CANON_MAKES` also gained the marques that only turn up
+  in the scanned corpus — Tesla, BYD, Skoda, Opel, Peugeot, Scania, Land Rover,
+  Jaguar, Volvo, Ford, MG, Isuzu — so a filename-recovered `SKODA` lands on
+  `Skoda` rather than sitting beside it as a separate make in Coverage.
+- **New `tools/backfill-make.mjs`.** Patching the runner only affects documents
+  OCR'd from that point on; rows already in the shared reference keep their
+  `Unknown` make until something rewrites them. This script builds a
+  `supplier + bill_no → make` index from the invoice JSONs and updates the
+  matching rows in one batched transaction. It is a **dry run by default**,
+  prints the full tally before writing, takes `--csv` for a reviewable change
+  list, and `--canon` to additionally fold variant spellings. Rows it cannot
+  match are left blank rather than guessed at.
+
 ## 1.17.0 — 16 September 2026
 
 Feedback from the "Parts Ref Database Discussion" review call, plus three

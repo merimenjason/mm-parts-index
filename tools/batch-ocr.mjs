@@ -48,7 +48,7 @@ import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import XLSX from "xlsx";
 import { OCR_SYS, OCR_USER_TEXT } from "../src/ocrPrompt.js";
-import { validateInvoice, reconcileInvoice, findDuplicateLines } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, findDuplicateLines, canonMake, CANON_MAKES } from "../src/pipeline.js";
 
 const API = process.env.PARTSINDEX_API_BASE || "https://api.anthropic.com/v1"; // override for tests only
 const API_VERSION = "2023-06-01";
@@ -130,6 +130,17 @@ export function processResult(file, rawText, usage, ctx) {
   if (!v.ok) return { ...base, status: "failed", error: `schema validation failed: ${v.errors.join("; ")}`, warnings: v.warnings };
   const inv = v.invoice;
 
+  // Make: canonicalise whatever the OCR read; fall back to the filename only when
+  // it read nothing. _make_source records which, so a reviewer can tell a value
+  // taken off the page from one inferred from the file's label.
+  let makeSource = "none";
+  const ocrMake = canonMake(inv.make);
+  if (ocrMake && ocrMake !== "Unknown") { inv.make = ocrMake; makeSource = "ocr"; }
+  else {
+    const fromName = makeFromFilename(file.name);
+    if (fromName) { inv.make = fromName; makeSource = "filename"; }
+  }
+
   const key = dedupKey(inv);
   if (inv.bill_no && ctx.seen.has(key)) {
     return { ...base, status: "duplicate", supplier: inv.supplier_name, bill_no: inv.bill_no,
@@ -146,7 +157,7 @@ export function processResult(file, rawText, usage, ctx) {
   const reason = reasons.join(" · ");
 
   const jsonName = `${safeName(file.name)}.${file.hash.slice(0, 8)}.json`;
-  fs.writeFileSync(path.join(ctx.jsonDir, jsonName), JSON.stringify({ ...inv, _review: review, _review_reason: reason, _source_file: file.name, _sha256: file.hash }, null, 2));
+  fs.writeFileSync(path.join(ctx.jsonDir, jsonName), JSON.stringify({ ...inv, _review: review, _review_reason: reason, _make_source: makeSource, _source_file: file.name, _sha256: file.hash }, null, 2));
   if (inv.bill_no) ctx.seen.set(key, file.name);
 
   return { ...base, status: review ? "review" : "done", json: jsonName,
@@ -154,6 +165,50 @@ export function processResult(file, rawText, usage, ctx) {
     lines: inv.parts.length, warnings: v.warnings, reconcile: rec, review_reason: reason };
 }
 const safeName = (n) => n.replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_").slice(0, 60);
+
+/* --------------------------- make recovery --------------------------- */
+/* Supplier bills often print the vehicle make nowhere on the page — it lives in
+   the claim file, not the invoice — so the OCR legitimately returns nothing for
+   ~a third of documents. The filenames DO carry it, by the filing convention
+   <date>-<insurer>-<MAKE>-<n>.<ext>, so we recover it from there as a FALLBACK
+   ONLY: a make the model actually read off the page always wins, because the
+   filename is a clerk's label and the page is the evidence. */
+
+/* Pull the make out of a filename following the <date>-<insurer>-<MAKE>-<n> shape.
+   Strategy: drop the extension, the trailing sequence number and the leading ISO
+   date, then walk the remaining dash-separated segments from the RIGHT collecting
+   the ones that are strictly upper-case. Insurer names are mixed case ("Allianz
+   Insurance Singapore Pte. Ltd."), so the walk stops at the insurer on its own.
+   Two segments max, which is what "MERCEDES-BENZ" needs and nothing else exceeds.
+   The result goes through canonMake() so a filename's shouty "MERCEDES-BENZ"
+   lands on the same spelling as a bill that printed "Mercedes".
+   Returns "" when the filename doesn't fit the convention — never a guess. */
+export function makeFromFilename(name = "") {
+  let b = String(name).replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");
+  b = b.replace(/-\d+$/, "").replace(/^\d{4}-\d{2}-\d{2}-/, "");
+  const seg = b.split("-");
+  const tail = [];
+  for (let i = seg.length - 1; i >= 0 && tail.length < 2; i--) {
+    const s = seg[i].trim();
+    if (!/^[A-Z][A-Z0-9 ]*$/.test(s)) break;
+    tail.unshift(s);
+  }
+  if (!tail.length) return "";
+  // Try the shortest suffix first and take the first one that lands on a KNOWN
+  // marque. Shortest-first matters because an insurer abbreviated in caps ("AIG")
+  // survives the walk and would otherwise be glued on as "AIG-SKODA"; and because
+  // "MERCEDES-BENZ" resolves from its last segment alone via the BENZ alias.
+  for (let n = 1; n <= tail.length; n++) {
+    const cand = tail.slice(tail.length - n).join("-");
+    if (cand.length > 20) break;
+    const c = canonMake(cand);
+    if (CANON_MAKES.includes(c)) return c;
+  }
+  // An unrecognised marque is still a marque — keep the last segment as read,
+  // rather than dropping a real make just because it isn't on the list yet.
+  const last = canonMake(tail[tail.length - 1]);
+  return last === "Unknown" || last.length < 2 || last.length > 20 ? "" : last;
+}
 
 /* ------------------------- live mode: direct calls ------------------------- */
 async function callMessages(params, apiKey) {

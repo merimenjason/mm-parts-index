@@ -30,7 +30,7 @@ import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker, loadClaims, saveClaim, deleteClaim, CLAIMS_CAP } from "./datasource.js";
 
-const APP_VERSION = "1.17.0";
+const APP_VERSION = "1.17.1";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
