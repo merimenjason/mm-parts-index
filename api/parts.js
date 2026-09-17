@@ -2,9 +2,16 @@
    /api/parts — the app's read/write endpoint for the shared dataset.
 
    GET  /api/parts            → { parts: [...] }   (the whole dataset)
-   POST /api/parts            → replace or append the dataset
-        body { mode: "replace", parts: [...] }   (default; mirrors saveDS)
-        body { mode: "append",  parts: [...] }   (bulk ingest add)
+   POST /api/parts            → append (default) or replace the dataset
+        body { mode: "append",  parts: [...] }   (default; upsert by id)
+        body { mode: "replace", parts: [...] }   (destructive; token required)
+
+   "append" is the default because the old default was "replace", and a
+   malformed or truncated request against that default erases the entire
+   shared reference rather than adding junk to it. Junk rows can be cleaned
+   up; 1,536 deleted lines cannot. A caller that genuinely wants a replace
+   must now say so AND present the operator token — see authorised() in
+   _db.js. The browser is deliberately able to append and unable to replace.
 
    The browser NEVER holds the Turso auth token; it talks only to this endpoint,
    exactly as it talks to /api/ocr for OCR. Keep the DB credentials server-side.
@@ -15,7 +22,7 @@
    OCR output still happens upstream in the batch runner / ingest path.
    ========================================================================== */
 
-import { getDataset, replaceDataset, upsertParts, ensureSchema } from "./_db.js";
+import { getDataset, replaceDataset, upsertParts, ensureSchema, authorised, snapshotDataset } from "./_db.js";
 
 const MAX_PARTS = 100000;               // generous ceiling; the 200-invoice run is ~a few thousand
 const MAX_BODY_BYTES = 25 * 1024 * 1024; // refuse absurd payloads early
@@ -37,7 +44,7 @@ export default async function handler(req, res) {
         return;
       }
       const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-      const { mode = "replace", parts } = body;
+      const { mode = "append", parts } = body;
       if (!Array.isArray(parts)) {
         res.status(400).json({ error: "body.parts must be an array of enriched line objects" });
         return;
@@ -47,9 +54,20 @@ export default async function handler(req, res) {
         return;
       }
 
+      if (mode !== "append" && mode !== "replace") {
+        res.status(400).json({ error: `unknown mode "${mode}" (expected "append" or "replace")` });
+        return;
+      }
+      if (mode === "replace" && !authorised(req)) {
+        res.status(401).json({ error: "replace requires the operator token (x-parts-token); use mode:\"append\" from the browser" });
+        return;
+      }
+
       await ensureSchema();
+      let snapshot = null;
+      if (mode === "replace") snapshot = await snapshotDataset();
       const n = mode === "append" ? await upsertParts(parts) : await replaceDataset(parts);
-      res.status(200).json({ ok: true, mode, written: n });
+      res.status(200).json({ ok: true, mode, written: n, ...(snapshot ? { snapshot: snapshot.key } : {}) });
       return;
     }
 

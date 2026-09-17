@@ -1,0 +1,35 @@
+# Runs the checks that were previously only run when someone remembered to.
+#
+# The suite is pure Node with no network and no database: tools/selftest.mjs
+# exercises the pipeline, the batch runner's helpers, the make backfill and the
+# write-authorisation gate, and `vite build` proves the app still compiles.
+# Both finish in seconds, so this runs on every push rather than nightly.
+name: CI
+
+on:
+  push:
+    branches: [main, new]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` installs exactly what package-lock.json pins and fails if the
+      # lockfile and package.json have drifted apart — which `npm install`
+      # would quietly paper over by rewriting the lockfile.
+      - run: npm ci
+
+      - name: Self-tests
+        run: npm run test:tools
+
+      - name: Production build
+        run: npm run build

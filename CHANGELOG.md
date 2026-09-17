@@ -2,6 +2,51 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.17.3 — 17 September 2026
+
+Hardening and housekeeping. No behaviour change to the benchmark itself;
+self-tests 163 → 172.
+
+- **FIXED: the shared reference could be erased by an unauthenticated request.**
+  `POST /api/parts` had no authorisation of any kind and defaulted to
+  `mode:"replace"`, which deletes every row before re-inserting. Anyone who knew
+  the URL could replace all 1,536 part lines with an empty array, and there was
+  no backup to restore from. Three changes close this:
+  - **The default is now `append`** (upsert by id). A malformed or truncated
+    request adds rows instead of erasing the dataset. Junk rows are
+    recoverable; 1,536 deleted lines were not.
+  - **`mode:"replace"` requires an operator token** in an `x-parts-token`
+    header, checked against `PARTS_WRITE_TOKEN`. The check **fails closed** — an
+    unset env var denies every replace rather than allowing it. The token is
+    deliberately absent from the browser bundle, since anything shipped to the
+    client is readable in devtools.
+  - **A replace snapshots the previous contents first**, into `meta` as
+    `snapshot:<iso-timestamp>`, retaining the five most recent
+    (`RETAINED_SNAPSHOTS`), so a bad replace can be undone by hand.
+
+  Known consequence: the app now appends rather than replaces, so a line
+  **removed** in the browser is no longer removed from the shared reference.
+  Pruning became an operator action run from `tools/` with the token.
+
+- **ADDED: CI.** `.github/workflows/ci.yml` runs the self-tests and a
+  production build on every push to `main` and `new`, and on every PR. The
+  suite needs no network and no database and finishes in seconds. The v1.17.2
+  `parseDate` bug is exactly the class of defect this catches at push time.
+
+- **ADDED: a real `.gitignore`.** It existed locally but was never committed, so
+  `node_modules/` and `dist/` were unignored for every clone — one `git add -A`
+  from committing tens of thousands of files. Now also ignores `.env*` (which
+  holds `TURSO_AUTH_TOKEN` and `PARTS_WRITE_TOKEN`), the Vite config timestamp
+  artefacts, and the OCR working directories.
+
+- **REMOVED: the stale duplicate source tree at the repo root.** `PartsIndex.jsx`
+  (878 lines behind `src/`), `pipeline.js` (180 behind), `ocrPrompt.js`,
+  `index.css`, `main.jsx` and `demoData.js` were tracked, unused and drifting.
+  `index.html` loads `/src/main.jsx`, and every tool, eval script and API module
+  imports from `../src/` — nothing referenced the root copies, but they looked
+  live enough to edit by mistake. Also removed a committed
+  `vite.config.js.timestamp-*.mjs` build artefact.
+
 ## 1.17.2 — 17 September 2026
 
 The data-validity exercise asked for in the "Parts Ref Database Discussion"

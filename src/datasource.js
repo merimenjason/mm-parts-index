@@ -61,10 +61,18 @@ async function apiLoad() {
   // Empty DB → return null so the app seeds the demo, matching localStorage's first-run contract.
   return Array.isArray(data.parts) && data.parts.length ? data : null;
 }
+/* Appends (upserts by id), never replaces.
+
+   The endpoint refuses mode:"replace" without the operator token, and that
+   token deliberately does not exist in the browser bundle — anything shipped
+   to the client is readable in devtools. The consequence to know: a line
+   REMOVED in the browser is no longer removed from the shared reference,
+   because an upsert only adds and updates. Pruning the shared dataset is an
+   operator action, run from tools/ with the token. See api/parts.js.       */
 async function apiSave(ds) {
   const res = await fetch("/api/parts", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "replace", parts: ds.parts || [] }),
+    body: JSON.stringify({ mode: "append", parts: ds.parts || [] }),
   });
   if (!res.ok) { const t = await res.text().catch(() => ""); return { ok: false, error: new Error(`POST /api/parts ${res.status}: ${t}`) }; }
   return { ok: true };

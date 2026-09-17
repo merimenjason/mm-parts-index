@@ -6,6 +6,7 @@ import os from "node:os";
 import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit, categorise } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams, makeFromFilename } from "./batch-ocr.mjs";
 import { buildMakeIndex, planRow } from "./backfill-make.mjs";
+import { authorised } from "../api/_db.js";
 
 let failures = 0;
 const ok = (cond, name) => { console.log(`${cond ? "  ✓" : "  ✗ FAIL"} ${name}`); if (!cond) failures++; };
@@ -487,6 +488,38 @@ console.log("backfill-make — rewriting makes already in the reference");
      "--canon proposes no change for a make already canonical");
 
   fs.rmSync(dir, { recursive: true, force: true });
+}
+
+/* ---- write authorisation (api/_db.js) ----------------------------------
+   The gate protecting the shared reference from a destructive replace. The
+   fail-closed case is the one that matters: an unset token must deny, not
+   allow, or a missing env var silently reopens the endpoint.              */
+{
+  console.log("\nauthorised()");
+  const req = (h) => ({ headers: h || {} });
+  const saved = process.env.PARTS_WRITE_TOKEN;
+
+  delete process.env.PARTS_WRITE_TOKEN;
+  ok(authorised(req({ "x-parts-token": "anything" })) === false,
+     "fails closed: no token configured denies every write");
+  ok(authorised(req()) === false, "no token configured and none presented denies");
+
+  process.env.PARTS_WRITE_TOKEN = "s3cret-value";
+  ok(authorised(req({ "x-parts-token": "s3cret-value" })) === true,
+     "the exact token authorises");
+  ok(authorised(req({ "x-parts-token": "s3cret-valuE" })) === false,
+     "a token differing by one character is refused");
+  ok(authorised(req({ "x-parts-token": "s3cret" })) === false,
+     "a prefix of the token is refused");
+  ok(authorised(req({ "x-parts-token": "s3cret-value-extra" })) === false,
+     "a token with the right prefix but extra characters is refused");
+  ok(authorised(req()) === false, "a request presenting no token at all is refused");
+  ok(authorised(req({ "X-Parts-Token": "s3cret-value" })) === false,
+     "the header is read from the lower-cased name Node normalises to");
+  ok(authorised({}) === false, "a malformed request object is refused rather than throwing");
+
+  if (saved === undefined) delete process.env.PARTS_WRITE_TOKEN;
+  else process.env.PARTS_WRITE_TOKEN = saved;
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");

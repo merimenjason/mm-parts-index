@@ -416,6 +416,7 @@ CREATE TABLE claims (
 TURSO_DATABASE_URL=libsql://<db>.turso.io
 TURSO_AUTH_TOKEN=<token>
 VITE_DATA_BACKEND=api          # tells the frontend to use /api/parts
+PARTS_WRITE_TOKEN=<secret>     # gates the destructive replace — see below
 
 # 3. create the schema (and optionally seed the 18-bill demo)
 npm run db:init                # schema only
@@ -424,6 +425,31 @@ npm run db:seed                # schema + demo dataset
 # local dev without Turso at all — a real on-disk SQLite file:
 TURSO_DATABASE_URL=file:local.db npm run db:seed
 ```
+
+### Protecting the shared reference
+
+`POST /api/parts` defaults to `mode:"append"` (upsert by id). The destructive
+`mode:"replace"` — which deletes every row before re-inserting — additionally
+requires the `PARTS_WRITE_TOKEN` secret in an `x-parts-token` header:
+
+```bash
+curl -X POST https://jason.engineering/api/parts \
+  -H "content-type: application/json" \
+  -H "x-parts-token: $PARTS_WRITE_TOKEN" \
+  -d '{"mode":"replace","parts":[...]}'
+```
+
+Three properties worth knowing:
+
+- **The check fails closed.** If `PARTS_WRITE_TOKEN` is unset, every replace is
+  refused. A missing env var can never silently reopen the endpoint.
+- **The token is never in the browser bundle.** Anything shipped to the client
+  is readable in devtools, so the app can only append. The practical
+  consequence: a line deleted in the browser is *not* deleted from the shared
+  reference — pruning is an operator action run with the token.
+- **A replace snapshots first.** The previous contents are written to
+  `meta` as `snapshot:<iso-timestamp>`, and the five most recent are retained,
+  so a bad replace can be undone by hand.
 
 Leaving the vars unset keeps the original browser-only build (GitHub Pages, no
 server) working unchanged. Move to **Postgres** (Vercel's Marketplace offers

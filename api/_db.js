@@ -301,3 +301,51 @@ export async function deleteClaim(id) {
   await db().execute({ sql: "DELETE FROM claims WHERE id = ?", args: [id] });
   return 1;
 }
+
+/* ---------------------------------------------------------------------------
+   Write authorisation.
+
+   A destructive write (mode:"replace", which DELETEs every row before
+   re-inserting) must carry a shared secret that lives only in the server
+   environment and in the operator's CLI. The browser bundle never holds it:
+   anything shipped to the client is readable in devtools, so a token baked
+   into the app would authorise exactly the people it is meant to stop.
+
+   Fails CLOSED. If PARTS_WRITE_TOKEN is unset the answer is "no", never "yes" —
+   the opposite default is how an endpoint quietly stays open after a config
+   change. Comparison is length-safe but not constant-time; the secret is a
+   deployment credential, not a per-user password, and Vercel terminates TLS
+   in front of it.                                                           */
+export function authorised(req) {
+  const expected = process.env.PARTS_WRITE_TOKEN;
+  if (!expected) return false;
+  const got = (req && req.headers && req.headers["x-parts-token"]) || "";
+  return typeof got === "string" && got.length === expected.length && got === expected;
+}
+
+/* Snapshot the current parts table before a destructive write.
+
+   replaceDataset() is unrecoverable on its own: the DELETE and the re-INSERT
+   share one transaction, so a caller that posts an empty or malformed array
+   leaves nothing behind. This keeps the previous contents as a JSON blob in
+   meta, keyed by timestamp, so a bad replace can be undone by hand. Only the
+   most recent RETAINED_SNAPSHOTS are kept — the dataset is ~1.5k rows, small
+   enough to store whole and far too valuable to store not at all.           */
+export const RETAINED_SNAPSHOTS = 5;
+
+export async function snapshotDataset() {
+  const { rows } = await db().execute("SELECT * FROM parts");
+  const key = `snapshot:${new Date().toISOString()}`;
+  await db().execute({
+    sql: "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+    args: [key, JSON.stringify(Array.from(rows))],
+  });
+  const { rows: keys } = await db().execute(
+    "SELECT key FROM meta WHERE key LIKE 'snapshot:%' ORDER BY key DESC"
+  );
+  const stale = Array.from(keys).slice(RETAINED_SNAPSHOTS).map((r) => r.key);
+  if (stale.length) {
+    await db().batch(stale.map((k) => ({ sql: "DELETE FROM meta WHERE key = ?", args: [k] })), "write");
+  }
+  return { key, rows: Array.from(rows).length, pruned: stale.length };
+}
