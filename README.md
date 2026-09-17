@@ -139,7 +139,10 @@ parts already stored on the next load, with no re-import.
   default. See **[QA.md](QA.md)** for the full data-validity exercise — what
   fraction of the reference can actually price a part, which hypotheses about
   the price spread were tested and rejected, and the open risks (notably
-  pair-vs-single, which the data gives no way to detect).
+  pair-vs-single, which the data gives no way to detect). It is also explicit
+  about what it does **not** measure: cluster *correctness* is still unverified,
+  because `eval/gold_pairs.csv` has 0 of 138 pairs labelled — so the shipped
+  `threshold: 0.65` remains uncalibrated.
 
 ---
 

@@ -272,7 +272,55 @@ is a far stronger validation and should replace this.
 
 ---
 
-## 10. Open items
+## 10. What this exercise did *not* measure
+
+Everything above measures how **wide** clusters are. None of it measures
+whether a cluster is **right** — whether the lines inside it are actually the
+same part. That is a separate question and it is currently unanswered.
+
+The harness for it already exists (`eval/generate_pairs.mjs`,
+`eval/evaluate.mjs`, `npm run eval:score`) and replays the production
+`similarity()` and `posConflict()` over candidate pairs. What is missing is the
+labelled input:
+
+| | |
+| --- | --- |
+| Pairs in `eval/gold_pairs.csv` | 138 |
+| **Pairs with a label** | **0** |
+
+**Do not cite `eval/results.csv`.** Its best row reads precision 0.89 /
+recall 1.00 / F1 0.94, but it was produced from
+`gold_pairs.example_labeled.csv` — a *demonstration* labelling with 8 positives
+— and is not evidence about this dataset. The shipped `threshold: 0.65` is
+therefore an uncalibrated guess.
+
+Two things would fix it, in order:
+
+1. **Regenerate the sample from the live reference.** The current 138 pairs come
+   from `DEMO_18`, not the 1,536 live lines, and should be stratified across the
+   similarity range — dense near 0.65 where the decisions are genuinely hard,
+   sparse at 0.95+ and 0.4− where they are obvious. Labelling 138 easy pairs
+   teaches nothing.
+2. **Label them `y` / `n`** — does this pair belong in one benchmark? This needs
+   a claims adjuster's judgement, not a script. The first two rows of the
+   current file are a fair illustration of why:
+
+   ```
+   DISTANCE SENSOR  MBA000 905 55 04  vs  DISTANCE SENSOR  MBA000 905 56 04
+   HEADLAMP UNIT    MBA213 906 67 01  vs  HEADLAMP UNIT    MBA213 906 68 01
+   ```
+
+   Identical names, adjacent part numbers, identical prices — and both are
+   near-certainly LH/RH siblings. Section 5 argues merging those is *safe*
+   (4.1% median difference); the labelled set is what would confirm it.
+
+The output is the number the review call actually asked for: **at threshold
+0.65, what fraction of merges are wrong?** Until it exists, every figure in
+this document describes the spread of clusters whose correctness is assumed.
+
+---
+
+## 11. Open items
 
 | Item | Status |
 | --- | --- |
@@ -284,3 +332,6 @@ is a far stronger validation and should replace this.
 | OCR part-number misreads | Open — prompt/QA track |
 | OCR field bleed between rows | Open — prompt/QA track |
 | Validation vs internal extracted dataset | Not started |
+| **Matcher precision/recall** | **Open — gold set 0/138 labelled (§10)** |
+| Threshold 0.65 calibration | Open — blocked on the above |
+| 14 stray "Run Log" rows in the live reference | Open — now needs an operator-side delete |

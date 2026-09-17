@@ -260,11 +260,15 @@ local↔prod difference is the URL: `file:local.db` locally, `libsql://<db>.turs
 key server-side:
 
 - `api/_db.js` — the libSQL client, the `parts` table schema (one row per
-  enriched line, the exact 21-field object the app already holds), and
-  `getDataset` / `upsertParts` / `replaceDataset`. **Server-only**; it reads
-  `TURSO_AUTH_TOKEN`, which never reaches the browser.
+  enriched line, the exact 21-field object the app already holds),
+  `getDataset` / `upsertParts` / `replaceDataset`, and (v1.17.3) the write
+  guard `authorised()` plus `snapshotDataset()`. **Server-only**; it reads
+  `TURSO_AUTH_TOKEN` and `PARTS_WRITE_TOKEN`, neither of which ever reaches
+  the browser.
 - `api/parts.js` — the endpoint. `GET /api/parts` → `{ parts: [...] }`;
-  `POST /api/parts` with `{ mode:"replace"|"append", parts:[...] }` writes.
+  `POST /api/parts` with `{ mode:"append"|"replace", parts:[...] }` writes.
+  **`append` is the default since v1.17.3, and `replace` requires an operator
+  token** — see "Protecting the shared reference" below.
 - `src/datasource.js` — `loadDataset()` / `saveDataset()` used by the app. A
   build-time flag `VITE_DATA_BACKEND` picks `local` (localStorage, default) or
   `api` (the shared DB). In `api` mode the browser only ever fetches the
@@ -314,9 +318,9 @@ app now sorts on any column — click a header for A→Z, again for Z→A (a sha
 numbers). It is pure view state and touches neither the dataset nor the stats.
 
 **Enabling it.** Create a Turso database, set `TURSO_DATABASE_URL` +
-`TURSO_AUTH_TOKEN` + `VITE_DATA_BACKEND=api` (locally in `.env`, in prod via the
-Vercel dashboard), then `npm run db:init` (schema) or `npm run db:seed` (schema
-+ 18-bill demo). For local dev without Turso at all, point it at a file:
+`TURSO_AUTH_TOKEN` + `VITE_DATA_BACKEND=api` + `PARTS_WRITE_TOKEN` (locally in
+`.env`, in prod via the Vercel dashboard), then `npm run db:init` (schema) or
+`npm run db:seed` (schema + 18-bill demo). For local dev without Turso at all, point it at a file:
 `TURSO_DATABASE_URL=file:local.db npm run db:seed`. Full walkthrough and the DDL
 are in the [README](./README.md#data-model--persistence).
 
@@ -328,6 +332,52 @@ hitting an empty shared database would push 174 demo rows into the reference
 everyone queries. Seed it on purpose (`npm run db:seed` server-side, or
 the **Load demo** button in-app), and real uploads/OCR are written to libSQL via
 `/api/parts`.
+
+### Protecting the shared reference (v1.17.3)
+
+Until v1.17.3, `POST /api/parts` had **no authorisation of any kind** and
+defaulted to `mode:"replace"`, which deletes every row before re-inserting.
+Anyone who knew the URL could replace all 1,536 part lines with an empty array,
+and no backup existed to restore from. Three changes close that:
+
+**The default is `append`.** A write with no `mode` now upserts by `id` instead
+of replacing the dataset, so a malformed or truncated request adds rows rather
+than erasing everything. Junk rows can be cleaned up; 1,536 deleted lines could
+not be.
+
+**`replace` requires an operator token.** It must carry `x-parts-token`, checked
+against the `PARTS_WRITE_TOKEN` environment variable by `authorised()` in
+`api/_db.js`. The check **fails closed**: if the variable is unset the answer is
+*no*, never *yes* — the opposite default is how an endpoint quietly reopens
+after a config change. The token deliberately does **not** exist in the browser
+bundle, because anything shipped to the client is readable in devtools and
+would authorise exactly the people it is meant to stop.
+
+**A replace snapshots first.** `snapshotDataset()` writes the pre-replace rows
+into `meta` as `snapshot:<iso-timestamp>` and keeps the five most recent
+(`RETAINED_SNAPSHOTS`), so a bad replace can be undone by hand. The response
+returns the snapshot key.
+
+```bash
+curl -X POST https://jason.engineering/api/parts \
+  -H "content-type: application/json" \
+  -H "x-parts-token: $PARTS_WRITE_TOKEN" \
+  -d '{"mode":"replace","parts":[...]}'
+```
+
+> **Consequence to know: the app can no longer delete part lines.** Because
+> `src/datasource.js` now posts `append`, and an upsert only adds and updates,
+> a line **removed** in the browser is no longer removed from the shared
+> reference. Pruning the parts table became an operator action run with the
+> token. This is why the 14 stray "Run Log" rows (§9) cannot be cleared from
+> the UI. **Claim history is unaffected** — `DELETE /api/claims?id=` is a
+> separate endpoint with its own table, and deleting a saved claim from the
+> Claim History modal works exactly as before.
+
+This also retires most of the old *shared-DB write race*: replace-mode writes
+from two browsers can no longer clobber one another, because browsers cannot
+replace at all. Concurrent appends still last-write-wins **per row id**, which
+is a far smaller blast radius than a whole-dataset overwrite.
 
 Move to **Postgres** (Vercel Marketplace: Neon / Supabase / Prisma Postgres)
 only when many insurers write concurrently or you need role-based multi-tenant
@@ -546,7 +596,8 @@ the median but the quotes that produced it.
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
 - **The OCR proxy is unauthenticated.** `api/ocr.js` keeps the API key server-side, but anyone who discovers the deployment URL can POST arbitrary requests and spend the key's credits — there is no origin check, shared secret, model allowlist or rate limit yet. Acceptable for a low-profile POC URL; harden it (or take the deployment down between demos) before the URL circulates.
 - **`localStorage` is bounded (~5 MB).** The 174-line demo is far below it, but a 200-invoice dataset plus a review queue approaches it. Since v1.12.0 a failed write (quota or a failed shared-DB POST) raises a visible **error event** in the activity log — the data shown is in memory only and will not survive a refresh. Export to Excel when you see one; a proactive quota meter (P4) is still on the list.
-- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated.
+- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated. Note that `eval/results.csv` — which shows an F1 of 0.94 — was produced from `gold_pairs.example_labeled.csv`, a **demonstration** labelling of 8 positives, and is **not** evidence about the live data. Labelling the real 138 (`y` = these belong in one benchmark, `n` = they do not) and re-running `npm run eval:score` is what turns the threshold from a guess into a measurement. The sample is also drawn from `DEMO_18` rather than the live reference; regenerating it from the 1,536 live lines, stratified around the 0.65 boundary where the decisions are actually hard, would be worth doing first.
+- **14 stray "Run Log" rows are in the live reference.** The batch runner's `PartsIndex_import.xlsx` carries a second *Run Log* sheet, and a past import ingested it as part rows — OCR error messages sit in the `part_number` field with `ltype: "Supplier Part"` and `review: false`, so they count as usable lines. They do not form clusters (no price), but they inflate the line count. **Since v1.17.3 these cannot be cleared from the UI**, because the browser can only append; removing them is an operator action against the parts table (§7).
 
 ### Known matcher issues — status
 

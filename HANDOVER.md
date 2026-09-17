@@ -76,7 +76,9 @@ src/ocrPrompt.js    ← The OCR system prompts. Single source of truth — the
 src/demoData.js     ← The embedded 174-line demo dataset.
 api/ocr.js          ← Vercel serverless proxy: forwards OCR requests to the
                        Anthropic API so the key never reaches the browser.
-api/parts.js        ← Dataset endpoint (GET/POST → shared DB).
+api/parts.js        ← Dataset endpoint. GET is open; POST defaults to
+                      append, and mode:"replace" needs the PARTS_WRITE_TOKEN
+                      operator token (v1.17.3). See MANUAL §7.
 api/activity.js     ← Activity-log endpoint (GET/POST → shared DB).
 api/_db.js          ← libSQL/Turso client + schema (parts + activity tables) +
                        read/upsert. Server-only; holds TURSO_AUTH_TOKEN.
@@ -245,14 +247,16 @@ reproduce it in Node: `pipeline.js` is importable directly
 before vs after. Never ship a matcher change without the eval numbers.
 
 **Deploy** — push to GitHub (repo: <https://github.com/merimenjason/mm-parts-index>),
-import into Vercel, set `ANTHROPIC_API_KEY` in
-project settings. GitHub Pages also works (CI workflow included) but the OCR
+import into Vercel, set `ANTHROPIC_API_KEY` and — on the shared backend —
+`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and `PARTS_WRITE_TOKEN` in
+project settings. **Without `PARTS_WRITE_TOKEN` set, every `mode:"replace"`
+write is refused** (the guard fails closed by design), so a CLI re-import will
+401 until it exists. Generate one with `openssl rand -hex 32`. GitHub Pages also works (CI workflow included) but the OCR
 button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.16.0** (Claim History + shared-backend persistence pass,
-September 2026). Working: full ingest (Excel + live OCR + batch runner, with
+**Version 1.17.3** (write-protection + CI pass, 17 September 2026). Working: full ingest (Excel + live OCR + batch runner, with
 a Test-mode toggle and a duplicate-line detection gate alongside the
 totals-reconciliation gate), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs — a Simple/Detailed toggle (Simple by
@@ -264,8 +268,28 @@ Claim with **estimate OCR upload** (now also capturing workshop/plate/
 make/model when printed), Tukey-fence flags, the **Export Detailed Report**
 button and a **Claim History** (save/reopen/re-export/delete, persisted
 locally or on the shared Turso DB), drill-down everywhere, a masthead
-*Github Repository* link, 110 self-tests, eval harness that replays the
-exact production merge decision.
+*Github Repository* link, 172 self-tests run in CI on every push, eval harness
+that replays the exact production merge decision (its gold set still unlabelled
+— see §6).
+
+**1.17.3** closed the **unauthenticated write path to the shared reference**
+and added the CI that should have been catching regressions all along.
+`POST /api/parts` previously had no authorisation of any kind and defaulted to
+`mode:"replace"` — anyone with the URL could replace all 1,536 part lines with
+an empty array, unrecoverably. Now: `append` is the default, `replace` needs
+the `PARTS_WRITE_TOKEN` operator token via an `x-parts-token` header (the check
+**fails closed**), and a replace snapshots the prior rows into `meta` first,
+keeping the five most recent. The cost: the UI can no longer delete part lines,
+only add and update them. `.github/workflows/ci.yml` runs the self-tests and a
+production build on every push to `main`/`new` and every PR.
+
+This release also removed the stale root duplicates **again** — `PartsIndex.jsx`
+was 878 lines behind `src/` and `pipeline.js` 180 behind. Note that 1.12.2
+below claims to have done exactly this, and to have added `.gitignore`; both
+regressed, and the `.gitignore` in particular was never actually committed, so
+`node_modules/` and `dist/` were unignored for every clone. If the root copies
+reappear a third time, the cause is worth chasing rather than the symptom.
+See CHANGELOG 1.17.3.
 
 **1.16.0** added **Claim History** to Assess a Claim: a **Save to claim
 history** button keeps a completed assessment (full result, matching-config
@@ -362,11 +386,14 @@ What remains **open**, in priority order:
    threshold-dependent by design and are the residual false positives on the
    worked example. Label the 138-pair gold set and pin the threshold. Blocks
    confident use of name matching in the 200-invoice run.
-2. **Shared-DB write race (P15)** — `POST /api/parts` in replace mode is
-   last-write-wins with no version check; two users saving concurrently
-   silently clobber each other. Fine for one operator; must be fixed before
-   multi-user use (optimistic concurrency via a dataset revision counter, or
-   append-mode-only writes from the UI).
+2. **Shared-DB write race (P15)** — *largely closed in v1.17.3* by the second
+   option listed here: the UI now writes append-only, and `mode:"replace"`
+   requires an operator token, so two browsers can no longer clobber the whole
+   dataset. What remains is narrower — concurrent appends are still
+   last-write-wins **per row id** — and a dataset revision counter would close
+   that too. The new cost is that the UI can no longer *delete* part lines
+   (see MANUAL §7); a `tools/prune-parts.mjs` for operator-side row deletion
+   is the obvious follow-up.
 3. **Real proxy auth (P3)** — the shared secret ships in the client bundle;
    it deters drive-by abuse only. Per-user auth (or Vercel password
    protection) before the URL circulates.
