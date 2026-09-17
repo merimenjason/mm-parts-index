@@ -362,6 +362,15 @@ console.log("dispersion stats (IQR / SD / CV)");
   const b = parseDate("2026-01-15");
   ok(b && b.getFullYear() === 2026 && b.getMonth() === 0 && b.getDate() === 15, "parseDate reads ISO YYYY-MM-DD");
   ok(parseDate("no date here") === null, "parseDate returns null for garbage");
+  // Slash-separated ISO — 15 live lines print this. Read as D/M/Y it became
+  // 25 July 2031, which no recency window can ever exclude.
+  const c = parseDate("2025/07/31");
+  ok(c && c.getFullYear() === 2025 && c.getMonth() === 6 && c.getDate() === 31, "parseDate reads slash-separated YYYY/MM/DD");
+  // The D/M/Y branch must still win for unambiguous SG bill dates.
+  const e = parseDate("31/07/2025");
+  ok(e && e.getFullYear() === 2025 && e.getMonth() === 6 && e.getDate() === 31, "a D/M/Y bill date is still read day-first");
+  const f = parseDate("2025/7/3");
+  ok(f && f.getFullYear() === 2025 && f.getMonth() === 6 && f.getDate() === 3, "single-digit month and day parse in the slash-ISO form");
 }
 
 console.log("decideInit — first-load seed decision (auto-seed guard)");

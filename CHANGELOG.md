@@ -2,6 +2,30 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.17.2 — 17 September 2026
+
+The data-validity exercise asked for in the "Parts Ref Database Discussion"
+review call, plus the date bug it turned up. Clean build; self-tests 160 → 163.
+
+- **FIXED: a slash-separated ISO bill date was read day-first.** 15 live lines
+  print `2025/07/31`. `parseDate()` matched its D/M/Y branch first, reading day
+  2025, month 07, year 31 — which rolled over to **25 July 2031**. Those bills
+  were dated six years in the future, so they survived every recency window and
+  sorted as the newest quote in their cluster. The ISO branch now accepts `-` or
+  `/` and runs first; unambiguous SG dates still read day-first.
+- **ADDED: `QA.md`** — the full data-validity findings against the live
+  reference (1,536 lines / 252 invoices). Headline results: only **45 clusters
+  (271 lines, 17.6%)** meet the 4-quote floor; forcing *Same model* **halves
+  coverage without tightening ranges** (median max/min 2.29× → 2.24×), so model
+  mixing is *not* what drives the wide spreads; between-supplier price variance
+  (1.25×) is indistinguishable from within-supplier variance (1.27×), and the
+  same part number quoted by different suppliers agrees at **1.00×**. The spread
+  comes from clusters containing genuinely different parts, not from the market.
+  Also documents that LH/RH counterparts differ by a median of **4.1%** (so
+  merging them is justified), that **pair-vs-single is undetectable** in the
+  current data, and that 8 of 45 clusters are one price re-quoted rather than
+  independent observations.
+
 ## 1.17.1 — 16 September 2026
 
 Recovers the vehicle make on the ~third of scanned bills that never printed one.

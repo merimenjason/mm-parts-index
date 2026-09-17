@@ -20,6 +20,10 @@ deployment see [`README.md`](./README.md); for OCR-ing invoices see
 8. [Project journey — what was done](#8-project-journey--what-was-done)
 9. [Limitations & next steps](#9-limitations--next-steps)
 
+Data-validity findings against the live reference — what fraction of it can
+actually price a part, which explanations for the price spread were tested and
+rejected, and the open risks — are in **[QA.md](QA.md)**.
+
 ---
 
 ## 1. Why this exists
@@ -560,6 +564,28 @@ the median but the quotes that produced it.
    merging. These are exactly the residual false positives on the worked
    example, and they are a calibration problem: label the gold set, sweep, and
    pin the threshold before the 200-invoice run.
+3. **Clusters can hold genuinely different parts — the main open risk (v1.17.2).**
+   Measured against the live reference, neither model mixing nor supplier
+   competition explains the price spread inside a cluster: forcing *Same model*
+   halves coverage without tightening ranges, and the same part number quoted by
+   different suppliers agrees at 1.00×. What remains is that a fuzzy-name cluster
+   is not guaranteed to be one part. Exact part-number matching is trustworthy
+   but covers only ~3% of the reference. See **QA.md**.
+4. **Pair-vs-single is undetectable — open, no fix available.** Only 1 line in
+   271 carries `qty > 1`, so a bill charging for both headlamps on one line
+   looks identical to one lamp. Priced against a single-unit benchmark this
+   produces a *false over-claim*, which is the worst error the tool can make.
+   Nothing in the current data distinguishes the two cases.
+
+### Date formats on bills
+
+`parseDate()` accepts the SG bill form `D/M/YY` or `D/M/YYYY`, and ISO
+`YYYY-MM-DD` **or** `YYYY/MM/DD` (Tesla's bills print the slash form). The ISO
+branch is tried first on purpose: before v1.17.2 the day-first branch matched
+`2025/07/31` as day 2025 / month 07 / year 31 and rolled it over to 2031, so
+those bills dodged every recency window. A date that matches nothing is treated
+as *undated*, and an undated bill is always kept in the benchmark — it is not
+*known* to be old.
 
 ### Pre-run checklist (200 invoices)
 

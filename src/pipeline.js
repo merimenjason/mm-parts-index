@@ -407,8 +407,12 @@ export function makeCluster(mem, cfg = {}) {
 }
 export function parseDate(s) {
   const str = String(s);
-  // ISO YYYY-MM-DD (shared-DB round-trips and some Excel exports print this form)
-  const iso = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+  // ISO YYYY-MM-DD, and the slash-separated YYYY/MM/DD some suppliers print
+  // (Tesla's bills do). The slash form MUST be matched before the D/M/Y branch
+  // below: "2025/07/31" otherwise reads as day 2025, month 07, year 31 → rolls
+  // over to 25 July 2031, six years in the future, so the bill survives every
+  // recency window and sorts as the newest quote in its cluster.
+  const iso = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
   // SG bill format D/M/Y (2- or 4-digit year)
   const m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);

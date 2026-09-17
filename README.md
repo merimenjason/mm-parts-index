@@ -132,6 +132,14 @@ parts already stored on the next load, with no re-import.
   configurable **reliability floor** (default 4 quotes) marks thin clusters advisory
   and withholds the Tukey outlier bound from them; it is hashed into the benchmark
   snapshot id so exported figures stay reproducible after it is retuned.
+- **Measured, not assumed** — the claims above are checked against the live
+  reference rather than argued from first principles, and some did not survive:
+  forcing *Same model* halves coverage without tightening ranges at all, and
+  LH/RH counterparts differ by a median of 4.1%, which is why both stay off by
+  default. See **[QA.md](QA.md)** for the full data-validity exercise — what
+  fraction of the reference can actually price a part, which hypotheses about
+  the price spread were tested and rejected, and the open risks (notably
+  pair-vs-single, which the data gives no way to detect).
 
 ---
 
