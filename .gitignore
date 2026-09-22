@@ -14,6 +14,11 @@ vite.config.js.timestamp-*.mjs
 .env
 .env.*
 !.env.example
+# SSH keys belong in ~/.ssh, never in the working tree.
+/deploy_key*
+*.pem
+id_rsa*
+id_ed25519*
 
 # Batch OCR working directories — scans, per-invoice JSON and run manifests.
 # Regenerable from the source bills and potentially large.
