@@ -256,7 +256,7 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.17.3** (write-protection + CI pass, 17 September 2026). Working: full ingest (Excel + live OCR + batch runner, with
+**Version 1.17.4** (snapshot moved into the data layer, 22 September 2026). Working: full ingest (Excel + live OCR + batch runner, with
 a Test-mode toggle and a duplicate-line detection gate alongside the
 totals-reconciliation gate), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs — a Simple/Detailed toggle (Simple by
@@ -271,6 +271,18 @@ locally or on the shared Turso DB), drill-down everywhere, a masthead
 *Github Repository* link, 172 self-tests run in CI on every push, eval harness
 that replays the exact production merge decision (its gold set still unlabelled
 — see §6).
+
+**1.17.4** finished the job 1.17.3 started. The pre-replace snapshot was added
+to `api/parts.js`, which protected the HTTP path and left the CLI unguarded:
+`tools/db-init.mjs --force-seed` calls `replaceDataset()` directly, so the one
+destructive command that runs against production with real credentials deleted
+every row with no backup. The snapshot now lives inside `replaceDataset()`,
+which returns `{ written, snapshot }` — every caller inherits it, including any
+written later. Also added SSH keys and certificates to `.gitignore` after a
+passphrase-less ed25519 key pair was found untracked in the repo root (never
+committed; moved to `~/.ssh/mm-parts-index_deploy`). **The lesson worth keeping:
+a safety step placed in a caller protects that caller only.** See CHANGELOG
+1.17.4.
 
 **1.17.3** closed the **unauthenticated write path to the shared reference**
 and added the CI that should have been catching regressions all along.

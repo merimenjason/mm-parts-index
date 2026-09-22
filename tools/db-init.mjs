@@ -40,8 +40,15 @@ async function main() {
       console.log(`  • parts table already has ${existing.parts.length} rows — skipping seed (use --force-seed to overwrite).`);
     } else {
       const parts = DEMO_18.map(enrichPart);
-      if (force) await replaceDataset(parts);
-      else await upsertParts(parts);
+      if (force) {
+        // --force-seed DELETES every existing row. replaceDataset() saves the
+        // old contents to meta first; print the key so an accidental run
+        // against production is recoverable by whoever reads this output.
+        const { snapshot } = await replaceDataset(parts);
+        if (snapshot) console.log(`  ✓ saved ${snapshot.rows} existing rows to meta key "${snapshot.key}" before overwriting`);
+      } else {
+        await upsertParts(parts);
+      }
       console.log(`  ✓ seeded ${parts.length} demo part lines`);
     }
   }

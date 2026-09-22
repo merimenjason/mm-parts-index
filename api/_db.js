@@ -200,8 +200,18 @@ export async function upsertParts(parts) {
 /* Replace the entire dataset transactionally (delete-all then bulk insert).
    Mirrors the app's saveDS(): the client holds the authoritative in-memory
    dataset and writes it back wholesale. batch(..., "write") runs as one
-   transaction, so a failure leaves the old data intact. */
+   transaction, so a failure leaves the old data intact.
+
+   The snapshot is taken HERE rather than by the caller. It used to live in
+   api/parts.js, which protected the HTTP path and left tools/db-init.mjs
+   --force-seed — the one destructive command that runs against production
+   with real credentials — deleting 1,536 rows with no backup at all. A
+   guarantee each caller has to remember is a guarantee that gets forgotten,
+   so the only function that can delete the dataset is the one that saves it
+   first. Returns { written, snapshot } — snapshot is null when there was
+   nothing to lose (empty table, or a first run before the schema exists). */
 export async function replaceDataset(parts) {
+  const snapshot = await snapshotIfWorthIt();
   const placeholders = PART_COLUMNS.map(() => "?").join(", ");
   const sql = `INSERT OR REPLACE INTO parts (${PART_COLUMNS.join(", ")}) VALUES (${placeholders})`;
   const stmts = [{ sql: "DELETE FROM parts", args: [] }];
@@ -209,7 +219,23 @@ export async function replaceDataset(parts) {
     stmts.push({ sql, args: PART_COLUMNS.map((c) => (c === "review" ? (p.review ? 1 : 0) : (p[c] ?? null))) });
   }
   await db().batch(stmts, "write");
-  return (parts || []).length;
+  return { written: (parts || []).length, snapshot };
+}
+
+/* Snapshot unless the replace cannot destroy anything. A missing table (the
+   very first db-init run) or an empty one means there is nothing to back up,
+   and storing an empty snapshot would only push a real one out of the
+   RETAINED_SNAPSHOTS window. Any OTHER failure propagates: if the backup
+   cannot be written, the destructive write must not proceed. */
+async function snapshotIfWorthIt() {
+  let existing;
+  try {
+    const { rows } = await db().execute("SELECT COUNT(*) AS n FROM parts");
+    existing = Number(Array.from(rows)[0]?.n) || 0;
+  } catch {
+    return null;                       // no parts table yet
+  }
+  return existing ? await snapshotDataset() : null;
 }
 
 /* ---- activity log ---- */

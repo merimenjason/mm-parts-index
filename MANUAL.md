@@ -262,7 +262,9 @@ key server-side:
 - `api/_db.js` — the libSQL client, the `parts` table schema (one row per
   enriched line, the exact 21-field object the app already holds),
   `getDataset` / `upsertParts` / `replaceDataset`, and (v1.17.3) the write
-  guard `authorised()` plus `snapshotDataset()`. **Server-only**; it reads
+  guard `authorised()` plus `snapshotDataset()` — which since v1.17.4
+  `replaceDataset()` calls itself, so no caller can delete the dataset
+  without first saving it. **Server-only**; it reads
   `TURSO_AUTH_TOKEN` and `PARTS_WRITE_TOKEN`, neither of which ever reaches
   the browser.
 - `api/parts.js` — the endpoint. `GET /api/parts` → `{ parts: [...] }`;
@@ -357,6 +359,19 @@ would authorise exactly the people it is meant to stop.
 into `meta` as `snapshot:<iso-timestamp>` and keeps the five most recent
 (`RETAINED_SNAPSHOTS`), so a bad replace can be undone by hand. The response
 returns the snapshot key.
+
+Since **v1.17.4** the snapshot is taken inside `replaceDataset()` rather than
+by the endpoint. In 1.17.3 it lived in `api/parts.js`, which protected the HTTP
+path and left `tools/db-init.mjs --force-seed` — the one destructive command
+that runs against production with real credentials — deleting every row with no
+backup at all. A guarantee each caller has to remember is one that eventually
+gets forgotten, so the only function that can delete the dataset is now the one
+that saves it first; `replaceDataset()` returns `{ written, snapshot }` and any
+future caller inherits the backup without knowing it exists. The snapshot is
+skipped only when there is nothing to lose (no `parts` table yet, or an empty
+one, where storing an empty blob would merely push a real snapshot out of the
+retention window). Any *other* failure to write the backup propagates and the
+destructive write does not proceed.
 
 ```bash
 curl -X POST https://jason.engineering/api/parts \

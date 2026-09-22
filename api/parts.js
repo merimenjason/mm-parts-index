@@ -22,7 +22,7 @@
    OCR output still happens upstream in the batch runner / ingest path.
    ========================================================================== */
 
-import { getDataset, replaceDataset, upsertParts, ensureSchema, authorised, snapshotDataset } from "./_db.js";
+import { getDataset, replaceDataset, upsertParts, ensureSchema, authorised } from "./_db.js";
 
 const MAX_PARTS = 100000;               // generous ceiling; the 200-invoice run is ~a few thousand
 const MAX_BODY_BYTES = 25 * 1024 * 1024; // refuse absurd payloads early
@@ -64,10 +64,16 @@ export default async function handler(req, res) {
       }
 
       await ensureSchema();
-      let snapshot = null;
-      if (mode === "replace") snapshot = await snapshotDataset();
-      const n = mode === "append" ? await upsertParts(parts) : await replaceDataset(parts);
-      res.status(200).json({ ok: true, mode, written: n, ...(snapshot ? { snapshot: snapshot.key } : {}) });
+      // replaceDataset() snapshots the old contents itself (see _db.js) and
+      // reports the key back; append cannot destroy anything, so it returns a
+      // bare count. Normalise the two into one response shape.
+      const out = mode === "append"
+        ? { written: await upsertParts(parts), snapshot: null }
+        : await replaceDataset(parts);
+      res.status(200).json({
+        ok: true, mode, written: out.written,
+        ...(out.snapshot ? { snapshot: out.snapshot.key } : {}),
+      });
       return;
     }
 

@@ -2,6 +2,24 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## 1.17.4 — 22 September 2026
+
+Moves the pre-replace backup from the endpoint into the data layer, so the
+CLI gets it too. No behaviour change to the benchmark itself.
+
+- **FIXED: `tools/db-init.mjs --force-seed` deleted every row with no backup.**
+  1.17.3 put the snapshot in `api/parts.js`, which protected the HTTP path
+  and left the CLI — the one destructive command that runs against production
+  with real credentials — unguarded. `replaceDataset()` now snapshots its own
+  prior contents, so every caller inherits the backup, including any written
+  later. It returns `{ written, snapshot }` instead of a bare count; the
+  snapshot is skipped only when the table is absent or already empty, and any
+  other failure to write the backup aborts the destructive write.
+- **Housekeeping.** `.gitignore` now excludes SSH keys and certificates
+  (`deploy_key*`, `*.pem`, `id_rsa*`, `id_ed25519*`). A passphrase-less
+  ed25519 key pair had been sitting untracked in the repo root; it was never
+  committed and has been moved to `~/.ssh/mm-parts-index_deploy`.
+
 ## 1.17.3 — 17 September 2026
 
 Hardening and housekeeping. No behaviour change to the benchmark itself;

@@ -452,7 +452,10 @@ Three properties worth knowing:
   reference — pruning is an operator action run with the token.
 - **A replace snapshots first.** The previous contents are written to
   `meta` as `snapshot:<iso-timestamp>`, and the five most recent are retained,
-  so a bad replace can be undone by hand.
+  so a bad replace can be undone by hand. Since v1.17.4 this happens inside
+  `replaceDataset()` itself, so the CLI tools get the same backup the endpoint
+  does — including `tools/db-init.mjs --force-seed`, which prints the key it
+  saved before overwriting.
 
 Leaving the vars unset keeps the original browser-only build (GitHub Pages, no
 server) working unchanged. Move to **Postgres** (Vercel's Marketplace offers
