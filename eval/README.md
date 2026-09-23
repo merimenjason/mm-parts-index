@@ -9,13 +9,72 @@ error. This harness measures both, against the *exact* code the app runs
 ## Workflow
 
 ```
-npm run eval:pairs          # 1. generate eval/gold_pairs.csv (candidate pairs)
-# 2. open gold_pairs.csv, fill the `label` column: y / n / ?
-npm run eval:score          # 3. precision / recall / F1 across thresholds
+node eval/generate_pairs.mjs https://mm-parts-index.vercel.app/api/parts   # 1. sample pairs from the live reference
+# 2. an adjuster fills the `label` column: y / n / ?   (guide below)
+npm run eval:score                  # 3. precision / recall / F1 across thresholds
+npm run eval:score -- --human-only  #    the same, without the "y (auto)" rows
+npm run eval:provisional            #    until the adjuster has labelled: score Claude's first pass
 ```
 
-To evaluate against the incoming 200-invoice data instead of the demo set, export
-the raw rows to JSON and pass the path: `node eval/generate_pairs.mjs data/parts.json`.
+`eval:provisional` fills every empty `label` from `claude_label`, prints a
+PROVISIONAL banner, and writes `results.provisional.csv` — never `results.csv`.
+`eval:score` refuses to run when every labelled row is `y` (only the auto rows),
+since precision is meaningless without negatives.
+
+The generator also takes a local JSON file (an array of rows, or the
+`{ parts: [...] }` that `GET /api/parts` returns), or no argument for the demo set.
+
+**How the sample is drawn.** Lines are prepared exactly as the app loads them and
+filtered to what the benchmark uses. Repeat quotes of the same part collapse to
+one line. Pairs the app's guards could never merge (different grade, unit basis
+or make, or a positional veto) are skipped. The rest are sampled per similarity
+band — dense around the 0.65 threshold, 35 pairs of identical-name /
+different-number lines (the likeliest false merges in fuzzy-name mode), sparse at
+the low end — with no line in more than three pairs. The sample is seeded, so the
+same data gives the same file.
+
+**Weights.** Each row carries a `weight`: candidates in its band ÷ pairs sampled
+from it. The sample over-represents the threshold region on purpose, and
+`eval:score` weights by this column so the figures describe the reference, not the
+sample. The low band carries very large weights (≈9,000 per pair), so a single `y`
+there moves recall a lot; that is correct, but check those rows twice.
+
+**The current file** (23 September 2026, 1,536 live lines): 203 pairs to label,
+22 pre-labelled `y (auto)`. It also carries a first pass by Claude in
+`claude_label` / `claude_conf` (h/m/l) / `claude_note`, sorted least-confident
+first. The `label` column is still empty and is the only one `eval:score` reads.
+The adjuster fills it by agreeing with or overriding each first-pass call. Claude's
+labels are **not** a gold set: score them only through `eval:provisional`, and do
+not cite the result or pin a threshold from it.
+
+**Provisional reading (Claude's labels, 23 September 2026):** at the shipped 0.65,
+≈27% of name-based merges are the same part (population-weighted); no threshold
+reaches 95% precision; and of 35 identical-name pairs, 24 were labelled different
+parts — mostly the same part name on different vehicles. If the adjuster confirms
+the "different vehicle = different part" policy, the fix is the matching mode
+(hybrid / part-number-first, or same-model), not the threshold.
+
+## Labeling guide — for the adjuster
+
+Each row is two supplier-bill lines from the same make. The one question:
+**if an estimate quoted part A, would you accept part B's price as evidence of what
+A should cost?** Write `y`, `n` or `?` in the `label` column. Nothing else in the
+file needs editing.
+
+- Read `part_name_a` / `part_name_b` and the part numbers first; `model_*`,
+  `unit_*` (price), `supplier_*` and `bill_*` are context. Ignore `band`,
+  `similarity` and `weight` — hide those columns if they are distracting; they are
+  what is being tested.
+- `y` — the same part for pricing: same component, same position, the model may
+  differ only where the part is shared. LH vs RH mirror parts are `y` (policy below).
+- `n` — a different part, a different position (front/rear, upper/lower, inner/
+  outer), sub-component vs full assembly, or the same name on clearly different
+  models where the part differs (e.g. a headlamp for two different vehicles).
+- `?` — you cannot tell without the physical part or a catalogue. `?` rows are
+  skipped in scoring, so use it rather than guessing.
+- Look up a part number if it settles the question quickly; do not spend more than
+  a minute on any one row. Expect roughly 1–2 hours for the whole file.
+- Rows labelled `y (auto)` at the bottom share a part number; leave them.
 
 ## Labeling policy — decide this once, apply it consistently
 

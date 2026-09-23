@@ -1,8 +1,10 @@
 # HANDOVER.md — PartsIndex for a new developer
 
-*Written at v1.8.0, July 2026. Assumes you know JavaScript and some React,
-but nothing about this project or the insurance domain. Read this top to
-bottom once; after that, [`MANUAL.md`](./MANUAL.md) is the full reference.*
+*Written at v1.8.0, July 2026; §7 refreshed at v1.17.4, 23 September 2026.
+Assumes you know JavaScript and some React, but nothing about this project or
+the insurance domain. Read this top to bottom once; after that,
+[`MANUAL.md`](./MANUAL.md) is the full reference and [`QA.md`](./QA.md) is what
+the live data actually looks like.*
 
 ## 1. What this thing is, in three paragraphs
 
@@ -270,7 +272,11 @@ button and a **Claim History** (save/reopen/re-export/delete, persisted
 locally or on the shared Turso DB), drill-down everywhere, a masthead
 *Github Repository* link, 172 self-tests run in CI on every push, eval harness
 that replays the exact production merge decision (its gold set still unlabelled
-— see §6).
+— see "Open gaps" below).
+
+**The live shared reference** holds 1,536 part lines from 252 invoices (the
+bulk-OCR run has happened). `QA.md` (17 September 2026) is the data-validity
+exercise on it; read it before quoting any figure from the reference.
 
 **1.17.4** finished the job 1.17.3 started. The pre-replace snapshot was added
 to `api/parts.js`, which protected the HTTP path and left the CLI unguarded:
@@ -365,79 +371,80 @@ seed. A `partsindex_seeded_v1` marker now makes the first-run seed fire exactly
 once and log a distinct **Auto-seed** event; the pure decision lives in
 `decideInit` (`src/pipeline.js`, unit-tested). See CHANGELOG 1.12.1.
 
-**The near-term milestone is the 200-invoice OCR run.** The pre-run checklist
-is in `MANUAL.md` §9; in short: label the gold set and calibrate the threshold
-(the front/rear false-merge bug is fixed; the calibration is not), then trial
-the runner with `--dry-run` → `--limit 5` → full folder.
+**The near-term milestone is verifying the matcher on the live reference.**
+The 200-invoice run was meant to follow gold-set labelling and threshold
+calibration; in the event the data went in first. Every median in the live
+reference therefore rests on merges nobody has checked, and the check now has
+to happen after the fact (gap 1 below).
 
-### Gap analysis — v1.12.0 review
+### Open gaps — as of v1.17.4 (23 September 2026)
 
-What the review **fixed** (details in `CHANGELOG.md`):
+Sources: `QA.md` §10–11 and the v1.12.0 review list this replaces (its fixes —
+the multi-file stale closure, invisible save failures, the P1 positional false
+merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
+`CHANGELOG.md` 1.12.0 onward). In priority order:
 
-- Multi-file ingestion kept only the last file (stale-closure in `addRaw` and
-  the OCR dedup gate) — the worst bug found; it would have silently shredded
-  a drag-and-drop of several invoices.
-- Failed dataset saves were invisible (localStorage quota, failed shared-DB
-  POST) — now a loud error event.
-- P1 positional false merge — axis-conflict veto in both merge paths, in
-  Assess-a-Claim matching, and replayed by the evaluator.
-- OCR failures masked as "Unexpected end of JSON input" (no `res.ok` /
-  `stop_reason` checks; token ceiling too low at 4000).
-- Struck-through-line policy contradicted the reconciliation gate — now
-  arithmetic-driven.
-- Open OCR proxy — now model-whitelisted, token-capped, optional shared
-  secret.
-- Repo hazards: stale v1.5.0 duplicates at the root (one careless edit from a
-  shipped regression), no `.gitignore`, committed build junk, documented-but-
-  missing `.env.example` and CI workflow.
+1. **Matcher correctness is unmeasured (P2).** `eval/gold_pairs.csv` was
+   regenerated from the live reference on 23 September 2026 (203 pairs to
+   label, stratified dense near 0.65, plus 22 `y (auto)`) and has **0 human
+   labels**, so `threshold: 0.65` is still an uncalibrated guess; do not cite
+   `eval/results.csv` (it comes from the demonstration labelling). Next: a
+   claims adjuster labels it (guide in `eval/README.md`), then pin the
+   threshold at the dispute-grade row. A **provisional** score from Claude's
+   first-pass labels (`npm run eval:provisional`, not citable) puts precision
+   at 0.65 near 27% with no threshold reaching 95%: if the adjuster agrees, the
+   answer is the matching mode, not the threshold. Settle the LH/RH convention against the `sepSide`
+   default in the same session (`QA.md` §5 argues pooling is safe). Everything
+   in `QA.md` describes the spread of clusters whose correctness is assumed.
+2. **Thin coverage, overstated reliability.** Only 45 of 949 clusters meet the
+   4-quote floor (271 lines, 17.6%). `n` counts lines, not independent
+   observations — 8 of those 45 are one price re-quoted. `QA.md` §8 recommends
+   the `reliable` flag require **≥2 suppliers, ≥4 distinct bills and >1
+   distinct price** (24 of 45 pass). Recommended, not implemented; it changes
+   benchmark output, so it belongs in `cfg`.
+3. **OCR errors already in the live data.** 14 part-number pairs differ by one
+   misread character (`I`/`1`, `B`/`S`, `9`/`3`), each splitting a cluster; and
+   field bleed between rows (a rivet's part number on a bumper line). Prompt/QA
+   track, not matcher work (`QA.md` §7).
+4. **No operator-side delete.** Since 1.17.3 the UI writes append-only, so bad
+   rows cannot be removed — including the 14 stray "Run Log" rows in the live
+   reference. `tools/prune-parts.mjs` (token-guarded, snapshot-first like
+   `replaceDataset`) is the missing piece.
+5. **GST comparability (P5, half done).** The recency window (1.17.0) covers
+   the date side. The GST side does not: `gst` is recorded per line
+   (`incl`/`excl`/`unknown`) but medians still pool both unadjusted.
+6. **Real proxy auth (P3).** `OCR_PROXY_TOKEN` ships in the client bundle; it
+   deters drive-by abuse only. Per-user auth or Vercel password protection
+   before the URL circulates.
+7. **Smaller items.**
+   - `*_SUPPORT` component rule: recommended in `QA.md` §6, not implemented.
+   - Pair-vs-single detection: open, no signal in the data.
+   - Validation against the separately-extracted internal dataset offered on
+     the 16 September call: not started, and far stronger than public-price
+     checks.
+   - Concurrent appends are last-write-wins per row id (P15 remainder); a
+     dataset revision counter would close it.
+   - Storage quota meter (P4) for the localStorage build.
+   - Vercel's ~4.5 MB body limit on large base64 PDFs: not yet observed.
+   - `PartsIndex.jsx` is ~2,000 lines (P6); still don't side-refactor it.
 
-What remains **open**, in priority order:
+### Recommendations (refreshed September 2026)
 
-1. **Threshold calibration (P2)** — the veto only kills symmetric positional
-   conflicts; marked-vs-unmarked pairs (`…HOOD, FR` vs `…HOOD`) are
-   threshold-dependent by design and are the residual false positives on the
-   worked example. Label the 138-pair gold set and pin the threshold. Blocks
-   confident use of name matching in the 200-invoice run.
-2. **Shared-DB write race (P15)** — *largely closed in v1.17.3* by the second
-   option listed here: the UI now writes append-only, and `mode:"replace"`
-   requires an operator token, so two browsers can no longer clobber the whole
-   dataset. What remains is narrower — concurrent appends are still
-   last-write-wins **per row id** — and a dataset revision counter would close
-   that too. The new cost is that the UI can no longer *delete* part lines
-   (see MANUAL §7); a `tools/prune-parts.mjs` for operator-side row deletion
-   is the obvious follow-up.
-3. **Real proxy auth (P3)** — the shared secret ships in the client bundle;
-   it deters drive-by abuse only. Per-user auth (or Vercel password
-   protection) before the URL circulates.
-4. **Storage quota meter (P4)** — failures are now visible, but a proactive
-   meter and pre-flight size estimate are still worth having for the
-   200-invoice dataset on the localStorage build.
-5. **GST / date comparability (P5)** — medians still pool GST-inclusive and
-   -exclusive quotes, and quotes from different periods, unweighted.
-6. **`PartsIndex.jsx` decomposition (P6)** — ~1,500 lines and growing;
-   deliberate for now, don't side-refactor.
-7. **Vercel body limit** — serverless functions cap request bodies (~4.5 MB),
-   so a large base64 PDF can 413 at the proxy before Anthropic ever sees it.
-   Not yet observed with real bills; if it bites, split pages client-side or
-   use the batch runner (which calls the API directly).
-
-### Recommendations (reviewer's view, July 2026)
-
-- **Run the gold-set labeling session next**, before ingesting the 200
-  invoices — every other open item is tolerable for the run; an uncalibrated
-  matcher is not, because it decides which quotes pool into the medians the
-  run exists to produce. Settle the LH/RH label convention against the
-  shipped `sepSide` default (off = sides pool) in the same session.
-- **Use `--mode batch` with Sonnet for the 200-invoice run** (50% token cost),
-  Opus 5 only for the retry pass on failures (`claude-opus-5` replaced
-  Opus 4.8 at the same price on 24 July 2026; Sonnet 5 intro pricing to
-  31 Aug 2026 is the cheaper first-pass option if the 5-file trial clears it) — and keep the mandatory 5% eyeball
-  sample regardless of reconciliation results: the gate catches amount
-  misreads, not part-number misreads. The full cost model and run procedure
-  live in `Cost-Estimation.md` (≈ US$3.40 all-in on the recommended plan;
-  budget US$5, ceiling US$10).
+- **Label the gold set next**, from live pairs, before any new statistical
+  display or presentation of the reference — the review call asked "at 0.65,
+  what fraction of merges are wrong?" and nothing yet answers it.
+- **Lead any presentation with the coverage figure** (17.6% of lines can
+  price anything at `minQuotes: 4`) — it frames every other number and must
+  not be discovered by the audience.
+- **Implement the independence-based `reliable` flag** once the matcher is
+  calibrated; both change which clusters are shown as authoritative.
+- **For further OCR runs**, keep `--mode batch` with Sonnet for the first
+  pass, a stronger model for the retry pass, and the mandatory 5% eyeball
+  sample — the reconciliation gate catches amount misreads, not part-number
+  misreads (gap 3 is the evidence). Cost model in `Cost-Estimation.md`; its
+  Sonnet 5 intro pricing expired 31 August 2026.
 - **Prefer append mode over replace** when wiring anything new to
-  `/api/parts` — it sidesteps most of the race in (2) until P15 lands.
+  `/api/parts`; `replace` needs the operator token and snapshots first.
 - **Keep the veto's unknown-never-blocks semantics.** It is tempting to make
   `…FR` vs unmarked block too, but most bill lines carry no position token;
   blocking on unknowns would collapse recall. The threshold is the right tool

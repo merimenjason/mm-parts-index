@@ -332,6 +332,6 @@ this document describes the spread of clusters whose correctness is assumed.
 | OCR part-number misreads | Open — prompt/QA track |
 | OCR field bleed between rows | Open — prompt/QA track |
 | Validation vs internal extracted dataset | Not started |
-| **Matcher precision/recall** | **Open — gold set 0/138 labelled (§10)** |
+| **Matcher precision/recall** | **Open — gold set regenerated from live data 23 Sep (203 pairs), 0 labelled (§10)** |
 | Threshold 0.65 calibration | Open — blocked on the above |
 | 14 stray "Run Log" rows in the live reference | Open — now needs an operator-side delete |

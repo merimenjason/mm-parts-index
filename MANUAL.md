@@ -653,20 +653,38 @@ those bills dodged every recency window. A date that matches nothing is treated
 as *undated*, and an undated bill is always kept in the benchmark — it is not
 *known* to be old.
 
-### Pre-run checklist (200 invoices)
+### Checklist — calibrating the live reference (refreshed September 2026)
+
+This section was the *pre-run* checklist for the 200-invoice OCR run. The run
+has happened — the live reference holds 1,536 part lines from 252 invoices —
+but step 2 below was meant to come first and did not, so every median in the
+reference rests on merges nobody has checked. The list is now the order in
+which to close that gap. Findings on the live data are in [`QA.md`](./QA.md).
 
 1. ~~Fix the front/rear stopword bug~~ — done in v1.12.0; `npm run eval:score`
    now replays the veto.
-2. Label `eval/gold_pairs.csv` (y/n/? — policy in `eval/README.md`), sweep, and
-   pin the calibrated threshold as the shipped default. Settle the LH/RH gold-set
-   labeling against the shipped `sepSide` default (off = sides pool) so the
-   matcher is scored on the policy it ships with.
-3. Trial the runner: `npm run ocr:batch -- --in ./invoices --dry-run`, then
-   `--limit 5`, verify the extracted JSONs against the source PDFs, then run the
-   full folder (`--mode batch` for 50% token cost).
-4. Export the dataset to Excel immediately after import as a storage-quota
-   safety net.
-
+2. ~~**Regenerate the gold set from the live reference**~~ — done 23 September
+   2026: `eval/gold_pairs.csv` now holds 203 pairs sampled by similarity band
+   from the 1,536 live lines, plus 22 `y (auto)`. Pairs the app's guards never
+   merge are left out, and each row carries a band weight so scores describe the
+   reference rather than the sample. Method in `eval/README.md`.
+3. **Label it** (y/n/? — labeling guide in `eval/README.md`), with a claims
+   adjuster making the calls. Settle the LH/RH convention against the shipped `sepSide`
+   default (off = sides pool) in the same session; `QA.md` §5 measured the
+   side difference at 4.1% of the median.
+4. **Score and pin the threshold** — `npm run eval:score`, take the
+   dispute-grade row (max recall at ≥95% precision), ship it as the default.
+   Until then `threshold: 0.65` is uncalibrated, and `eval/results.csv` must
+   not be cited (it comes from the demonstration labelling).
+5. **Then tighten `reliable`** to the independence test in `QA.md` §8
+   (≥2 suppliers, ≥4 distinct bills, >1 distinct price). It changes benchmark
+   output, so it goes in `cfg`.
+6. **For any further OCR run**: `npm run ocr:batch -- --in ./invoices
+   --dry-run`, then `--limit 5` checked against the source PDFs, then the full
+   folder with `--mode batch`; keep the 5% eyeball sample, since the
+   reconciliation gate catches amount misreads but not part-number misreads
+   (`QA.md` §7 found 14 in the live data). On the localStorage build, export
+   the dataset to Excel straight after import as a storage-quota safety net.
 
 ---
 

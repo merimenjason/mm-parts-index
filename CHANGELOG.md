@@ -2,6 +2,32 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## Unreleased
+
+Evaluation tooling and docs only — no change to the app or its numbers.
+
+- **CHANGED: `eval/generate_pairs.mjs` samples from the live reference.** It
+  takes a URL (`…/api/parts`) or a `{ parts }` JSON file as well as the demo
+  set; prepares rows as the app loads them; collapses repeat quotes; skips pairs
+  the grade / basis / positional guards never merge; and samples per similarity
+  band (dense near 0.65, seeded) instead of keeping the top 600 by similarity,
+  which on live data was almost all easy pairs. Rows carry a band `weight`.
+- **CHANGED: `eval/evaluate.mjs` weights by that column** so precision and
+  recall describe the reference, not the oversampled threshold region, and
+  takes `--human-only` to leave out the `y (auto)` rows. Files without a
+  `weight` column score unweighted, as before.
+- **Regenerated `eval/gold_pairs.csv`** from the 1,536 live lines: 203 pairs
+  to label + 22 `y (auto)`. Replaces the 138 demo-set pairs. Carries a
+  Claude first-pass in `claude_label` / `claude_conf` / `claude_note` for the
+  adjuster to review; `label` is left empty.
+- **ADDED: `npm run eval:provisional`** scores that first pass wherever `label`
+  is empty, under a PROVISIONAL banner, into `eval/results.provisional.csv`.
+  `eval:score` now refuses an all-positive label set (auto rows only), which
+  scored a meaningless 100% precision and overwrote `results.csv`.
+- **Docs:** `HANDOVER.md` §7 gap list and recommendations refreshed to v1.17.4;
+  `MANUAL.md` §9 pre-run checklist rewritten as the calibration checklist;
+  labeling guide for the adjuster added to `eval/README.md`.
+
 ## 1.17.4 — 22 September 2026
 
 Moves the pre-replace backup from the endpoint into the data layer, so the

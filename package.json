@@ -11,6 +11,7 @@
     "deploy": "VITE_BASE=/partsindex/ vite build && gh-pages -d dist",
     "eval:pairs": "node eval/generate_pairs.mjs",
     "eval:score": "node eval/evaluate.mjs",
+    "eval:provisional": "node eval/evaluate.mjs --provisional",
     "ocr:batch": "node tools/batch-ocr.mjs",
     "test:tools": "node tools/selftest.mjs",
     "db:init": "node tools/db-init.mjs",

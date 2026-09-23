@@ -527,7 +527,7 @@ partsindex/
 - **Live OCR** requires the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking due to output token limits.
 - **The proxy is unauthenticated.** `api/ocr.js` hides the API key but accepts requests from anyone who knows the URL — no origin check, shared secret, model allowlist or rate limit yet. Fine for a private POC link; harden before the URL circulates.
 - **`localStorage` is bounded (~5 MB)** and a failed write only logs to the console today. Export to Excel regularly during large ingests.
-- **Matcher calibration is pending.** The gold set (`eval/gold_pairs.csv`, 138 pairs) is generated but unlabeled, so the shipped 0.65 threshold is uncalibrated. The positional false-merge bug is fixed (v1.12.0 veto); marked-vs-unmarked positional pairs remain threshold-dependent by design — see MANUAL.md §9 for the pre-run checklist.
+- **Matcher calibration is pending.** The gold set (`eval/gold_pairs.csv`, 138 pairs) is generated but unlabeled, so the shipped 0.65 threshold is uncalibrated. The positional false-merge bug is fixed (v1.12.0 veto); marked-vs-unmarked positional pairs remain threshold-dependent by design — see MANUAL.md §9 for the calibration checklist.
 
 See **[`MANUAL.md`](./MANUAL.md)** for the full manual and the step-by-step
 project history, and **[`CHANGELOG.md`](./CHANGELOG.md)** for the version
