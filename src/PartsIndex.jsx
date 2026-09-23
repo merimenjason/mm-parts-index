@@ -25,12 +25,12 @@ const SG_MAKES = ["Toyota","Honda","Mazda","Nissan","Hyundai","Kia","Mercedes-Be
 
 import { DEMO_18 } from "./demoData.js";
 import { enrichPart, buildClusters, median, mean, parseDate, GRADES, reconcileInvoice, findDuplicateLines,
-  normPN, similarity, posConflict, categorise, snapshotId, buildDisputePack, upgradePart, decideInit } from "./pipeline.js";
+  normPN, similarity, posConflict, categorise, snapshotId, buildDisputePack, upgradePart, decideInit, advisoryReason } from "./pipeline.js";
 import { OCR_SYS, OCR_USER_TEXT, ESTIMATE_OCR_SYS, ESTIMATE_OCR_USER_TEXT } from "./ocrPrompt.js";
 import { loadDataset, saveDataset, usingSharedBackend, loadEvents, appendEvent,
   hasSeededMarker, setSeededMarker, loadClaims, saveClaim, deleteClaim, CLAIMS_CAP } from "./datasource.js";
 
-const APP_VERSION = "1.17.4";
+const APP_VERSION = "1.18.0";
 const REPO_URL = "https://github.com/merimenjason/mm-parts-index";
 
 /* Selectable Claude models for the live-OCR path (Ingest tab). The batch
@@ -451,7 +451,7 @@ export default function App() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clusters.map((c) => ({
       Cluster: c.label, Make: c.make, Model: c.modelMixed ? c.models.join(" | ") : (c.model || ""), Category: c.cat, Grade: c.grade, UnitBasis: c.unit_basis, Quotes: c.n, Variants: c.names.join(" | "),
       Suppliers: c.suppliers.join(", "), Min: c.min, Median: c.med, Average: c.avg, Max: c.max,
-      IQR_Q1: c.q1 ?? "", IQR_Q3: c.q3 ?? "", SD: Number.isFinite(c.sd) ? c.sd : "", CV_pct: Number.isFinite(c.cv) ? c.cv : "", Reliable: c.n > 1 ? (c.reliable ? "yes" : "no") : "" })) ), "Benchmark");
+      IQR_Q1: c.q1 ?? "", IQR_Q3: c.q3 ?? "", SD: Number.isFinite(c.sd) ? c.sd : "", CV_pct: Number.isFinite(c.cv) ? c.cv : "", Reliable: c.n > 1 ? (c.unverified ? "no — name-matched, unverified (provisional)" : c.reliable ? "yes" : "no") : "" })) ), "Benchmark");
     XLSX.writeFile(wb, "PartsIndex_export.xlsx");
   };
 
@@ -592,6 +592,13 @@ const DEMO_RESULT_COLS = [["Part","left","label"],["Make","left","make"],["Model
 const DEMO_RESULT_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, grade: (c) => c.grade, n: (c) => c.n, sup: (c) => c.suppliers.length, med: (c) => c.med, avg: (c) => c.avg, range: (c) => c.min };
 const DEMO_WORK_COLS = [["Part","left","label"],["Make","left","make"],["Model","left","model"],["Category","left","cat"],["Quotes","right","n"],["Median S$","right","med"],["Mean S$","right","avg"]];
 const DEMO_WORK_ACC = { label: (c) => c.label, make: (c) => c.make, model: (c) => modelLabel(c), cat: (c) => c.cat, n: (c) => c.n, med: (c) => c.med, avg: (c) => c.avg };
+// One wording for why a benchmark carries a "*", used by every table, drill-down and export.
+const ADVISORY_TEXT = {
+  thin: "Thin data — fewer quotes than the reliability floor; indicative only.",
+  unverified: "Unverified — these quotes were grouped by name only, not a shared part number (provisional setting); indicative only.",
+};
+const advisoryText = (c) => ADVISORY_TEXT[advisoryReason(c)] || "";
+
 function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
   const [showCfg, setShowCfg] = useState(false);  // matching config — collapsed until asked for
   const [g, setG] = useState("");          // global search
@@ -651,7 +658,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
       "#": i + 1, Part: c.label, Make: c.make, Model: modelExport(c), Category: c.cat, Grade: c.grade,
       Quotes: c.n, Suppliers: c.suppliers.length, "Median S$": c.med, "Mean S$": c.avg, "Min S$": c.min, "Max S$": c.max,
       "IQR Q1 S$": c.q1 ?? "", "IQR Q3 S$": c.q3 ?? "", "SD S$": Number.isFinite(c.sd) ? c.sd : "", "CV %": Number.isFinite(c.cv) ? c.cv : "",
-      Reliable: c.n > 1 ? (c.reliable ? "yes" : "no") : "single quote",
+      Reliable: c.n > 1 ? (c.unverified ? "no — name-matched, unverified (provisional)" : c.reliable ? "yes" : "no") : "single quote",
     })));
     ws["!cols"] = [{ wch: 4 }, { wch: 26 }, { wch: 15 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 11 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 7 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, "Worklist");
@@ -678,7 +685,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
       startY: 76,
       head: [["#", "Part", "Make", "Model", "Category", "Grade", "Quotes", "Suppliers", "Median S$", "Mean S$", "Range S$"]],
       body: workItems.map((c, i) => [
-        String(i + 1), c.label + (c.n > 1 && !c.reliable ? " *" : ""), c.make, modelExport(c), c.cat,
+        String(i + 1), c.label + (c.unverified ? " †" : c.n > 1 && !c.reliable ? " *" : ""), c.make, modelExport(c), c.cat,
         c.grade !== "Unknown" ? (c.gradeMixed ? "Mixed" : c.grade) : "—",
         String(c.n), String(c.suppliers.length), String(c.med), String(c.avg), `${c.min}-${c.max}`,
       ]),
@@ -710,7 +717,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
     });
     const endY = doc.lastAutoTable.finalY + 16;
     doc.setFontSize(8); doc.setTextColor(120, 120, 120);
-    doc.text("* median from fewer quotes than the reliability floor — indicative only. Prices are per-each unit prices in S$; per-pair / per-set lines are grouped separately.", 40, endY, { maxWidth: 760 });
+    doc.text("* median from fewer quotes than the reliability floor — indicative only." + (cfg.flagNameJoined ? " † quotes grouped by name only, not a shared part number — unverified (provisional setting)." : "") + " Prices are per-each unit prices in S$; per-pair / per-set lines are grouped separately.", 40, endY, { maxWidth: 760 });
     doc.save("PartsIndex_worklist.pdf");
   };
 
@@ -725,7 +732,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
       <button onClick={() => setShowCfg((v) => !v)} title="How supplier quotes are grouped into the benchmarks you are searching"
         style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", background: "none", border: "none", cursor: "pointer", color: TEXT, fontSize: 13, fontWeight: 700, textAlign: "left" }}>
         <span style={{ color: LIME }}>{showCfg ? "▾" : "▸"}</span>Matching configuration
-        <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTE }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}{cfg.sameMake ? " · same make" : ""}{cfg.sameModel ? " · same model" : ""}{cfg.maxAgeYears ? " · " + BILL_AGE_LABELS[cfg.maxAgeYears] : ""}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTE }}>{MATCH_MODE_LABELS[cfg.mode] || cfg.mode}{cfg.sameMake ? " · same make" : ""}{cfg.sameModel ? " · same model" : ""}{cfg.maxAgeYears ? " · " + BILL_AGE_LABELS[cfg.maxAgeYears] : ""}{cfg.flagNameJoined ? " · name-matched flagged (provisional)" : ""}</span>
       </button>
       {showCfg && <div style={{ padding: "0 18px 16px" }}><MatchConfig cfg={cfg} setCfg={setCfg} detailed={detailed} /></div>}
     </div>
@@ -772,7 +779,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
                 <React.Fragment key={wid}>
                   <tr onClick={() => setOpenWork(wopen ? null : wid)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer" }}>
                     <td style={{ ...td, color: MUTE }}>{i + 1}</td>
-                    <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{wopen ? "▾" : "▸"}</span>{c.label}{c.n > 1 && !c.reliable ? <span title="Below the reliability floor — indicative only" style={{ color: MUTE }}> *</span> : ""}</td>
+                    <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{wopen ? "▾" : "▸"}</span>{c.label}{advisoryReason(c) ? <span title={advisoryText(c)} style={{ color: c.unverified ? AMBER : MUTE }}> *</span> : ""}</td>
                     <td style={td}>{c.make}</td>
                     <td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
                     <td style={{ ...td, color: MUTE }}>{c.cat}</td>
@@ -784,7 +791,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
                   {wopen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
                     <div style={{ marginBottom: 8, lineHeight: 1.7 }}>
                       <b style={{ color: TEXT }}>{c.label}</b> · {c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""} — <b style={{ color: LIME }}>median S${c.med}</b>, mean S${c.avg}, from <b style={{ color: TEXT }}>{c.n}</b> quote{c.n > 1 ? "s" : ""} across {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}. Range S${c.min}–{c.max}{c.n > 1 ? <> · IQR band S${c.q1}–S${c.q3}{Number.isFinite(c.cv) ? ` · CV ${c.cv}%` : ""}</> : ""}.
-                      {c.n > 1 && !c.reliable && <span style={{ color: AMBER }}> Thin data — indicative only.</span>}</div>
+                      {advisoryReason(c) && <span style={{ color: AMBER }}> {advisoryText(c)}</span>}</div>
                     <div style={{ marginBottom: 4, color: TEXT, fontWeight: 600 }}>Source quotes:</div>
                     <QuoteLines c={c} showSource />
                   </td></tr>}
@@ -805,13 +812,13 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
               {detailed && <td style={td}>{c.grade !== "Unknown" ? <span style={{ fontSize: 10, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER }}>{c.gradeMixed ? "Mixed" : c.grade}</span> : <span style={{ color: MUTE }}>—</span>}</td>}
               <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.suppliers.length}</td>
-              <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}{c.n > 1 && !c.reliable ? <span title="Fewer quotes than the reliability floor — indicative only" style={{ color: MUTE }}>*</span> : ""}</td>
+              <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}{advisoryReason(c) ? <span title={advisoryText(c)} style={{ color: c.unverified ? AMBER : MUTE }}>*</span> : ""}</td>
               <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.min}–{c.max}</td></tr>
             {isOpen && <tr style={{ background: "#082430" }}><td colSpan={resultSpan} style={{ padding: "10px 14px 12px 26px", fontSize: 11.5, color: MUTE }}>
               <div style={{ marginBottom: 8, lineHeight: 1.7 }}>
                 <b style={{ color: TEXT }}>{c.label}</b> · {c.make}{c.model && c.model !== "—" ? " " + modelLabel(c) : ""} — <b style={{ color: LIME }}>median S${c.med}</b>, mean S${c.avg}, from <b style={{ color: TEXT }}>{c.n}</b> quote{c.n > 1 ? "s" : ""} across {c.suppliers.length} supplier{c.suppliers.length > 1 ? "s" : ""}. Range S${c.min}–{c.max}{c.n > 1 ? <> · IQR band S${c.q1}–S${c.q3}{Number.isFinite(c.cv) ? ` · CV ${c.cv}%` : ""}</> : ""}.
-                {c.n > 1 && !c.reliable && <span style={{ color: AMBER }}> Thin data — treat as indicative until more bills accumulate.</span>}
+                {advisoryReason(c) && <span style={{ color: AMBER }}> {advisoryText(c)}</span>}
                 {c.bridged && <span style={{ color: AMBER }}> · name-bridged across {c.pns.length} part numbers (≈)</span>}</div>
               <div style={{ marginBottom: 4, color: TEXT, fontWeight: 600 }}>Source quotes:</div>
               <QuoteLines c={c} showSource />
@@ -819,7 +826,7 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
           </React.Fragment>); })}
           {!results.length && <tr><td colSpan={resultSpan} style={{ ...td, textAlign: "center", color: MUTE, padding: "26px 12px" }}>No benchmark matches these filters. Broaden the search or clear a filter.</td></tr>}
         </tbody></table></div>
-    {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Lime rows have 2+ quotes and give a defensible benchmark; a <b>*</b> on the median flags a cluster below the reliability floor (indicative only). Use the <b style={{ color: LIME }}>+</b> to add a part to your <b>Worklist</b> above — build a shortlist to check, then export it to Excel or PDF. Prices are per-each unit prices; per-pair / per-set lines are grouped separately. Click any row to reveal every underlying supplier quote — supplier, bill number, date, grade and whether it was read by Claude OCR or imported from Excel.</p>}
+    {detailed && <p style={{ color: MUTE, fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>Lime rows have 2+ quotes and give a defensible benchmark; a <b>*</b> on the median flags a cluster below the reliability floor (indicative only){cfg.flagNameJoined && <>, and an <b style={{ color: AMBER }}>amber *</b> one whose quotes were grouped by name only (unverified, provisional)</>}. Use the <b style={{ color: LIME }}>+</b> to add a part to your <b>Worklist</b> above — build a shortlist to check, then export it to Excel or PDF. Prices are per-each unit prices; per-pair / per-set lines are grouped separately. Click any row to reveal every underlying supplier quote — supplier, bill number, date, grade and whether it was read by Claude OCR or imported from Excel.</p>}
   </>);
 }
 
@@ -1237,6 +1244,8 @@ function MatchConfig({ cfg, setCfg, detailed }) {
           <input type="checkbox" checked={cfg.sepGrade !== false} onChange={(e) => set("sepGrade", e.target.checked)} /> Separate grades (OEM vs aftermarket)</label>
         <label style={{ fontSize: 12.5, display: "flex", gap: 6, alignItems: "center" }} title="Front and rear parts are ALWAYS kept apart. This toggle additionally keeps LH and RH counterparts in separate clusters. Default off: left/right parts are normally price-identical, so pooling them doubles the quotes behind each median.">
           <input type="checkbox" checked={!!cfg.sepSide} onChange={(e) => set("sepSide", e.target.checked)} /> Separate LH / RH</label>
+        <label style={{ fontSize: 12.5, display: "flex", gap: 6, alignItems: "center" }} title="PROVISIONAL. Marks every benchmark whose quotes do not all share one part number — grouped by name only — as unverified: the median still shows, but the spread is advisory and Assess a Claim applies no statistical bound. Based on Claude's first-pass labelling of matched part pairs, which found most name-only matches join different parts (often the same part name on different vehicles). Not yet verified by a claims adjuster. Stated in the detailed report when on.">
+          <input type="checkbox" checked={!!cfg.flagNameJoined} onChange={(e) => set("flagNameJoined", e.target.checked || undefined)} /> Flag name-matched benchmarks <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 4, padding: "0 4px" }}>PROVISIONAL</span></label>
         <label style={{ fontSize: 12.5 }} title="A cluster with fewer quotes than this shows its IQR band as advisory (marked *), and Assess a Claim will not apply the statistical outlier bound (Q3 + 1.5×IQR) to it. Raise it to be stricter about thin data, lower it to surface bounds sooner.">Min quotes for reliable spread: <b style={{ color: LIME }}>{cfg.minQuotes ?? 4}</b><br />
           <input type="range" min="1" max="30" step="1" value={cfg.minQuotes ?? 4} onChange={(e) => set("minQuotes", +e.target.value)} style={{ width: 150 }} /></label>
         <label style={{ fontSize: 12.5 }} title="Build the benchmark only from bills within this window, so a price from several years ago does not sit in the same median as a current one. Bills with no printed date are always kept — an undated bill is not known to be old.">Bills used&nbsp;
@@ -1257,7 +1266,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
   return (<>
     {/* The Configuration tab only renders in Detailed mode, so its copy always shows the full notes. */}
     <Card title="Matching configuration"><MatchConfig cfg={cfg} setCfg={setCfg} detailed /></Card>
-    <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. The <b>IQR band</b> is the middle 50% of quotes (Q1–Q3) — a tight band means the median is well-supported, a wide one means quotes disagree; a <b>*</b> marks a thin cluster (fewer than {cfg.minQuotes ?? 4} quotes) where the spread is only advisory. Click a row to see the grouped quotes.</p>
+    <p style={{ color: MUTE, fontSize: 12.5, margin: "14px 0", lineHeight: 1.6 }}><b style={{ color: LIME }}>Median</b> is the reference. Lime rows have ≥2 quotes. The <b>IQR band</b> is the middle 50% of quotes (Q1–Q3) — a tight band means the median is well-supported, a wide one means quotes disagree; a <b>*</b> marks a thin cluster (fewer than {cfg.minQuotes ?? 4} quotes) where the spread is only advisory{cfg.flagNameJoined && <> — or, in <b style={{ color: AMBER }}>amber</b>, one whose quotes were grouped by name only (unverified, provisional setting)</>}. Click a row to see the grouped quotes.</p>
     <div style={{ overflow: "auto", border: `1px solid ${LINE}`, borderRadius: 10 }}>
       <table style={tableStyle}>
         <thead><tr style={{ background: PANEL }}>{BENCH_COLS.map((c) => <SortTh key={c.k} label={c.h} sortKey={c.k} sort={sort} toggle={onSort} align={c.a || "left"} />)}</tr></thead>
@@ -1274,8 +1283,8 @@ function Benchmark({ cfg, setCfg, clusters }) {
               <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}</td>
               <td style={{ ...td, textAlign: "right" }}>{c.avg}</td><td style={{ ...td, textAlign: "right", color: MUTE }}>{c.max}</td>
               <td style={{ ...td, textAlign: "right", color: c.spread > 0 ? RED : MUTE }}>{c.spread || "—"}</td>
-              <td style={{ ...td, textAlign: "right", color: c.n > 1 ? (c.reliable ? TEXT : MUTE) : MUTE, fontStyle: c.n > 1 && !c.reliable ? "italic" : "normal" }}
-                title={c.n > 1 ? `Interquartile range (middle 50% of quotes): S$${c.q1}–S$${c.q3}, IQR S$${c.iqr}.` + (Number.isFinite(c.cv) ? ` CV ${c.cv}%.` : "") + (c.reliable ? "" : ` Only ${c.n} quotes — spread is advisory until ${cfg.minQuotes ?? 4}+.`) : "Needs 2+ quotes"}>
+              <td style={{ ...td, textAlign: "right", color: c.n > 1 ? (c.reliable ? TEXT : c.unverified ? AMBER : MUTE) : MUTE, fontStyle: c.n > 1 && !c.reliable ? "italic" : "normal" }}
+                title={c.n > 1 ? `Interquartile range (middle 50% of quotes): S$${c.q1}–S$${c.q3}, IQR S$${c.iqr}.` + (Number.isFinite(c.cv) ? ` CV ${c.cv}%.` : "") + (c.unverified ? " " + advisoryText(c) : c.reliable ? "" : ` Only ${c.n} quotes — spread is advisory until ${cfg.minQuotes ?? 4}+.`) : "Needs 2+ quotes"}>
                 {c.n > 1 ? `${c.q1}–${c.q3}${c.reliable ? "" : "*"}` : "—"}</td></tr>
             {open === c.key + i && (
               <tr style={{ background: "#082430" }}><td colSpan={13} style={{ padding: "8px 14px", fontSize: 11.5, color: MUTE }}>
@@ -1404,7 +1413,7 @@ function MDispersion({ clusters }) {
       _ccv: cvBand === "wide" ? RED : cvBand === "moderate" ? AMBER : LIME,
       _detail: (<div>
         <div style={{ marginBottom: 6 }}>Widest gap: <b style={{ color: LIME }}>{lo.supplier} S${lo.unit}</b>{lo.bill_no ? ` (bill ${lo.bill_no})` : ""} vs <b style={{ color: RED }}>{hi.supplier} S${hi.unit}</b>{hi.bill_no ? ` (bill ${hi.bill_no})` : ""} — spread S${c.spread} on a median of S${c.med}.</div>
-        <div style={{ marginBottom: 6 }}>Robust measures: interquartile range <b style={{ color: TEXT }}>S${c.q1}–S${c.q3}</b> (IQR S${c.iqr}), standard deviation <b style={{ color: TEXT }}>{Number.isFinite(c.sd) ? "S$" + c.sd : "n/a"}</b>, coefficient of variation <b style={{ color: cvBand === "wide" ? RED : cvBand === "moderate" ? AMBER : LIME }}>{Number.isFinite(c.cv) ? c.cv + "% (" + cvBand + ")" : "n/a"}</b>{c.reliable ? "" : <span style={{ color: AMBER }}> — only {c.n} quotes, below the reliability floor; treat as advisory</span>}.
+        <div style={{ marginBottom: 6 }}>Robust measures: interquartile range <b style={{ color: TEXT }}>S${c.q1}–S${c.q3}</b> (IQR S${c.iqr}), standard deviation <b style={{ color: TEXT }}>{Number.isFinite(c.sd) ? "S$" + c.sd : "n/a"}</b>, coefficient of variation <b style={{ color: cvBand === "wide" ? RED : cvBand === "moderate" ? AMBER : LIME }}>{Number.isFinite(c.cv) ? c.cv + "% (" + cvBand + ")" : "n/a"}</b>{c.reliable ? "" : <span style={{ color: AMBER }}>{c.unverified ? " — quotes grouped by name only, not a shared part number (unverified, provisional setting); treat as advisory" : ` — only ${c.n} quotes, below the reliability floor; treat as advisory`}</span>}.
           {c.grades.filter((g) => g !== "Unknown").length > 1
             ? <span style={{ color: AMBER }}> Grades differ across these quotes — the spread may be a legitimate OEM-vs-aftermarket difference rather than a mispricing.</span>
             : " Same known grade (or grade unknown) throughout — worth querying the dearer supplier."}</div>
@@ -1666,10 +1675,10 @@ function AssessResultBlock({ rows, cfg, detailed }) {
               <td style={{ ...td, textAlign: "center" }}>{r.bench == null ? <span style={{ color: MUTE }}>—</span>
                 : r.aboveFence ? <span style={{ fontSize: 9.5, fontWeight: 700, color: RED, border: `1px solid ${RED}`, borderRadius: 4, padding: "1px 5px" }} title={`Quoted S$${r.quoted.toFixed(2)} exceeds the upper Tukey fence S$${r.uf} (Q3 + 1.5×IQR) across ${r.n} benchmark quotes — above the statistical range of observed prices, not merely above the median. A repairer can dispute a percentage; this is much harder to argue with.`}>ABOVE BOUND</span>
                 : r.uf != null ? <span style={{ color: MUTE, fontSize: 11 }} title={`Within the statistical range — upper bound is S$${r.uf} (Q3 + 1.5×IQR).`}>within</span>
-                : <span style={{ color: MUTE, fontSize: 11 }} title={`Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
+                : <span style={{ color: MUTE, fontSize: 11 }} title={r.cluster && r.cluster.unverified ? advisoryText(r.cluster) + " No statistical bound is applied." : `Fewer than ${cfg.minQuotes ?? 4} quotes — statistical bound not reliable at this sample size.`}>n/a</span>}</td></tr>
             {isOpen && <tr style={{ background: "#082430" }}><td colSpan={9} style={{ padding: "8px 14px 10px 26px", fontSize: 11.5, color: MUTE }}>
               {r.cluster ? (<div>
-                <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : r.how === "category" ? ICE : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : r.how === "category" ? " — same category" + (cfg.sameMake ? " and make" : "") : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: MUTE }}> · statistical bound n/a (under {cfg.minQuotes ?? 4} quotes)</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
+                <div style={{ marginBottom: 6 }}>Matched via <b style={{ color: r.how === "part number" ? TEAL_L : r.how === "category" ? ICE : AMBER }}>{r.how}</b>{r.how === "name" ? ` (similarity ${r.score} ≥ threshold ${cfg.threshold})` : r.how === "category" ? " — same category" + (cfg.sameMake ? " and make" : "") : " — exact normalised part number, the strongest possible match"} to benchmark <b style={{ color: TEXT }}>{r.cluster.label}</b> ({r.cluster.make}{r.cluster.model && r.cluster.model !== "—" ? " " + modelLabel(r.cluster) : ""}{r.cluster.bridged ? <span style={{ color: AMBER }}> · name-bridged ≈</span> : ""}) — median <b style={{ color: LIME }}>S${r.cluster.med}</b> from {r.cluster.n} quote{r.cluster.n > 1 ? "s" : ""} across {r.cluster.suppliers.length} supplier{r.cluster.suppliers.length > 1 ? "s" : ""}, range S${r.cluster.min}–{r.cluster.max}, IQR band <b style={{ color: TEXT }}>S${r.cluster.q1}–S${r.cluster.q3}</b>{r.uf != null ? <> · statistical upper bound <b style={{ color: TEXT }}>S${r.uf}</b> (Q3 + 1.5×IQR)</> : <span style={{ color: r.cluster.unverified ? AMBER : MUTE }}> · statistical bound n/a ({r.cluster.unverified ? "quotes grouped by name only — unverified, provisional setting" : `under ${cfg.minQuotes ?? 4} quotes`})</span>}. {r.aboveFence && <b style={{ color: RED }}>This line sits above the statistical upper bound — an outlier against the observed price range, not just above the median, and the strongest basis to dispute. </b>}This is the evidence the detailed report exports:</div>
                 <QuoteLines c={r.cluster} /></div>)
               : (<div>No benchmark matched this line, so it is excluded from the totals. {r.near
                   ? <>The closest candidate was <b style={{ color: TEXT }}>{r.near.label}</b> ({r.near.make}{r.near.model && r.near.model !== "—" ? " " + r.near.model : ""}) at similarity <b style={{ color: AMBER }}>{r.near.score}</b> — below the {cfg.threshold} threshold. If that is actually the same part, loosen the threshold on the Configuration tab or add the part number to the estimate line.</>

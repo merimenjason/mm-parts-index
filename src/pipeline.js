@@ -392,10 +392,18 @@ export function makeCluster(mem, cfg = {}) {
   const med = median(units), av = mean(units);
   // A cluster spanning >1 distinct part number was name-bridged, not PN-identical → lower certainty.
   const bridged = pns.length > 1;
+  // Name-joined: 2+ quotes that do NOT all carry one shared part number, so only the name
+  // matcher says they are the same part. cfg.flagNameJoined (provisional, v1.18.0) treats these
+  // as unverified: the median stays, but the spread is advisory and no outlier fence applies.
+  // Motivation: Claude's first-pass labels of the live gold set put name-only merges at ~27%
+  // correct (eval/README.md) — not adjuster-verified, hence opt-in and disclosed in the report.
+  const nameJoined = mem.length > 1 && !(pns.length === 1 && mem.every((m) => m.npn));
+  const unverified = !!cfg.flagNameJoined && nameJoined;
   const disp = dispersion(units, cfg.minQuotes ?? 4) || {}; // q1,q3,iqr,sd,cv,lowerFence,upperFence,reliable
+  if (unverified) disp.reliable = false;
   return {
     key: (pns[0] || names[0] || "?") + "|" + mem[0].make, label: names[0] || rawPns[0] || "?",
-    names, pns, rawPns, members: mem, bridged,
+    names, pns, rawPns, members: mem, bridged, nameJoined, unverified,
     grades, grade: knownGrades.length === 1 ? knownGrades[0] : (knownGrades.length > 1 ? "Mixed" : "Unknown"),
     gradeMixed: knownGrades.length > 1, unit_basis: mem[0].unit_basis,
     make: mem[0].make, model: mem[0].model, models, modelMixed: models.length > 1, cat: mem[0].cat, suppliers: sup,
@@ -535,8 +543,17 @@ export function datasetFingerprint(parts) {
     .sort();
   return fnv1a(lines.join("\u001e"));
 }
+// Why a multi-quote benchmark is advisory: "unverified" (name-joined, cfg.flagNameJoined on)
+// takes precedence over "thin" (fewer quotes than cfg.minQuotes). "" when it is neither.
+export function advisoryReason(c) {
+  if (!c || c.n < 2) return "";
+  if (c.unverified) return "unverified";
+  return c.reliable ? "" : "thin";
+}
 export function configFingerprint(cfg) {
-  const keys = Object.keys(cfg || {}).sort();
+  // Undefined settings are skipped, so an opt-in key that is off (left undefined) leaves every
+  // existing snapshot id unchanged — ids in reports already issued stay reproducible.
+  const keys = Object.keys(cfg || {}).filter((k) => cfg[k] !== undefined).sort();
   return fnv1a(keys.map((k) => k + "=" + JSON.stringify(cfg[k])).join("&"));
 }
 export function snapshotId(parts, cfg) {
@@ -574,6 +591,7 @@ export function buildDisputePack(rows, cfg, meta) {
     ["Front/rear kept separate", "yes (always)"],
     ["LH/RH kept separate", cfg.sepSide ? "yes" : "no"],
     ["Min quotes for reliable spread", cfg.minQuotes ?? 4],
+    ["Name-matched benchmarks treated as unverified", cfg.flagNameJoined ? "yes — PROVISIONAL setting, based on Claude's first-pass labelling of matched part pairs, not yet verified by a claims adjuster. Benchmarks whose quotes do not all share one part number show a median but no statistical bound." : "no"],
     ["Inflation flag threshold", `+${meta.inflPct}% over median`],
     ["Lines assessed", rows.length],
     ["Lines matched to a benchmark", matched.length],
@@ -595,7 +613,7 @@ export function buildDisputePack(rows, cfg, meta) {
     "Benchmark cluster": r.cluster ? r.cluster.label : "no match",
     "Make": r.cluster ? r.cluster.make : "",
     "Model": r.cluster ? (r.cluster.modelMixed ? r.cluster.models.join(" | ") : (r.cluster.model || "")) : "",
-    "Cluster basis": r.cluster ? (r.cluster.bridged ? "name-bridged (≈)" : "part number") : "",
+    "Cluster basis": r.cluster ? (r.cluster.unverified ? "name-matched — unverified (provisional)" : r.cluster.bridged ? "name-bridged (≈)" : "part number") : "",
     "Grade": r.cluster ? r.cluster.grade : "",
     "Unit basis": r.cluster ? r.cluster.unit_basis : "",
     "Quotes (n)": r.n || "",

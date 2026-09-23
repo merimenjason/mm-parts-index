@@ -258,7 +258,7 @@ button won't function there. Full steps in `README.md`.
 
 ## 7. Current state and what's next
 
-**Version 1.17.4** (snapshot moved into the data layer, 22 September 2026). Working: full ingest (Excel + live OCR + batch runner, with
+**Version 1.18.0** (provisional *Flag name-matched benchmarks* toggle, off by default, 23 September 2026). Working: full ingest (Excel + live OCR + batch runner, with
 a Test-mode toggle and a duplicate-line detection gate alongside the
 totals-reconciliation gate), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs — a Simple/Detailed toggle (Simple by
@@ -270,7 +270,7 @@ Claim with **estimate OCR upload** (now also capturing workshop/plate/
 make/model when printed), Tukey-fence flags, the **Export Detailed Report**
 button and a **Claim History** (save/reopen/re-export/delete, persisted
 locally or on the shared Turso DB), drill-down everywhere, a masthead
-*Github Repository* link, 172 self-tests run in CI on every push, eval harness
+*Github Repository* link, 186 self-tests run in CI on every push, eval harness
 that replays the exact production merge decision (its gold set still unlabelled
 — see "Open gaps" below).
 
@@ -427,6 +427,8 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
    - Storage quota meter (P4) for the localStorage build.
    - Vercel's ~4.5 MB body limit on large base64 PDFs: not yet observed.
    - `PartsIndex.jsx` is ~2,000 lines (P6); still don't side-refactor it.
+   - The Benchmark-tab worklist is not saved: leaving the tab, reloading or
+     toggling Simple/Detailed silently empties it (MANUAL §9).
 
 ### Recommendations (refreshed September 2026)
 

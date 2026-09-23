@@ -2,9 +2,32 @@
 
 Versions reconstructed from the development history (dates approximate).
 
-## Unreleased
+## 1.18.0 — 23 September 2026
 
-Evaluation tooling and docs only — no change to the app or its numbers.
+A provisional, opt-in trust flag for name-matched benchmarks, plus the live
+gold-set tooling that motivated it. Off by default: with it off, every figure
+and every snapshot id is exactly as in 1.17.4.
+
+- **ADDED: "Flag name-matched benchmarks" (PROVISIONAL, `cfg.flagNameJoined`).**
+  A checkbox in the matching panel (Configuration tab, and the Benchmark tab's
+  collapsible panel in Simple mode). When on, `makeCluster` marks a multi-quote
+  cluster whose quotes do not all share one part number as `unverified` and
+  drops its `reliable` flag: the median is unchanged, the spread shows as
+  advisory (amber `*`), and Assess a Claim applies no Tukey bound. New
+  `advisoryReason()` gives one wording ("unverified" vs "thin") across the
+  tables, drill-downs, worklist Excel/PDF and benchmark export. The detailed
+  report's Summary gains a "Name-matched benchmarks treated as unverified"
+  row, and the line sheet's Cluster basis reads "name-matched — unverified
+  (provisional)". On the live reference, 42 of the 45 benchmarks with 4+
+  quotes are name-joined. The basis is Claude's first-pass labelling below —
+  not adjuster-verified, which is why it is opt-in and labelled PROVISIONAL.
+- **CHANGED: `configFingerprint` skips settings that are `undefined`.** The
+  toggle stores `undefined` when off, so turning the feature off (or never
+  touching it) leaves every existing snapshot id unchanged. 14 new self-tests
+  (186 total).
+- **Docs:** the Benchmark-tab worklist (v1.8.0) is now documented as not
+  persisted — leaving the tab, reloading or toggling Simple/Detailed clears it
+  (README, MANUAL §3 and §9, HANDOVER gap list).
 
 - **CHANGED: `eval/generate_pairs.mjs` samples from the live reference.** It
   takes a URL (`…/api/parts`) or a `{ parts }` JSON file as well as the demo

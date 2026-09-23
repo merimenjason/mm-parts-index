@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit, categorise } from "../src/pipeline.js";
+import { validateInvoice, reconcileInvoice, findDuplicateLines, snapshotId, buildDisputePack, enrichPart, buildClusters, upgradePart, quantile, stdev, dispersion, canonMake, inferMake, posKey, posConflict, parseDate, decideInit, categorise, makeCluster, advisoryReason, configFingerprint } from "../src/pipeline.js";
 import { parseArgs, extractJson, dedupKey, processResult, loadManifest, saveManifest, invoiceToRows, writeOutputs, sha256, buildRequestParams, makeFromFilename } from "./batch-ocr.mjs";
 import { buildMakeIndex, planRow } from "./backfill-make.mjs";
 import { authorised } from "../api/_db.js";
@@ -520,6 +520,44 @@ console.log("backfill-make — rewriting makes already in the reference");
 
   if (saved === undefined) delete process.env.PARTS_WRITE_TOKEN;
   else process.env.PARTS_WRITE_TOKEN = saved;
+}
+
+/* ---- v1.18.0: provisional "flag name-matched benchmarks" (cfg.flagNameJoined) ---- */
+{
+  console.log("\nflagNameJoined (provisional)");
+  const q = (npn, unit, i) => ({ id: "q" + i, npn, unit, part_name: "HEADLAMP LH", part_number: npn, supplier: "S" + (i % 2), make: "Toyota", model: "", grade: "Unknown", unit_basis: "each", bill_date: "" });
+  const samePN = [0, 1, 2, 3].map((i) => q("8117012J70", 500 + i * 10, i));
+  const mixedPN = [q("8117012J70", 500, 0), q("8117012J70", 510, 1), q("8117037203", 185, 2), q("8118506A60", 520, 3)];
+  const noPN = [q("8117012J70", 500, 0), q("8117012J70", 510, 1), q("8117012J70", 505, 2), q("", 490, 3)];
+  const on = { minQuotes: 4, flagNameJoined: true }, off = { minQuotes: 4 };
+
+  const a = makeCluster(mixedPN, off);
+  ok(a.nameJoined === true && a.unverified === false && a.reliable === true, "off: a mixed-PN cluster is name-joined but stays reliable");
+  const b = makeCluster(mixedPN, on);
+  ok(b.unverified === true && b.reliable === false, "on: a mixed-PN cluster is unverified and loses its reliable spread");
+  ok(b.med === a.med && b.q1 === a.q1 && b.upperFence === a.upperFence, "on: the median and spread figures themselves are unchanged");
+  const c = makeCluster(samePN, on);
+  ok(c.nameJoined === false && c.unverified === false && c.reliable === true, "on: one shared part number throughout is verified");
+  const d = makeCluster(noPN, on);
+  ok(d.unverified === true, "on: a quote without a part number makes the cluster name-joined");
+  ok(makeCluster([samePN[0]], on).nameJoined === false, "a single quote is never name-joined");
+
+  ok(advisoryReason(b) === "unverified", "advisoryReason: unverified wins");
+  ok(advisoryReason(makeCluster(samePN.slice(0, 2), on)) === "thin", "advisoryReason: below the floor is thin");
+  ok(advisoryReason(c) === "", "advisoryReason: a verified reliable cluster has no reason");
+
+  const base = { mode: "fuzzy-name", threshold: 0.65, minQuotes: 4 };
+  ok(configFingerprint({ ...base, flagNameJoined: undefined }) === configFingerprint(base), "off (undefined) leaves the snapshot id unchanged");
+  ok(configFingerprint({ ...base, flagNameJoined: true }) !== configFingerprint(base), "on changes the snapshot id");
+
+  const row = (cl) => [{ pn: "", name: "HEADLAMP LH", quoted: 900, how: "name", score: 0.9, bench: cl.med, cluster: cl, n: cl.n, over: 900 - cl.med, overPct: 10, flagged: true, aboveFence: false }];
+  const meta = { claimRef: "X", generatedAt: "", appVersion: "1.18.0", snapshotId: "PIX-a-b", invoices: 1, usableLines: 4, inflPct: 30 };
+  const pOn = buildDisputePack(row(b), { ...base, flagNameJoined: true }, meta);
+  const sOn = pOn.summary.find((r) => r.Field === "Name-matched benchmarks treated as unverified");
+  ok(sOn && /PROVISIONAL/.test(sOn.Value), "report summary states the provisional setting when on");
+  ok(pOn.lines[0]["Stat. upper bound S$"] === "" && /unverified/.test(pOn.lines[0]["Cluster basis"]), "report line: no bound, basis says unverified");
+  const sOff = buildDisputePack(row(a), base, meta).summary.find((r) => r.Field === "Name-matched benchmarks treated as unverified");
+  ok(sOff && sOff.Value === "no", "report summary says no when off");
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : "\nAll self-tests passed.");
