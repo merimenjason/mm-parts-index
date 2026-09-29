@@ -610,9 +610,9 @@ the median but the quotes that produced it.
 - **Live OCR** must run through the serverless proxy; never embed an API key in the static bundle. For volume, use the batch runner (`npm run ocr:batch`) — it validates, reconciles, dedupes and resumes; very large multi-page bills may still need splitting (the runner rejects files over the request cap and says so).
 - **Benchmark reproducibility** is handled at export time (each dispute pack carries a snapshot id). Since v1.16.0, **Claim History** narrows this gap for any assessment you explicitly save — it keeps the full result and matching-config snapshot, reopenable/re-exportable later — but that only covers claims someone chose to save; an *arbitrary* past snapshot still can't be regenerated without the dataset as it stood at that point.
 - **Name bridging** is a heuristic. Generic names ("BRACKET", "COVER") can over-merge — it's off by default, kept scoped to same make/model, and every bridged benchmark is flagged **≈** so it can be treated as indicative.
-- **The OCR proxy is unauthenticated.** `api/ocr.js` keeps the API key server-side, but anyone who discovers the deployment URL can POST arbitrary requests and spend the key's credits — there is no origin check, shared secret, model allowlist or rate limit yet. Acceptable for a low-profile POC URL; harden it (or take the deployment down between demos) before the URL circulates.
+- **The OCR proxy has no per-user auth.** `api/ocr.js` keeps the API key server-side and, since v1.12.0, allowlists models, caps `max_tokens` and can require a shared secret (`OCR_PROXY_TOKEN`). That secret ships in the client bundle, so it deters drive-by abuse only; there is no origin check or rate limit. Add per-user auth or Vercel password protection (P3) before the URL circulates.
 - **`localStorage` is bounded (~5 MB).** The 174-line demo is far below it, but a 200-invoice dataset plus a review queue approaches it. Since v1.12.0 a failed write (quota or a failed shared-DB POST) raises a visible **error event** in the activity log — the data shown is in memory only and will not survive a refresh. Export to Excel when you see one; a proactive quota meter (P4) is still on the list.
-- **Matcher calibration is pending.** `eval/gold_pairs.csv` (138 candidate pairs) is generated but not yet human-labeled, so the shipped threshold (0.65) is uncalibrated. Note that `eval/results.csv` — which shows an F1 of 0.94 — was produced from `gold_pairs.example_labeled.csv`, a **demonstration** labelling of 8 positives, and is **not** evidence about the live data. Labelling the real 138 (`y` = these belong in one benchmark, `n` = they do not) and re-running `npm run eval:score` is what turns the threshold from a guess into a measurement. The sample is also drawn from `DEMO_18` rather than the live reference; regenerating it from the 1,536 live lines, stratified around the 0.65 boundary where the decisions are actually hard, would be worth doing first.
+- **Matcher calibration is pending.** `eval/gold_pairs.csv` was regenerated from the 1,536 live lines on 23 September (203 pairs sampled by similarity band + 22 `y (auto)`), and carries a Claude first pass in `claude_*` columns — but the `label` column an adjuster fills is still empty, so the shipped threshold (0.65) is uncalibrated. `eval/results.csv` (F1 0.94) comes from a **demonstration** labelling and is **not** evidence about the live data. The **provisional** score of Claude's labels (`npm run eval:provisional`, written to `eval/results.provisional.csv`) puts name-only merges at ≈27% correct with no threshold reaching 95% precision — not citable, but the reason for the opt-in *Flag name-matched benchmarks* setting (§3, v1.18.0).
 - **14 stray "Run Log" rows are in the live reference.** The batch runner's `PartsIndex_import.xlsx` carries a second *Run Log* sheet, and a past import ingested it as part rows — OCR error messages sit in the `part_number` field with `ltype: "Supplier Part"` and `review: false`, so they count as usable lines. They do not form clusters (no price), but they inflate the line count. **Since v1.17.3 these cannot be cleared from the UI**, because the browser can only append; removing them is an operator action against the parts table (§7).
 
 ### Known matcher issues — status
@@ -630,14 +630,26 @@ the median but the quotes that produced it.
    never block, or most lines (which carry no position token) would stop
    merging. These are exactly the residual false positives on the worked
    example, and they are a calibration problem: label the gold set, sweep, and
-   pin the threshold before the 200-invoice run.
+   pin the threshold. (The 200-invoice run went ahead without this; see the
+   calibration checklist below.)
 3. **Clusters can hold genuinely different parts — the main open risk (v1.17.2).**
    Measured against the live reference, neither model mixing nor supplier
    competition explains the price spread inside a cluster: forcing *Same model*
    halves coverage without tightening ranges, and the same part number quoted by
    different suppliers agrees at 1.00×. What remains is that a fuzzy-name cluster
    is not guaranteed to be one part. Exact part-number matching is trustworthy
-   but covers only ~3% of the reference. See **QA.md**.
+   but covers only ~3% of the reference. See **QA.md**. The provisional
+   labelling (23 September) points the same way: most name-only merges join
+   different parts, chiefly the same part name on different vehicles.
+4. **Dotted position abbreviations slip past the veto — open.** `RR.DOOR …`
+   vs `F.DOOR …` is not recognised as rear vs front, so the pair can merge on
+   name similarity (gold-set pair 1). Fix alongside the adjuster's labels so
+   the change can be scored.
+5. **Part-number prefixes split one part — open, parked.** Supplier prefixes
+   and model text in the part-number field (`T` / `ZZT`, `MI` / `J`, `MBA` /
+   `X`, `81130-0L011 KDH200`) give one part several keys: 28 groups, 81 lines
+   on the live reference. A make-aware core-number key would join them but
+   raises colour-code and aftermarket-suffix questions; parked for now.
 4. **Pair-vs-single is undetectable — open, no fix available.** Only 1 line in
    271 carries `qty > 1`, so a bill charging for both headlamps on one line
    looks identical to one lamp. Priced against a single-unit benchmark this
@@ -670,7 +682,10 @@ which to close that gap. Findings on the live data are in [`QA.md`](./QA.md).
    merge are left out, and each row carries a band weight so scores describe the
    reference rather than the sample. Method in `eval/README.md`.
 3. **Label it** (y/n/? — labeling guide in `eval/README.md`), with a claims
-   adjuster making the calls. Settle the LH/RH convention against the shipped `sepSide`
+   adjuster making the calls. *Claude's first pass is in the `claude_*` columns,
+   least-confident rows first, so this is a review (≈30–45 min) rather than a
+   blank sheet. Settle first whether a part for a different vehicle is ever
+   pricing evidence — most of the first pass's "n" calls turn on it.* Settle the LH/RH convention against the shipped `sepSide`
    default (off = sides pool) in the same session; `QA.md` §5 measured the
    side difference at 4.1% of the median.
 4. **Score and pin the threshold** — `npm run eval:score`, take the
@@ -739,12 +754,17 @@ benchmark (the scenario that prompted this feature — see the "Sharing of
 Supplier Bill Extraction project" review, 27 Aug 2026).
 
 ### Gold-standard matcher evaluation
-`npm run eval:pairs` generates `eval/gold_pairs.csv` — candidate part pairs from
-the dataset, sorted so the borderline region is labeled first. Fill the `label`
+`node eval/generate_pairs.mjs <live /api/parts URL | JSON>` samples candidate
+part pairs by similarity band (dense near the threshold), skipping pairs the
+guards never merge, and gives each a band weight. An adjuster fills the `label`
 column (y / n / ?), then `npm run eval:score` replays the exact production
 similarity function (`src/pipeline.js` is imported directly) and reports
-precision / recall / F1 for thresholds 0.40–0.95 at token weights 0.4/0.6/0.8,
-plus the "dispute-grade" setting: the highest recall achievable at ≥95% precision.
+population-weighted precision / recall / F1 for thresholds 0.40–0.95 at token
+weights 0.4/0.6/0.8, plus the "dispute-grade" setting: the highest recall
+achievable at ≥95% precision. `--human-only` leaves out the `y (auto)` rows;
+`npm run eval:provisional` scores Claude's first-pass labels instead, under a
+not-for-citing banner, into `results.provisional.csv`. `eval:score` refuses a
+label set with no negatives.
 Labeling policy, worked example and the two issues it already found (a positional-
 stopword bug causing a permanent false merge, and headroom to raise the default
 threshold) are documented in `eval/README.md`. Re-run the score after **any**

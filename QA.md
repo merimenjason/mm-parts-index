@@ -288,6 +288,10 @@ labelled input:
 | Pairs in `eval/gold_pairs.csv` | 138 |
 | **Pairs with a label** | **0** |
 
+*(Status as of this report, 17 September. Step 1 below has since been done and
+a provisional first pass exists — see "Update, 23 September" at the end of this
+section.)*
+
 **Do not cite `eval/results.csv`.** Its best row reads precision 0.89 /
 recall 1.00 / F1 0.94, but it was produced from
 `gold_pairs.example_labeled.csv` — a *demonstration* labelling with 8 positives
@@ -318,6 +322,33 @@ The output is the number the review call actually asked for: **at threshold
 0.65, what fraction of merges are wrong?** Until it exists, every figure in
 this document describes the spread of clusters whose correctness is assumed.
 
+### Update, 23 September 2026
+
+- **Step 1 is done.** `eval/gold_pairs.csv` was regenerated from the 1,536 live
+  lines: **203 pairs** sampled by similarity band (dense near 0.65), pairs the
+  app's grade / basis / positional guards never merge left out, plus **22
+  `y (auto)`** pairs that share a part number. Each row carries a band weight so
+  scores describe the reference, not the sample (method in `eval/README.md`).
+- **Step 2 is not.** The `label` column is still empty. Claude has done a
+  first pass in separate `claude_label` / `claude_conf` / `claude_note` columns
+  for an adjuster to confirm or override.
+- **Provisional reading, from Claude's labels only** (`npm run
+  eval:provisional`; not adjuster-verified, not for citing): at 0.65, **≈27%**
+  of name-based merges join the same part; **no threshold reaches 95%
+  precision**; and of 35 identical-name pairs, 24 were labelled different parts
+  — mostly the same part name on different vehicles. If an adjuster confirms the
+  "different vehicle = different part" policy, the answer is the matching mode
+  (part-number first, or same model), not the threshold.
+- **Side findings from the labelling:** the positional veto misses dotted
+  abbreviations (`RR.` / `F.`); six same-part pairs were split by supplier
+  prefixes or model text in the part-number field (`T` vs `ZZT`, `MI` vs `J`,
+  `MBA` vs `X`, `81130-0L011 KDH200`); one Tesla line carries make "Land Rover";
+  and a "bill … already extracted" artefact sits in the reference as a part line.
+- **v1.18.0 acts on it provisionally:** an opt-in *Flag name-matched benchmarks*
+  setting marks any benchmark whose quotes do not all share one part number as
+  unverified (median shown, no statistical bound). On the live reference it
+  flags **42 of the 45** benchmarks with 4+ quotes.
+
 ---
 
 ## 11. Open items
@@ -332,6 +363,9 @@ this document describes the spread of clusters whose correctness is assumed.
 | OCR part-number misreads | Open — prompt/QA track |
 | OCR field bleed between rows | Open — prompt/QA track |
 | Validation vs internal extracted dataset | Not started |
-| **Matcher precision/recall** | **Open — gold set regenerated from live data 23 Sep (203 pairs), 0 labelled (§10)** |
-| Threshold 0.65 calibration | Open — blocked on the above |
+| **Matcher precision/recall** | **Open — live gold set regenerated 23 Sep (203 pairs); Claude first pass done, adjuster labels 0/203 (§10)** |
+| Threshold 0.65 calibration | Open — blocked on the above; provisionally, no threshold reaches 95% precision |
+| Name-matched benchmarks flagged as unverified | **Added v1.18.0 — provisional, off by default** |
+| Positional veto misses `RR.` / `F.` abbreviations | Open — found in labelling (§10 update) |
+| Part-number prefixes / model text split same-part lines | Open — found in labelling; fix parked as too complex for now |
 | 14 stray "Run Log" rows in the live reference | Open — now needs an operator-side delete |

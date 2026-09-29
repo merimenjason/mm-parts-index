@@ -2,6 +2,21 @@
 
 Versions reconstructed from the development history (dates approximate).
 
+## Unreleased
+
+Docs only — no change to the app or its numbers.
+
+- **Docs brought in line with 1.18.0 and the live gold set.** `QA.md` §10 gains
+  a dated update (gold set regenerated, Claude first pass, provisional reading,
+  side findings) and §11 new open items; `README.md`, `MANUAL.md` §9,
+  `HANDOVER.md` §7, `Cost-Estimation.md`, `OPUS_PROMPTS.md` P2 and
+  `eval/README.md` no longer describe the old 138-pair demo sample. MANUAL §9
+  lists two newly found matcher issues (dotted `RR.`/`F.` positions,
+  part-number prefixes). Also corrected two statements left stale since
+  v1.12.0: the OCR proxy does allowlist models, cap tokens and support a shared
+  secret, and a failed save raises a visible error event rather than only
+  logging to the console.
+
 ## 1.18.0 — 23 September 2026
 
 A provisional, opt-in trust flag for name-matched benchmarks, plus the live

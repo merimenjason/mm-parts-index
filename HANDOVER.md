@@ -1,6 +1,6 @@
 # HANDOVER.md — PartsIndex for a new developer
 
-*Written at v1.8.0, July 2026; §7 refreshed at v1.17.4, 23 September 2026.
+*Written at v1.8.0, July 2026; §7 refreshed at v1.18.0, 29 September 2026.
 Assumes you know JavaScript and some React, but nothing about this project or
 the insurance domain. Read this top to bottom once; after that,
 [`MANUAL.md`](./MANUAL.md) is the full reference and [`QA.md`](./QA.md) is what
@@ -271,12 +271,27 @@ make/model when printed), Tukey-fence flags, the **Export Detailed Report**
 button and a **Claim History** (save/reopen/re-export/delete, persisted
 locally or on the shared Turso DB), drill-down everywhere, a masthead
 *Github Repository* link, 186 self-tests run in CI on every push, eval harness
-that replays the exact production merge decision (its gold set still unlabelled
-— see "Open gaps" below).
+that replays the exact production merge decision (live gold set regenerated,
+Claude first pass done, adjuster labels still missing — see "Open gaps" below),
+and an opt-in, provisional *Flag name-matched benchmarks* setting.
 
 **The live shared reference** holds 1,536 part lines from 252 invoices (the
 bulk-OCR run has happened). `QA.md` (17 September 2026) is the data-validity
 exercise on it; read it before quoting any figure from the reference.
+
+**1.18.0** added the **Flag name-matched benchmarks** setting (`cfg.flagNameJoined`),
+labelled PROVISIONAL and off by default. It sits in `MatchConfig`, so it shows on
+the Configuration tab and in the Benchmark tab's panel in Simple mode. When on,
+`makeCluster` marks any multi-quote cluster whose quotes do not all share one
+part number as `unverified` and drops `reliable`: the median is unchanged, the
+spread shows as advisory (amber `*`), and Assess applies no Tukey bound. The
+detailed report states the setting. It exists because Claude's first-pass
+labelling of the live gold set put name-only merges at ≈27% correct — not
+adjuster-verified, hence opt-in. On live data it flags 42 of 45 benchmarks.
+**Consequence for you:** `configFingerprint` now skips `undefined` settings,
+and an opt-in toggle should store `undefined` when off, so turning it off never
+changes existing snapshot ids. Use `advisoryReason()` for any new "why is this
+advisory" text. See CHANGELOG 1.18.0.
 
 **1.17.4** finished the job 1.17.3 started. The pre-replace snapshot was added
 to `api/parts.js`, which protected the HTTP path and left the CLI unguarded:
@@ -377,7 +392,7 @@ calibration; in the event the data went in first. Every median in the live
 reference therefore rests on merges nobody has checked, and the check now has
 to happen after the fact (gap 1 below).
 
-### Open gaps — as of v1.17.4 (23 September 2026)
+### Open gaps — as of v1.18.0 (29 September 2026)
 
 Sources: `QA.md` §10–11 and the v1.12.0 review list this replaces (its fixes —
 the multi-file stale closure, invisible save failures, the P1 positional false
@@ -393,7 +408,9 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
    threshold at the dispute-grade row. A **provisional** score from Claude's
    first-pass labels (`npm run eval:provisional`, not citable) puts precision
    at 0.65 near 27% with no threshold reaching 95%: if the adjuster agrees, the
-   answer is the matching mode, not the threshold. Settle the LH/RH convention against the `sepSide`
+   answer is the matching mode, not the threshold. The first question for the
+   adjuster is policy: is a part for a different vehicle ever pricing
+   evidence? v1.18.0's opt-in flag is the stopgap until this is settled. Settle the LH/RH convention against the `sepSide`
    default in the same session (`QA.md` §5 argues pooling is safe). Everything
    in `QA.md` describes the spread of clusters whose correctness is assumed.
 2. **Thin coverage, overstated reliability.** Only 45 of 949 clusters meet the
@@ -427,6 +444,9 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
    - Storage quota meter (P4) for the localStorage build.
    - Vercel's ~4.5 MB body limit on large base64 PDFs: not yet observed.
    - `PartsIndex.jsx` is ~2,000 lines (P6); still don't side-refactor it.
+   - Positional veto misses dotted `RR.` / `F.` (MANUAL §9, matcher issue 4).
+   - Part-number prefixes split one part into several keys — 28 groups, 81
+     live lines (MANUAL §9, matcher issue 5); parked as too complex for now.
    - The Benchmark-tab worklist is not saved: leaving the tab, reloading or
      toggling Simple/Detailed silently empties it (MANUAL §9).
 

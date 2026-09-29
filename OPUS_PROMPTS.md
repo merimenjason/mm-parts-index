@@ -113,17 +113,24 @@ npm run test:tools and npm run build must pass.
 ```
 You are working on PartsIndex (v1.9+, after the axis-veto fix). The eval
 harness is eval/generate_pairs.mjs + eval/evaluate.mjs; it imports the
-production src/pipeline.js directly. eval/gold_pairs.csv holds 138 candidate
-pairs; the label column must be human-filled with y/n/? per the policy in
-eval/README.md (LH/RH = y; front vs rear = n; sub-component vs assembly = n).
+production src/pipeline.js directly. eval/gold_pairs.csv (regenerated from
+the live reference, 23 September 2026) holds 203 pairs needing a human label
+plus 22 "y (auto)" rows; each row carries a band weight that evaluate.mjs
+applies. The label column must be filled by a claims adjuster with y/n/? per
+the policy in eval/README.md (LH/RH = y; front vs rear = n; sub-component vs
+assembly = n). The claude_label / claude_conf / claude_note columns are
+Claude's first pass for the adjuster to review — they are NOT labels.
 
-PRECONDITION: count the labeled rows in eval/gold_pairs.csv. If fewer than
-120 of the 138 have a y/n label, STOP and report that labeling is incomplete —
-do not fabricate labels and do not calibrate on the example file.
+PRECONDITION: count the rows with a y/n in the `label` column, excluding
+"y (auto)". If fewer than 180 of the 203 are labelled, STOP and report that
+labeling is incomplete. Never copy claude_label into label, never calibrate on
+results.provisional.csv, and never calibrate on the example file.
 
 TASK (once labels exist):
-1. Run node eval/evaluate.mjs and capture the full sweep (thresholds
-   0.40–0.95, token weights 0.4/0.6/0.8) into eval/results.csv.
+1. Run node eval/evaluate.mjs and node eval/evaluate.mjs --human-only and
+   capture both sweeps (thresholds 0.40–0.95, token weights 0.4/0.6/0.8);
+   eval/results.csv holds the first. Report how often the adjuster agreed
+   with claude_label, too.
 2. Choose the operating point from the DISPUTE-GRADE row (max recall at
    precision ≥ 95%), not max-F1 — this benchmark is used to challenge repairer
    estimates, so a false merge (wrong median) costs more than a false split

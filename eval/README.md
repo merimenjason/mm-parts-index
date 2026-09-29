@@ -124,5 +124,5 @@ numbers. Even so, it already surfaced two real issues at the current default
 2. **Threshold headroom — still open.** "BALL JOINT ASSY" vs "BALL JOINT
    ASSY-INR L/R" (marked vs unmarked, so not vetoed) scores 0.69 and
    false-merges at 0.65. On this small set, raising the default toward
-   0.70–0.75 costs zero recall. Confirm on the 200-invoice gold set before
-   changing the shipped default.
+   0.70–0.75 costs zero recall. Confirm on the live gold set (adjuster
+   labels) before changing the shipped default.

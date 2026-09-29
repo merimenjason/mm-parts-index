@@ -149,9 +149,12 @@ parts already stored on the next load, with no re-import.
   fraction of the reference can actually price a part, which hypotheses about
   the price spread were tested and rejected, and the open risks (notably
   pair-vs-single, which the data gives no way to detect). It is also explicit
-  about what it does **not** measure: cluster *correctness* is still unverified,
-  because `eval/gold_pairs.csv` has 0 of 138 pairs labelled — so the shipped
-  `threshold: 0.65` remains uncalibrated.
+  about what it does **not** measure: cluster *correctness* is still unverified.
+  The gold set has since been regenerated from live data (203 pairs) and given a
+  first-pass labelling by Claude; that **provisional** reading puts name-only
+  merges at ≈27% correct with no threshold reaching 95% precision, which is what
+  the v1.18.0 *Flag name-matched benchmarks* setting responds to. It still needs
+  an adjuster's labels before `threshold: 0.65` can be called calibrated.
 
 ---
 
@@ -507,11 +510,12 @@ partsindex/
 ├─ CHANGELOG.md                   ← version history
 ├─ eval/
 │  ├─ README.md                   ← gold-set labeling policy + how to read results
-│  ├─ generate_pairs.mjs          ← emits candidate pairs for human labeling
-│  ├─ evaluate.mjs                ← precision/recall/F1 sweep over the labeled set
-│  ├─ gold_pairs.csv              ← 138 candidate pairs awaiting human labels (y/n/?)
+│  ├─ generate_pairs.mjs          ← samples candidate pairs (live URL, JSON or demo) by similarity band
+│  ├─ evaluate.mjs                ← weighted precision/recall/F1 sweep; --human-only, --provisional
+│  ├─ gold_pairs.csv              ← 203 live pairs awaiting adjuster labels + 22 y (auto); Claude's first pass in claude_* columns
 │  ├─ gold_pairs.example_labeled.csv  ← worked example (illustrative labels — not ground truth)
-│  └─ results.csv                 ← sweep output from the worked example (re-generate after labeling)
+│  ├─ results.csv                 ← sweep output from the worked example — do not cite
+│  └─ results.provisional.csv     ← sweep over Claude's first-pass labels — provisional, do not cite
 ├─ tools/
 │  ├─ batch-ocr.mjs               ← bulk OCR runner for the 200-invoice run (resumable, validating)
 │  ├─ db-init.mjs                 ← npm run db:init / db:seed — create the libSQL schema, optionally seed the demo
@@ -534,9 +538,9 @@ partsindex/
 - **Sample size.** Benchmarks firm up only as the same part recurs across bills; the demo's 18 bills are illustrative, the incoming **200** are what make it real.
 - **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The app ships the framework; feed it matched claim data to get hard numbers.
 - **Live OCR** requires the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking due to output token limits.
-- **The proxy is unauthenticated.** `api/ocr.js` hides the API key but accepts requests from anyone who knows the URL — no origin check, shared secret, model allowlist or rate limit yet. Fine for a private POC link; harden before the URL circulates.
-- **`localStorage` is bounded (~5 MB)** and a failed write only logs to the console today. Export to Excel regularly during large ingests.
-- **Matcher calibration is pending.** The gold set (`eval/gold_pairs.csv`, 138 pairs) is generated but unlabeled, so the shipped 0.65 threshold is uncalibrated. The positional false-merge bug is fixed (v1.12.0 veto); marked-vs-unmarked positional pairs remain threshold-dependent by design — see MANUAL.md §9 for the calibration checklist.
+- **The proxy has no per-user auth.** `api/ocr.js` hides the API key, allowlists models and caps tokens (v1.12.0), and can require a shared secret — but that secret ships in the client bundle, so it deters drive-by abuse only. Add per-user auth or Vercel password protection before the URL circulates.
+- **`localStorage` is bounded (~5 MB).** A failed write raises a visible error event in the activity log (v1.12.0), but there is no proactive quota meter. Export to Excel regularly during large ingests.
+- **Matcher calibration is pending.** The gold set was regenerated from the live reference (203 pairs + 22 auto) and has a Claude first pass, but no adjuster labels yet, so the shipped 0.65 threshold is uncalibrated. Provisionally, name-only matching looks unreliable at any threshold — see QA.md §10 and the opt-in *Flag name-matched benchmarks* setting (v1.18.0). MANUAL.md §9 has the calibration checklist.
 
 See **[`MANUAL.md`](./MANUAL.md)** for the full manual and the step-by-step
 project history, and **[`CHANGELOG.md`](./CHANGELOG.md)** for the version

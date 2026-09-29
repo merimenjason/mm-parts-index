@@ -113,9 +113,11 @@ time it replaces.
    side-pooling) so matcher output is scored consistently — see MANUAL.md §9.
 2. **Confirm the P2 positional-veto item** from the technical-deck gap list is
    resolved or explicitly waived; P1 was fixed in v1.12.0.
-3. **Label the 138-pair gold set** (`eval/gold_pairs.csv`) and run
-   `npm run eval:score` so the 0.65 threshold is calibrated before the corpus
-   lands, not after.
+3. **Label the gold set** (`eval/gold_pairs.csv`) and run
+   `npm run eval:score` so the threshold is calibrated before the corpus
+   lands, not after. *(The first 200-invoice run went ahead without this; the
+   gold set has since been regenerated from live data — 203 pairs — and still
+   needs an adjuster's labels. See MANUAL.md §9.)*
 4. `npm run test:tools` — all self-tests green on the exact tree you'll run.
 
 ### Setup
