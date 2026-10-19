@@ -11,6 +11,8 @@ Docs and layout only — no change to the app's numbers.
   sortable column headers may wrap when a table is short of room. In Simple
   mode every table now fits without side-scrolling at window widths of
   1,100px and up.
+- **Tables centred.** A table narrower than its box (for example a saved claim
+  in Claim history) now sits in the middle instead of leaving a gap on the right.
 - **Docs brought in line with 1.18.0 and the live gold set.** `QA.md` §10 gains
   a dated update (gold set regenerated, Claude first pass, provisional reading,
   side findings) and §11 new open items; `README.md`, `MANUAL.md` §9,

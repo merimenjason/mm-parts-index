@@ -527,9 +527,10 @@ const td = { padding: "8px 10px", whiteSpace: "nowrap" };
 // without side-scrolling; numbers stay on one line.
 const tdWrap = { ...td, whiteSpace: "normal", minWidth: 120 };
 /* Tables carry many nowrap columns; on narrow screens that would push the whole
-   page sideways. display:block + overflow-x:auto makes each table scroll WITHIN
-   its own card, so the page itself never scrolls horizontally. */
-const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 12, display: "block", overflowX: "auto", WebkitOverflowScrolling: "touch" };
+   page sideways. Every table sits in an overflow:auto wrapper, so a too-wide table
+   scrolls WITHIN its own card and the page itself never scrolls horizontally.
+   A table narrower than its card is centred in it rather than left with a gap on the right. */
+const tableStyle = { borderCollapse: "collapse", fontSize: 12, margin: "0 auto" };
 
 /* ================= sortable table headers =================
    A tiny, reusable sort layer used by every data table. useSort() holds the
