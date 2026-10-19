@@ -523,6 +523,9 @@ const modelTitle = (c) => c.modelMixed ? `Spans models: ${c.models.join(", ")}` 
 const inp = (w) => ({ width: w, padding: "9px 11px", background: "#082430", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12.5, outline: "none" });
 const th = { textAlign: "left", padding: "9px 10px", fontSize: 11, color: MUTE, fontWeight: 700, whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: ".04em" };
 const td = { padding: "8px 10px", whiteSpace: "nowrap" };
+// Text columns (part names, models, categories) may wrap so a wide table fits its card
+// without side-scrolling; numbers stay on one line.
+const tdWrap = { ...td, whiteSpace: "normal", minWidth: 120 };
 /* Tables carry many nowrap columns; on narrow screens that would push the whole
    page sideways. display:block + overflow-x:auto makes each table scroll WITHIN
    its own card, so the page itself never scrolls horizontally. */
@@ -563,8 +566,9 @@ function SortTh({ label, sortKey, sort, toggle, align = "left", style }) {
   const active = sort.key === sortKey;
   return (
     <th onClick={() => toggle(sortKey)} title={`Sort by ${label}`}
-      style={{ ...th, textAlign: align, cursor: "pointer", userSelect: "none", ...style }}>
-      {label}<span style={{ marginLeft: 5, fontSize: 9, color: active ? LIME : "#4B6F80" }}>{active ? (sort.dir === "asc" ? "▲" : "▼") : "⇅"}</span>
+      style={{ ...th, whiteSpace: "normal", textAlign: align, cursor: "pointer", userSelect: "none", ...style }}>
+      {/* Headers may wrap between words when a table is short of room; the no-break space keeps the arrow with the last word. */}
+      {label}{"\u00a0"}<span style={{ marginLeft: 1, fontSize: 9, color: active ? LIME : "#4B6F80" }}>{active ? (sort.dir === "asc" ? "▲" : "▼") : "⇅"}</span>
     </th>
   );
 }
@@ -779,10 +783,10 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
                 <React.Fragment key={wid}>
                   <tr onClick={() => setOpenWork(wopen ? null : wid)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer" }}>
                     <td style={{ ...td, color: MUTE }}>{i + 1}</td>
-                    <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{wopen ? "▾" : "▸"}</span>{c.label}{advisoryReason(c) ? <span title={advisoryText(c)} style={{ color: c.unverified ? AMBER : MUTE }}> *</span> : ""}</td>
+                    <td style={{ ...tdWrap, minWidth: 180, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{wopen ? "▾" : "▸"}</span>{c.label}{advisoryReason(c) ? <span title={advisoryText(c)} style={{ color: c.unverified ? AMBER : MUTE }}> *</span> : ""}</td>
                     <td style={td}>{c.make}</td>
-                    <td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
-                    <td style={{ ...td, color: MUTE }}>{c.cat}</td>
+                    <td style={{ ...tdWrap, minWidth: 90, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
+                    <td style={{ ...tdWrap, color: MUTE }}>{c.cat}</td>
                     <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 700 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
                     <td style={{ ...td, textAlign: "right", fontWeight: 700, color: LIME }}>{c.med}</td>
                     <td style={{ ...td, textAlign: "right" }}>{c.avg}</td>
@@ -807,8 +811,8 @@ function DemoLookup({ clusters, parts, cfg, setCfg, detailed }) {
               <td style={{ ...td, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                 <button onClick={(e) => { e.stopPropagation(); toggleWork(c); }} title={inWork(c) ? "In worklist — click to remove" : "Add to worklist"}
                   style={{ width: 24, height: 24, borderRadius: 6, cursor: "pointer", fontSize: 14, lineHeight: 1, fontWeight: 700, border: `1px solid ${inWork(c) ? LIME : LINE}`, background: inWork(c) ? LIME : "transparent", color: inWork(c) ? TEAL_D : LIME }}>{inWork(c) ? "✓" : "+"}</button></td>
-              <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
-              <td style={td}>{c.make}</td><td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...td, color: MUTE }}>{c.cat}</td>
+              <td style={{ ...tdWrap, minWidth: 180, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
+              <td style={td}>{c.make}</td><td style={{ ...tdWrap, minWidth: 90, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...tdWrap, color: MUTE }}>{c.cat}</td>
               {detailed && <td style={td}>{c.grade !== "Unknown" ? <span style={{ fontSize: 10, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER }}>{c.gradeMixed ? "Mixed" : c.grade}</span> : <span style={{ color: MUTE }}>—</span>}</td>}
               <td style={{ ...td, textAlign: "right", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, textAlign: "right", color: MUTE }}>{c.suppliers.length}</td>
@@ -993,9 +997,9 @@ function KpiDetail({ kpi, parts, clusters, onClose }) {
           <tbody>{ready.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
             <React.Fragment key={id}>
               <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: "rgba(195,215,0,.10)" }}>
-                <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
+                <td style={{ ...tdWrap, minWidth: 180, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
                 <td style={td}>{c.make}</td>
-                <td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
+                <td style={{ ...tdWrap, minWidth: 90, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td>
                 <td style={{ ...td, textAlign: "center", fontWeight: 800, color: LIME }}>{c.n}</td>
                 <td style={{ ...td, textAlign: "center", color: MUTE }}>{c.suppliers.length}</td>
                 <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}</td>
@@ -1275,7 +1279,7 @@ function Benchmark({ cfg, setCfg, clusters }) {
             <tr onClick={() => setOpen(open === c.key + i ? null : c.key + i)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.12)" : "transparent" }}>
               <td style={{ ...td, fontWeight: 600 }}>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}
                 {c.grade !== "Unknown" && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, color: c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER, border: `1px solid ${c.gradeMixed ? RED : c.grade === "OEM Genuine" ? LIME : AMBER}`, borderRadius: 4, padding: "0 4px", verticalAlign: "middle" }} title={c.gradeMixed ? "Cluster mixes grades: " + c.grades.join(", ") + " — median may blend genuine and aftermarket prices" : "All known-grade quotes are " + c.grade}>{c.gradeMixed ? "MIXED GRADE" : c.grade}</span>}</td>
-              <td style={td}>{c.make}</td><td style={{ ...td, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...td, color: MUTE }}>{c.cat}</td>
+              <td style={td}>{c.make}</td><td style={{ ...tdWrap, minWidth: 90, color: MUTE }} title={modelTitle(c)}>{modelLabel(c)}</td><td style={{ ...tdWrap, color: MUTE }}>{c.cat}</td>
               <td style={{ ...td, textAlign: "center" }}><span title={c.bridged ? "name-bridged across " + c.pns.length + " part numbers" : "single part number"} style={{ fontSize: 10, fontWeight: 700, color: c.bridged ? AMBER : TEAL_L }}>{c.bridged ? "≈ " + c.pns.length + "PN" : "PN"}</span></td>
               <td style={{ ...td, textAlign: "center", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, color: MUTE }}>{c.suppliers.length}</td>
@@ -1341,7 +1345,7 @@ function MBenchmark({ clusters }) {
         <tbody>{rows.map((c, i) => { const id = c.key + i, isOpen = open === id; return (
           <React.Fragment key={id}>
             <tr onClick={() => setOpen(isOpen ? null : id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: c.n > 1 ? "rgba(195,215,0,.10)" : "transparent" }}>
-              <td style={{ ...td, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
+              <td style={{ ...tdWrap, minWidth: 180, fontWeight: 600 }}><span style={{ color: LIME, marginRight: 6 }}>{isOpen ? "▾" : "▸"}</span>{c.label}{c.names.length > 1 && <span style={{ color: MUTE, fontWeight: 400 }}> +{c.names.length - 1}</span>}</td>
               <td style={td}>{c.make}</td>
               <td style={{ ...td, textAlign: "center", fontWeight: c.n > 1 ? 800 : 400, color: c.n > 1 ? LIME : TEXT }}>{c.n}</td>
               <td style={{ ...td, textAlign: "right", fontWeight: 800, color: LIME }}>{c.med}</td>
@@ -1664,8 +1668,8 @@ function AssessResultBlock({ rows, cfg, detailed }) {
         <tbody>{sortRows(rows, sort).map((r) => { const isOpen = openRow === r._id; return (
           <React.Fragment key={r._id}>
             <tr onClick={() => setOpenRow(isOpen ? null : r._id)} style={{ borderTop: `1px solid ${LINE}`, cursor: "pointer", background: r.flagged ? "rgba(232,97,90,.12)" : r.bench == null ? "rgba(143,182,196,.06)" : "transparent" }}>
-              <td style={{ ...td, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
-              <td style={{ ...td, fontWeight: 600 }}>{r.name}</td>
+              <td style={{ ...tdWrap, minWidth: 110, fontFamily: "ui-monospace,monospace", color: MUTE }}><span style={{ color: LIME, marginRight: 6, fontFamily: "'Inter',system-ui,sans-serif" }}>{isOpen ? "▾" : "▸"}</span>{r.pn}</td>
+              <td style={{ ...tdWrap, minWidth: 180, fontWeight: 600 }}>{r.name}</td>
               <td style={{ ...td, color: r.how === "part number" ? TEAL_L : r.how === "name" ? AMBER : r.how === "category" ? ICE : MUTE, fontSize: 11 }}>{r.how}</td>
               <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.n || "—"}</td>
               <td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{r.quoted.toFixed(2)}</td>
@@ -1704,7 +1708,7 @@ function ClaimHistoryModal({ claims, parts, detailed, onClose, onDelete }) {
   const [modeOverride, setModeOverride] = useState(null);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,18,24,.72)", zIndex: 100, display: "flex", justifyContent: "center", padding: "5vh 16px", overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: INK, border: `1px solid ${LINE}`, borderRadius: 12, width: "min(980px, 100%)", height: "fit-content", padding: 20, marginBottom: "5vh" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: INK, border: `1px solid ${LINE}`, borderRadius: 12, width: "min(1400px, 100%)", height: "fit-content", padding: 20, marginBottom: "5vh" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: 16, color: TEXT }}>Claim history</h2>
           <span style={{ fontSize: 11.5, color: MUTE }}>{claims.length} saved assessment{claims.length === 1 ? "" : "s"} — {usingSharedBackend ? "shared across every user of this reference" : "stored in this browser only"}</span>

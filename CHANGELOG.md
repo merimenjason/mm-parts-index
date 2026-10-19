@@ -4,8 +4,13 @@ Versions reconstructed from the development history (dates approximate).
 
 ## Unreleased
 
-Docs only — no change to the app or its numbers.
+Docs and layout only — no change to the app's numbers.
 
+- **Less side-scrolling.** The Claim history window is wider (980 → 1400px),
+  and text columns (part name, description, part number, model, category) and
+  sortable column headers may wrap when a table is short of room. In Simple
+  mode every table now fits without side-scrolling at window widths of
+  1,100px and up.
 - **Docs brought in line with 1.18.0 and the live gold set.** `QA.md` §10 gains
   a dated update (gold set regenerated, Claude first pass, provisional reading,
   side findings) and §11 new open items; `README.md`, `MANUAL.md` §9,
