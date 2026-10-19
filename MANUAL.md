@@ -650,7 +650,7 @@ the median but the quotes that produced it.
    `X`, `81130-0L011 KDH200`) give one part several keys: 28 groups, 81 lines
    on the live reference. A make-aware core-number key would join them but
    raises colour-code and aftermarket-suffix questions; parked for now.
-4. **Pair-vs-single is undetectable — open, no fix available.** Only 1 line in
+6. **Pair-vs-single is undetectable — open, no fix available.** Only 1 line in
    271 carries `qty > 1`, so a bill charging for both headlamps on one line
    looks identical to one lamp. Priced against a single-unit benchmark this
    produces a *false over-claim*, which is the worst error the tool can make.

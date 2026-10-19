@@ -1,0 +1,14 @@
+{
+  "name": "partsindex-validation-2026-10",
+  "private": true,
+  "description": "October 2026 data-validity checks behind QA.md §7 and §9 — see README.md in this folder.",
+  "scripts": {
+    "bench:compare": "node bench_compare.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.134.0",
+    "docx": "^9.11.0",
+    "exceljs": "4.4.0",
+    "zod": "^4.6.7"
+  }
+}

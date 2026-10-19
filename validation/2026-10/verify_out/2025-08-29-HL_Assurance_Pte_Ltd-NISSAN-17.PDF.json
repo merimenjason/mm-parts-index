@@ -1,0 +1,156 @@
+{
+ "source_file": "2025-08-29-HL Assurance Pte Ltd-NISSAN-17.PDF",
+ "bill": "B21",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:44.587Z",
+ "usage": {
+  "input_tokens": 3313,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 3313,
+    "output_tokens": 1354,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1354,
+  "output_tokens_details": {
+   "thinking_tokens": 490
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "LESUN AUTO PARTS PTE LTD",
+  "bill_no": "LI10325981",
+  "bill_date": "12/08/2025",
+  "parts_subtotal": 3092,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "NF510M-5RYMA",
+    "unit_price": 430,
+    "confidence": "medium",
+    "note": "Faint print; part number reads as 'NF510M-5RYMA', so the 'M' and the 'O/0' are uncertain."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "N26060-5RY1B",
+    "unit_price": 1200,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "N62087-5RY0A",
+    "unit_price": 100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "N62022-5RY0H",
+    "unit_price": 350,
+    "confidence": "medium",
+    "note": "Last character is faint; it could be H or B. The description on the document is closer to 'FRT BUMPER (5RJ6?A)'."
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "N62253-5RY0A",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "N65400-5RB0A",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "N65401-5RB0A",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "N65846-30F00",
+    "unit_price": 3,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "N62310-5RY5A",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "N01553-1TT0A",
+    "unit_price": 4,
+    "confidence": "medium",
+    "note": "Faint print; 'TT0A' is uncertain."
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "N62225-5RY0A",
+    "unit_price": 20,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "N62090-5RY0A",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "N62660-5RY0A",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "N62890-7FW0A",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

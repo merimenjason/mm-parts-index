@@ -1,0 +1,188 @@
+{
+ "source_file": "2026-02-06-Tokio Marine Insurance Singapore Ltd-OPEL-154.PDF",
+ "bill": "B05",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:03.288Z",
+ "usage": {
+  "input_tokens": 8186,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 8186,
+    "output_tokens": 1625,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1625,
+  "output_tokens_details": {
+   "thinking_tokens": 632
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202511-05889",
+  "bill_date": "13/11/2025",
+  "parts_subtotal": 9660,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "9820422880",
+    "unit_price": 1800,
+    "confidence": "high",
+    "note": "The PDF also contains two separate invoices, AR202511-06854 (17/11/2025, page 3) and AR202601-06620 (16/01/2026, page 4). Their lines are not part of this bill and are not listed as missed lines."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "9816485080",
+    "unit_price": 250,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "9816484780",
+    "unit_price": 250,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "1632657980",
+    "unit_price": 1000,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "1632658480",
+    "unit_price": 550,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1632658380",
+    "unit_price": 550,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1632658080",
+    "unit_price": 150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "1632658280",
+    "unit_price": 600,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "9670955280",
+    "unit_price": 250,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "9816482380",
+    "unit_price": 580,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "9846639180",
+    "unit_price": 700,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "9817398480",
+    "unit_price": 300,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "9808870280",
+    "unit_price": 250,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "9818196480",
+    "unit_price": 550,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "9821847480",
+    "unit_price": 140,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "9821847180",
+    "unit_price": 140,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "1634153780",
+    "unit_price": 1250,
+    "confidence": "high",
+    "note": "On page 2. A pen tick crosses the SQ number, but the stock ID is clear."
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "9830512680",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": "On page 2. A pen tick crosses the SQ number, but the stock ID is clear."
+   }
+  ],
+  "missed_lines": []
+ }
+}

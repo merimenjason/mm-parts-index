@@ -1,0 +1,116 @@
+{
+ "source_file": "2025-11-19-Tokio Marine Insurance Singapore Ltd-TOYOTA-74.PDF",
+ "bill": "B43",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:57.539Z",
+ "usage": {
+  "input_tokens": 4738,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4738,
+    "output_tokens": 1052,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1052,
+  "output_tokens_details": {
+   "thinking_tokens": 297
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202509-09467",
+  "bill_date": "22/09/2025",
+  "parts_subtotal": 1560,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T52119-0U932/939",
+    "unit_price": 350,
+    "confidence": "medium",
+    "note": "Handwritten circle/tick overlaps the leading 'T'. 'VIOS-NSP151' is printed on the second line below the stock ID and looks like a model reference, not part of the part number."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T53112-0D540",
+    "unit_price": 200,
+    "confidence": "high",
+    "note": "Handwritten circle near the leading 'T'. 'NSP151' on the second line is a model reference."
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T52721-0D290",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": "Handwritten circle near the leading 'T'. 'NSP151' on the second line is a model reference."
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T53114-0D020",
+    "unit_price": 80,
+    "confidence": "high",
+    "note": "Handwritten circle near the leading 'T'. 'NSP151' on the second line is a model reference."
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "81130-0DF01/P90",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": "'NSP151' on the second line is a model reference."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "81170-0DF01/P90",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": "'NSP151' on the second line is a model reference."
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T53286-0D370",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": "Handwritten tick overlaps the leading 'T'."
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T53285-0D370",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": "Handwritten circle overlaps the leading 'T'."
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T53287-0D260",
+    "unit_price": 55,
+    "confidence": "high",
+    "note": "Handwritten circle overlaps the leading 'T'."
+   }
+  ],
+  "missed_lines": []
+ }
+}

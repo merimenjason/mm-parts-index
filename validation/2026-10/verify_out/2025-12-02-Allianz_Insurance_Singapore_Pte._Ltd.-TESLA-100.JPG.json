@@ -1,0 +1,100 @@
+{
+ "source_file": "2025-12-02-Allianz Insurance Singapore Pte. Ltd.-TESLA-100.JPG",
+ "bill": "B22",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:39.297Z",
+ "usage": {
+  "input_tokens": 2330,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2330,
+    "output_tokens": 678,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 678,
+  "output_tokens_details": {
+   "thinking_tokens": 202
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "",
+  "bill_no": "5199563",
+  "bill_date": "",
+  "parts_subtotal": null,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "1694549-00-E",
+    "unit_price": 33.1,
+    "confidence": "high",
+    "note": "Status Processing, shipped 0/1"
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": "Status Processing, shipped 0/1"
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "1857706-C1-E",
+    "unit_price": 154.73,
+    "confidence": "high",
+    "note": "Invoice 2040R0000004360"
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "1857705-C1-D",
+    "unit_price": 154.72,
+    "confidence": "high",
+    "note": "Invoice 2040R0000004325"
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "1857606-C1-B",
+    "unit_price": 182.03,
+    "confidence": "high",
+    "note": "Invoice 2040R0000004325"
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1857605-C1-B",
+    "unit_price": 182.03,
+    "confidence": "high",
+    "note": "Invoice 2040R0000004325"
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1735514-00-A",
+    "unit_price": 46.04,
+    "confidence": "high",
+    "note": "Status Processing, shipped 0/1"
+   }
+  ],
+  "missed_lines": []
+ }
+}

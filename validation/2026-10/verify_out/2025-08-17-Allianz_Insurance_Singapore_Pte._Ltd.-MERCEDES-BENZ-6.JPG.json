@@ -1,0 +1,148 @@
+{
+ "source_file": "2025-08-17-Allianz Insurance Singapore Pte. Ltd.-MERCEDES-BENZ-6.JPG",
+ "bill": "B35",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:20.701Z",
+ "usage": {
+  "input_tokens": 2929,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2929,
+    "output_tokens": 814,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 814,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "MIN GHEE AUTO PTE LTD",
+  "bill_no": "8397352",
+  "bill_date": "03/07/2025",
+  "parts_subtotal": 4980,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "MBA156 880 00 57 64",
+    "unit_price": 1150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "MBA156 880 37 00 9999",
+    "unit_price": 950,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "MBA156 880 46 00",
+    "unit_price": 620,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "MBA156 880 41 00",
+    "unit_price": 80,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "MBA156 885 70 00",
+    "unit_price": 130,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "MBA246 620 02 34 64",
+    "unit_price": 820,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "MBA156 880 64 00",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "MBA000 817 10 16",
+    "unit_price": 90,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "MBA000 888 00 60",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "MBA156 888 06 00 9040",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": "Two CARRIER lines at 195.00; matched to row 10 by order."
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "MBA156 888 24 00 9040",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": "Two CARRIER lines at 195.00; matched to row 11 by order."
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "MBA156 880 91 01",
+    "unit_price": 300,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "MBA242 505 01 30",
+    "unit_price": 120,
+    "confidence": "high",
+    "note": "Handwritten annotation near amount (possibly 'supplied free'); printed amount 120.00."
+   }
+  ],
+  "missed_lines": []
+ }
+}

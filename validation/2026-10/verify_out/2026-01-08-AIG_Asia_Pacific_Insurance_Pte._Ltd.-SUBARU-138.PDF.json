@@ -1,0 +1,68 @@
+{
+ "source_file": "2026-01-08-AIG Asia Pacific Insurance Pte. Ltd.-SUBARU-138.PDF",
+ "bill": "B19",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:36.619Z",
+ "usage": {
+  "input_tokens": 4604,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4604,
+    "output_tokens": 993,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 993,
+  "output_tokens_details": {
+   "thinking_tokens": 605
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202512-11256",
+  "bill_date": "26/12/2025",
+  "parts_subtotal": 400,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "S57702-SJ000",
+    "unit_price": 300,
+    "confidence": "medium",
+    "note": "A handwritten tick or slash crosses the '57' after the 'S'. The digit '7' is partly obscured."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "S57705-SJ010",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "S86636-SJ110",
+    "unit_price": 50,
+    "confidence": "medium",
+    "note": "The character after 'SJ' looks like either '1' or 'I' in this font. Read as '1'. Page 2 of the PDF is a separate invoice (AR202512-11258, same date) for S86636-SJ130W6 COVER ASSY-LAMP WASHER NOZZLE LH, qty 1, 55.00. It is not part of this bill and so is not listed as a missed line."
+   }
+  ],
+  "missed_lines": []
+ }
+}

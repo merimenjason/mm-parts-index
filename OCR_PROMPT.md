@@ -205,8 +205,8 @@ Paste the resulting tables into one sheet (or save as CSV) and upload via **Bulk
   the run — batch halves the cost and Sonnet's edge on faint fax and
   handwriting (where extraction errors cluster) is worth far more than the
   small saving from a cheaper first pass at this volume. **Sonnet 5**
-  (`claude-sonnet-5`, intro pricing to 31 Aug 2026) is cheaper still — adopt it
-  only after re-running the 5-file trial on it. Re-run whatever fails
+  (`claude-sonnet-5`) now costs the same as Sonnet 4.6 (its intro pricing ended
+  31 Aug 2026) — adopt it only after re-running the 5-file trial on it. Re-run whatever fails
   validation or reconciliation with `--retry-failed --model claude-opus-5`
   (Opus 5, released 24 July 2026, replaced Opus 4.8 at the same price).
   See `Cost-Estimation.md` for the full numbers.

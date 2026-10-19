@@ -1,0 +1,108 @@
+{
+ "source_file": "2026-01-20-Singapore Life Ltd-SKODA-145.PDF",
+ "bill": "B16",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:19.454Z",
+ "usage": {
+  "input_tokens": 3139,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 3139,
+    "output_tokens": 457,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 457,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "DLI9285818",
+  "bill_date": "02/12/2025",
+  "parts_subtotal": 6035,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "5E0807221AA",
+    "unit_price": 1900,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "5E0807681H 9B9",
+    "unit_price": 125,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "5E0853793 041",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "5Q0919275C GRU",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "5E0821105C",
+    "unit_price": 1100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "5E0809957K",
+    "unit_price": 275,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "5E2941015E",
+    "unit_price": 2100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "5E2821353",
+    "unit_price": 145,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

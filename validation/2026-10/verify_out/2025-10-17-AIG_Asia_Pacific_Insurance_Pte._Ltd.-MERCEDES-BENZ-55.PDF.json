@@ -1,0 +1,132 @@
+{
+ "source_file": "2025-10-17-AIG Asia Pacific Insurance Pte. Ltd.-MERCEDES-BENZ-55.PDF",
+ "bill": "B42",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:19:01.804Z",
+ "usage": {
+  "input_tokens": 9499,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 9499,
+    "output_tokens": 1336,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1336,
+  "output_tokens_details": {
+   "thinking_tokens": 580
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "MIN GHEE AUTO PTE LTD",
+  "bill_no": "8405253",
+  "bill_date": "11/09/2025",
+  "parts_subtotal": 4680,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "MBA253 880 01 57 64",
+    "unit_price": 1480,
+    "confidence": "high",
+    "note": "Leading '1' is the row number, not part of the part number, and a handwritten tick overlaps it. The PDF also contains four other separate invoices (Min Ghee 8405516, 8405485 and 8406799, and GoldenLink WL583655), which are not part of this bill."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "MBA253 880 01 28",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "MBA253 880 02 28",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "MBA253 880 01 18",
+    "unit_price": 780,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "MBA253 885 05 22",
+    "unit_price": 270,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "MBA253 690 75 01",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "MBA124 990 04 92",
+    "unit_price": 8,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "MBA000 990 28 62",
+    "unit_price": 8,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "MBA253 885 04 25 9999",
+    "unit_price": 1180,
+    "confidence": "high",
+    "note": "Part number has an extra '9999' suffix, as printed."
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "MBA253 885 67 01",
+    "unit_price": 20,
+    "confidence": "high",
+    "note": "Printed row number is '10'."
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "MBA000 991 36 04",
+    "unit_price": 8,
+    "confidence": "high",
+    "note": "Printed row number is '11'."
+   }
+  ],
+  "missed_lines": []
+ }
+}

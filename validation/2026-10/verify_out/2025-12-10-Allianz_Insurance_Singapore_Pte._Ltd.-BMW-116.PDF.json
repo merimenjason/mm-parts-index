@@ -1,0 +1,60 @@
+{
+ "source_file": "2025-12-10-Allianz Insurance Singapore Pte. Ltd.-BMW-116.PDF",
+ "bill": "B25",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:45.187Z",
+ "usage": {
+  "input_tokens": 2977,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2977,
+    "output_tokens": 414,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 414,
+  "output_tokens_details": {
+   "thinking_tokens": 175
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202511-08848",
+  "bill_date": "21/11/2025",
+  "parts_subtotal": 1945,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "51118050635",
+    "unit_price": 1900,
+    "confidence": "medium",
+    "note": "Handwritten pen tick crosses the start of the stock ID; the digits '5111' are partly overlapped but still appear legible."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "51117207931",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": "A handwritten pen stroke passes near the line number but does not obscure the stock ID."
+   }
+  ],
+  "missed_lines": []
+ }
+}

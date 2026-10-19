@@ -1,0 +1,100 @@
+{
+ "source_file": "2025-12-10-Tokio Marine Insurance Singapore Ltd-PEUGEOT-107.PDF",
+ "bill": "B12",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:08.286Z",
+ "usage": {
+  "input_tokens": 3141,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 3141,
+    "output_tokens": 372,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 372,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "TRANS HUA AUTO PTE LTD",
+  "bill_no": "A10061453",
+  "bill_date": "08/09/2025",
+  "parts_subtotal": 1780,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": "No part number column on invoice; MODEL column blank."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "",
+    "unit_price": 500,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "",
+    "unit_price": 5,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "",
+    "unit_price": 495,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "",
+    "unit_price": 5,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

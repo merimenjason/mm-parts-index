@@ -1,0 +1,52 @@
+{
+ "source_file": "2026-02-11-Allianz Insurance Singapore Pte. Ltd.-TOYOTA-175.PDF",
+ "bill": "B30",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:59.572Z",
+ "usage": {
+  "input_tokens": 2969,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2969,
+    "output_tokens": 403,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 403,
+  "output_tokens_details": {
+   "thinking_tokens": 205
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202509-07820",
+  "bill_date": "17/09/2025",
+  "parts_subtotal": 160,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T57069-26120",
+    "unit_price": 160,
+    "confidence": "high",
+    "note": "The STOCKID column shows \"T57069-26120\" with \"KDH200\" on the line below. KDH200 is likely the vehicle model code rather than part of the part number. There is a pen tick mark over the SQ number."
+   }
+  ],
+  "missed_lines": []
+ }
+}

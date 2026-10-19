@@ -1,0 +1,108 @@
+{
+ "source_file": "2026-02-09-Allianz Insurance Singapore Pte. Ltd.-TESLA-158.JPG",
+ "bill": "B40",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:44.107Z",
+ "usage": {
+  "input_tokens": 2639,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2639,
+    "output_tokens": 902,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 902,
+  "output_tokens_details": {
+   "thinking_tokens": 315
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Tesla",
+  "bill_no": "EPC-5140005-1",
+  "bill_date": "",
+  "parts_subtotal": null,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": "Row is partly cut off at the top of the screenshot. The description is only partly visible ('...ASY ECE, LH'), but the part number and price are legible. Status shows Delivered 7 Aug 2025 (Delayed)."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "1711755-00-D",
+    "unit_price": 7.09,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "1711743-00-F",
+    "unit_price": 157.22,
+    "confidence": "high",
+    "note": "Status is 'Processing' with 0/1 shipped and an estimated date of 20 Aug 2025. This item has not shipped yet."
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "1741047-00-F",
+    "unit_price": 372.34,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "1741046-00-G",
+    "unit_price": 21.35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1774268-00-G",
+    "unit_price": 7.1,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1734299-00-H",
+    "unit_price": 11.28,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "1694314-SC-G",
+    "unit_price": 695.04,
+    "confidence": "high",
+    "note": "The part number has a 'SC' middle segment instead of the usual '00'. It is copied as printed."
+   }
+  ],
+  "missed_lines": []
+ }
+}

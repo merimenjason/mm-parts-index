@@ -1,0 +1,52 @@
+{
+ "source_file": "2026-01-29-Great Eastern General Insurance Limited-MERCEDES-BENZ-150.PDF",
+ "bill": "B18",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:25.427Z",
+ "usage": {
+  "input_tokens": 2976,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2976,
+    "output_tokens": 453,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 453,
+  "output_tokens_details": {
+   "thinking_tokens": 252
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "MIN GHEE AUTO PTE LTD",
+  "bill_no": "8412421",
+  "bill_date": "14/11/2025",
+  "parts_subtotal": 70,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "MBA205 620 34 01",
+    "unit_price": 70,
+    "confidence": "high",
+    "note": "Printed as '1 MBA205 620 34 01' in the PART NO. column. The leading '1' appears to be the line or item sequence number and is excluded. A reviewer should confirm this. LOC 1E-7C."
+   }
+  ],
+  "missed_lines": []
+ }
+}

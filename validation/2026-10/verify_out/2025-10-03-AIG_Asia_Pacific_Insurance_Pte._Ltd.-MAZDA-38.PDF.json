@@ -1,0 +1,52 @@
+{
+ "source_file": "2025-10-03-AIG Asia Pacific Insurance Pte. Ltd.-MAZDA-38.PDF",
+ "bill": "B17",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:24.267Z",
+ "usage": {
+  "input_tokens": 4504,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4504,
+    "output_tokens": 688,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 688,
+  "output_tokens_details": {
+   "thinking_tokens": 413
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202508-09301",
+  "bill_date": "22/08/2025",
+  "parts_subtotal": 1780,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "GSK1-51-041A",
+    "unit_price": 1780,
+    "confidence": "high",
+    "note": "Pink highlighter mark crosses the part number but all characters remain legible. 'MZ 6 GL' printed below is a vehicle/model note, not part of the part number. Page 2 is a separate invoice (AR202508-09728 dated 23/08/2025, GRF5-51-075A PROTECTOR LH, qty 1, 50.00, subtotal 50.00). It is not listed as a missed line because it belongs to a different bill."
+   }
+  ],
+  "missed_lines": []
+ }
+}

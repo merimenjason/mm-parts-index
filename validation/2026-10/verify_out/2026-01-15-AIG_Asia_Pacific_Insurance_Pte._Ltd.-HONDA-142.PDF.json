@@ -1,0 +1,92 @@
+{
+ "source_file": "2026-01-15-AIG Asia Pacific Insurance Pte. Ltd.-HONDA-142.PDF",
+ "bill": "B29",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:59.798Z",
+ "usage": {
+  "input_tokens": 4680,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4680,
+    "output_tokens": 1026,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1026,
+  "output_tokens_details": {
+   "thinking_tokens": 445
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "MIN GHEE AUTO PTE LTD",
+  "bill_no": "8417216",
+  "bill_date": "26/12/2025",
+  "parts_subtotal": 724,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "HD73226-SZW-000",
+    "unit_price": 12,
+    "confidence": "high",
+    "note": "Leading '1' is the row number, not part of the part number. The PDF also contains a second, separate invoice (8417214, same date and customer: HD68100-T8N-Q10ZZ 530.00, HD75722-T7W-A01 12.00, HD75725-T8N-T00 12.00). Those lines were not included in missed_lines because they belong to a different bill."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "HD73215-T7A-003",
+    "unit_price": 15,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "HD73265-T7A-003",
+    "unit_price": 15,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "HD74890-T7A-J13ZF",
+    "unit_price": 140,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "HD04715-T7A-900ZZ",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "HD66100-T7A-300ZZ",
+    "unit_price": 250,
+    "confidence": "medium",
+    "note": "The entire row is struck through by hand and annotated 'Return'. The part is likely returned or cancelled, although the printed total of 724.00 still includes it. A strike-through line runs across the part number, so some characters are partly obscured."
+   }
+  ],
+  "missed_lines": []
+ }
+}

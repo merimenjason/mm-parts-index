@@ -1,0 +1,60 @@
+{
+ "source_file": "2025-12-10-Allianz Insurance Singapore Pte. Ltd.-BMW-108.PDF",
+ "bill": "B07",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:16:55.813Z",
+ "usage": {
+  "input_tokens": 2980,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2980,
+    "output_tokens": 191,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 191,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202511-08635",
+  "bill_date": "20/11/2025",
+  "parts_subtotal": 1820,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "63117271905",
+    "unit_price": 1700,
+    "confidence": "high",
+    "note": "Handwritten tick mark overlaps the line number area, not the part number."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "61677377667",
+    "unit_price": 120,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

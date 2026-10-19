@@ -1,0 +1,124 @@
+{
+ "source_file": "2026-02-09-Allianz Insurance Singapore Pte. Ltd.-TESLA-169.PDF",
+ "bill": "B38",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:31.546Z",
+ "usage": {
+  "input_tokens": 3306,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 3306,
+    "output_tokens": 548,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 548,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Tesla Motors Singapore Private Limited",
+  "bill_no": "2040R0000004919",
+  "bill_date": "2025/11/20",
+  "parts_subtotal": 3727.55,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "1694511-00-C",
+    "unit_price": 41.38,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "1044841-00-E",
+    "unit_price": 121.49,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "1344341-00-B",
+    "unit_price": 212.65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "1344354-00-A",
+    "unit_price": 212.65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "1344231-00-C",
+    "unit_price": 60.19,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1771936-SC-C",
+    "unit_price": 24.82,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1714884-EC-D",
+    "unit_price": 436.29,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "1694313-00-L",
+    "unit_price": 182.04,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "1694314-SC-G",
+    "unit_price": 695.04,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

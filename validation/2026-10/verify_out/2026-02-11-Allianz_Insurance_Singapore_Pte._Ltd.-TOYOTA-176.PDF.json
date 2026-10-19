@@ -1,0 +1,52 @@
+{
+ "source_file": "2026-02-11-Allianz Insurance Singapore Pte. Ltd.-TOYOTA-176.PDF",
+ "bill": "B14",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:13.578Z",
+ "usage": {
+  "input_tokens": 2972,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2972,
+    "output_tokens": 371,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 371,
+  "output_tokens_details": {
+   "thinking_tokens": 159
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202509-08012",
+  "bill_date": "18/09/2025",
+  "parts_subtotal": 160,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T67751-26080",
+    "unit_price": 160,
+    "confidence": "high",
+    "note": "The STOCKID cell has a second line reading \"KDH201\", which is probably a vehicle model code (Toyota Hiace KDH201) rather than part of the part number; it is not included in part_number. The reviewer should confirm whether it belongs to the stock ID."
+   }
+  ],
+  "missed_lines": []
+ }
+}

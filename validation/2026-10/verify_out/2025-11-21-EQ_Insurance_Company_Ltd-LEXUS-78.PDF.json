@@ -1,0 +1,180 @@
+{
+ "source_file": "2025-11-21-EQ Insurance Company Ltd-LEXUS-78.PDF",
+ "bill": "B24",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:47.824Z",
+ "usage": {
+  "input_tokens": 4916,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4916,
+    "output_tokens": 855,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 855,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "DLI9284577",
+  "bill_date": "29/09/2025",
+  "parts_subtotal": 3700,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T81580-33470",
+    "unit_price": 480,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T81551-33590",
+    "unit_price": 585,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T52159-33979",
+    "unit_price": 550,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T62940-30150",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T61697-33120",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T75573-33090",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T61601-33420",
+    "unit_price": 650,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T52105-33020",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T52157-33040",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "T52562-33070",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "T81910-33040",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "T90975-02154",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "T75447-33200",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "T75442-33500",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "T52161-16010",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "T88173-33040",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "T62597-33020",
+    "unit_price": 395,
+    "confidence": "high",
+    "note": "On page 2"
+   }
+  ],
+  "missed_lines": []
+ }
+}

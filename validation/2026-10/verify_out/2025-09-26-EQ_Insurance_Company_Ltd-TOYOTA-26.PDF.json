@@ -1,0 +1,116 @@
+{
+ "source_file": "2025-09-26-EQ Insurance Company Ltd-TOYOTA-26.PDF",
+ "bill": "B39",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:41.467Z",
+ "usage": {
+  "input_tokens": 4784,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4784,
+    "output_tokens": 1002,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1002,
+  "output_tokens_details": {
+   "thinking_tokens": 299
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202509-09589",
+  "bill_date": "22/09/2025",
+  "parts_subtotal": 1350,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "90975-02086",
+    "unit_price": 40,
+    "confidence": "high",
+    "note": "Second line under the stock ID reads 'NSP170 ZGE20 KDH200', which looks like vehicle model codes rather than part of the part number."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T53112-26090",
+    "unit_price": 220,
+    "confidence": "high",
+    "note": "Leading 'T' appears printed; 'KDH201 14*' below is model info. A handwritten tick mark is beside the row number."
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "53111-26500",
+    "unit_price": 135,
+    "confidence": "medium",
+    "note": "No 'T' prefix is visible, unlike neighbouring lines. A handwritten mark overlaps the row number, so the prefix may be obscured."
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T53113-26060",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T52131-26020/I",
+    "unit_price": 180,
+    "confidence": "medium",
+    "note": "The suffix after the slash could be 'I' or '1'."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T85315-26130",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T58127-26050",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T53036-26020/10",
+    "unit_price": 50,
+    "confidence": "medium",
+    "note": "The suffix after the slash could be '10' or 'I0'."
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "88450-26120",
+    "unit_price": 550,
+    "confidence": "high",
+    "note": "Printed with apparent extra spacing ('261 20'), which is likely a font or kerning artifact."
+   }
+  ],
+  "missed_lines": []
+ }
+}

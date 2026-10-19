@@ -1,0 +1,156 @@
+{
+ "source_file": "2025-11-07-Tokio Marine Insurance Singapore Ltd-HYUNDAI-67.PDF",
+ "bill": "B27",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:04.062Z",
+ "usage": {
+  "input_tokens": 11171,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 11171,
+    "output_tokens": 1575,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1575,
+  "output_tokens_details": {
+   "thinking_tokens": 675
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202510-12366",
+  "bill_date": "30/10/2025",
+  "parts_subtotal": 2811,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "HY86510-F2000K",
+    "unit_price": 360,
+    "confidence": "high",
+    "note": "The PDF also contains four separate invoices (AR202510-12390, -12403, -12602, -12615). Their lines were not treated as part of this bill."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "HY86513-F2000",
+    "unit_price": 18,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "HY86514-F2000",
+    "unit_price": 18,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "HY86519-F2000",
+    "unit_price": 20,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "HY86520-F2000",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "HY64900-F2010OK",
+    "unit_price": 260,
+    "confidence": "medium",
+    "note": "The suffix appears to read 'F2010OK' (an extra O/0 before K). Transcribed as printed; please verify."
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "HY86553-F2000",
+    "unit_price": 20,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "HY86554-F2000",
+    "unit_price": 20,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "HY86356-F2000",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "HY66400-F2000K",
+    "unit_price": 800,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "HY81130-F2910",
+    "unit_price": 70,
+    "confidence": "medium",
+    "note": "There is a wide print gap between '811' and '30'. Read as one number."
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "HY79120-F2000",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": "On page 2."
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "HY64101-F2000K",
+    "unit_price": 420,
+    "confidence": "high",
+    "note": "On page 2."
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "HY92101-F2030",
+    "unit_price": 620,
+    "confidence": "high",
+    "note": "On page 2. The 14 lines sum to 2,811.00, which matches the printed subtotal."
+   }
+  ],
+  "missed_lines": []
+ }
+}

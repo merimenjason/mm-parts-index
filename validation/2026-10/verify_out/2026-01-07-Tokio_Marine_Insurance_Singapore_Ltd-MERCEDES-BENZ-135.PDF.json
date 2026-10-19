@@ -1,0 +1,252 @@
+{
+ "source_file": "2026-01-07-Tokio Marine Insurance Singapore Ltd-MERCEDES-BENZ-135.PDF",
+ "bill": "B37",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:35.398Z",
+ "usage": {
+  "input_tokens": 6751,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 6751,
+    "output_tokens": 1816,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1816,
+  "output_tokens_details": {
+   "thinking_tokens": 468
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "SURPASS AUTO PARTS SUPPLIES PTE LTD",
+  "bill_no": "25080083",
+  "bill_date": "01/08/2025",
+  "parts_subtotal": 13010,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "A4478808404",
+    "unit_price": 1250,
+    "confidence": "high",
+    "note": "Item No. A4478808404 differs from the number 4478800100 in the description"
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "A4478804500",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "A4478804600",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "A4478800060",
+    "unit_price": 130,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "A4478800160",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "X2078170016",
+    "unit_price": 125,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "A44788505259B51",
+    "unit_price": 950,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "A4478800612",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "A4478800712",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "A0009904129",
+    "unit_price": 5,
+    "confidence": "high",
+    "note": "Item No. A0009904129 differs from the number 0009907906 in the description"
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "A4476200630",
+    "unit_price": 580,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "A4479065400",
+    "unit_price": 2450,
+    "confidence": "high",
+    "note": "Description references 4479062501"
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "A4479065500",
+    "unit_price": 2450,
+    "confidence": "high",
+    "note": "Description references 4479062601"
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "A4478801103",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "A4478801003",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "A4478850914",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "A4478850814",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "A4478350070",
+    "unit_price": 480,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 19,
+    "found": true,
+    "part_number": "A4475000001",
+    "unit_price": 620,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 20,
+    "found": true,
+    "part_number": "A44788002169051",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 21,
+    "found": true,
+    "part_number": "A44788003169051",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 22,
+    "found": true,
+    "part_number": "A4479006002",
+    "unit_price": 980,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 23,
+    "found": true,
+    "part_number": "A4475050830",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 24,
+    "found": true,
+    "part_number": "A4475051230",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 25,
+    "found": true,
+    "part_number": "x0009912195",
+    "unit_price": 15,
+    "confidence": "high",
+    "note": "Prefix printed as lowercase 'x'"
+   },
+   {
+    "line": 26,
+    "found": true,
+    "part_number": "A2228700789",
+    "unit_price": 820,
+    "confidence": "high",
+    "note": "Item No. A2228700789 differs from 2228700689 in the description"
+   }
+  ],
+  "missed_lines": []
+ }
+}

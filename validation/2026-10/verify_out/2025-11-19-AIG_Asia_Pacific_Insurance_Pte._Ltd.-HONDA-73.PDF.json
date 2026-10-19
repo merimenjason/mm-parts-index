@@ -1,0 +1,98 @@
+{
+ "source_file": "2025-11-19-AIG Asia Pacific Insurance Pte. Ltd.-HONDA-73.PDF",
+ "bill": "B11",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:16.300Z",
+ "usage": {
+  "input_tokens": 4692,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4692,
+    "output_tokens": 891,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 891,
+  "output_tokens_details": {
+   "thinking_tokens": 412
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "MIN GHEE AUTO PTE LTD",
+  "bill_no": "8410969",
+  "bill_date": "03/11/2025",
+  "parts_subtotal": 733,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "HD04711-T6A-900ZZ",
+    "unit_price": 380,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "HD71140-T6A-003",
+    "unit_price": 28,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "HD91505-TM8-003A",
+    "unit_price": 1,
+    "confidence": "high",
+    "note": "Quantity printed as 10 PCS"
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "HD71151-T6A-901",
+    "unit_price": 140,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "HD71153-T6A-901",
+    "unit_price": 130,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "HD71154-T6A-901",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": [
+   {
+    "part_name": "MOLDING MIDDLE G/UPPER (on page 2, separate invoice 8411268 dated 04/11/2025, not part of invoice 8410969)",
+    "part_number": "HD71152-T6A-901",
+    "line_total": 130
+   }
+  ]
+ }
+}

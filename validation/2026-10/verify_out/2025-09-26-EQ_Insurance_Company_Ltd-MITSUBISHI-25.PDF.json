@@ -1,0 +1,380 @@
+{
+ "source_file": "2025-09-26-EQ Insurance Company Ltd-MITSUBISHI-25.PDF",
+ "bill": "B15",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:32.362Z",
+ "usage": {
+  "input_tokens": 5748,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 5748,
+    "output_tokens": 2560,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 2560,
+  "output_tokens_details": {
+   "thinking_tokens": 498
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "YEW HENG AUTO PARTS PTE LTD",
+  "bill_no": "YLI1315864",
+  "bill_date": "13/06/2025",
+  "parts_subtotal": 5912,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "J5900A623",
+    "unit_price": 350,
+    "confidence": "medium",
+    "note": "The 'A' is printed slightly distorted (looks like 'Λ'); read as J5900A623."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "J5915A302",
+    "unit_price": 120,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "JMU001282",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "J5905A157",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "J5905A158",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "J5908A186",
+    "unit_price": 55,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "J7405A471",
+    "unit_price": 150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "J7405A555",
+    "unit_price": 25,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "J6402A377",
+    "unit_price": 300,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "J7415A603",
+    "unit_price": 30,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "J6400H293",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "J6400F221",
+    "unit_price": 15,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "JMR288150",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "J6402A268",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "J5256B985",
+    "unit_price": 150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "J1360A090",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "J8301C543",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "J5256B865",
+    "unit_price": 420,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 19,
+    "found": true,
+    "part_number": "J7812A339",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 20,
+    "found": true,
+    "part_number": "J1350A670",
+    "unit_price": 300,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 21,
+    "found": true,
+    "part_number": "J1355A278",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 22,
+    "found": true,
+    "part_number": "J1355A279",
+    "unit_price": 175,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 23,
+    "found": true,
+    "part_number": "J1355A280",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 24,
+    "found": true,
+    "part_number": "J1375A209",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 25,
+    "found": true,
+    "part_number": "J5379A473",
+    "unit_price": 15,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 26,
+    "found": true,
+    "part_number": "J8201A191",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 27,
+    "found": true,
+    "part_number": "J8565A479",
+    "unit_price": 105,
+    "confidence": "high",
+    "note": "Description also shows a second number, J8565A459, under the description. The Part No column reads J8565A479."
+   },
+   {
+    "line": 28,
+    "found": true,
+    "part_number": "J8565A349",
+    "unit_price": 225,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 29,
+    "found": true,
+    "part_number": "J5220L593",
+    "unit_price": 380,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 30,
+    "found": true,
+    "part_number": "J5220H941",
+    "unit_price": 235,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 31,
+    "found": true,
+    "part_number": "J5370B889",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 32,
+    "found": true,
+    "part_number": "JMU488006",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 33,
+    "found": true,
+    "part_number": "J7405A565",
+    "unit_price": 25,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 34,
+    "found": true,
+    "part_number": "ECO EMBLEM",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": "The Part No column contains the text 'ECO EMBLEM' rather than a coded part number."
+   },
+   {
+    "line": 35,
+    "found": true,
+    "part_number": "J7405A646",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 36,
+    "found": true,
+    "part_number": "J4060A589",
+    "unit_price": 205,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 37,
+    "found": true,
+    "part_number": "J3870A115",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 38,
+    "found": true,
+    "part_number": "J3885A039",
+    "unit_price": 105,
+    "confidence": "high",
+    "note": "Description references J3885A023 in brackets. The Part No column reads J3885A039."
+   },
+   {
+    "line": 39,
+    "found": true,
+    "part_number": "J4013A309",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 40,
+    "found": true,
+    "part_number": "J8321A545",
+    "unit_price": 235,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 41,
+    "found": true,
+    "part_number": "J6402A273",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 42,
+    "found": true,
+    "part_number": "J1370A424",
+    "unit_price": 25,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

@@ -36,7 +36,7 @@ image tokens ≈ width × height ÷ 750, capped around ~1,600 tokens at the
 | Model | Standard $/MTok (in / out) | **Batch** $/MTok (in / out, 50% off) |
 |---|---|---|
 | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) | 1.00 / 5.00 | 0.50 / 2.50 |
-| Claude Sonnet 5 (`claude-sonnet-5`) — **intro pricing to 31 Aug 2026** | 2.00 / 10.00 (then 3.00 / 15.00) | 1.00 / 5.00 (then 1.50 / 7.50) |
+| Claude Sonnet 5 (`claude-sonnet-5`) — intro pricing (2.00 / 10.00) ended 31 Aug 2026 | 3.00 / 15.00 | 1.50 / 7.50 |
 | Claude Sonnet 4.6 (`claude-sonnet-4-6`) — **tuned baseline** | 3.00 / 15.00 | 1.50 / 7.50 |
 | Claude Opus 5 (`claude-opus-5`) — **retry tier** | 5.00 / 25.00 | 2.50 / 12.50 |
 | Claude Opus 4.8 (`claude-opus-4-8`) — prior gen, same price as Opus 5 | 5.00 / 25.00 | 2.50 / 12.50 |
@@ -56,7 +56,7 @@ Using the 1.0M-in / 0.14M-out planning figures:
 | Scenario | Input cost | Output cost | **Total** |
 |---|---|---|---|
 | **A. Sonnet 4.6, batch mode (tuned baseline)** | 1.0M × $1.50 = $1.50 | 0.14M × $7.50 = $1.05 | **≈ $2.55** |
-| **A′. Sonnet 5, batch mode, intro pricing (to 31 Aug 2026)** | 1.0M × $1.00 = $1.00 | 0.14M × $5.00 = $0.70 | **≈ $1.70** |
+| A′. Sonnet 5, batch mode (intro pricing ended 31 Aug 2026; now the same price as Sonnet 4.6) | 1.0M × $1.50 = $1.50 | 0.14M × $7.50 = $1.05 | ≈ $2.55 |
 | B. Sonnet 4.6, live mode (no batch discount) | $3.00 | $2.10 | ≈ $5.10 |
 | C. Opus 5, batch mode (everything on Opus) | $2.50 | $1.75 | ≈ $4.25 |
 | D. Haiku 4.5, batch mode (clean prints only) | $0.50 | $0.35 | ≈ $0.85 |
@@ -207,9 +207,9 @@ after Opus 5 goes to manual entry via the app's **Add lines manually** path.
 
 | Item | Value |
 |---|---|
-| Recommended model | Sonnet 4.6, `--mode batch` (or Sonnet 5 on trial evidence — cheaper to 31 Aug 2026) |
+| Recommended model | Sonnet 4.6, `--mode batch` (or Sonnet 5 on trial evidence — same price since its intro pricing ended 31 Aug 2026) |
 | Retry model | Opus 5, live, `--retry-failed` |
-| Expected cost | **≈ $3.40** baseline / **≈ $2.55** on Sonnet 5 intro (budget $5, ceiling $10) |
+| Expected cost | **≈ $3.40** baseline, the same on Sonnet 5 (budget $5, ceiling $10). The 3 August 2026 run of the local `ocr_out` corpus (200 files) used Opus 5 throughout in live mode (no batch discount) and cost **$6.83** |
 | Expected wall-clock | batch < 1 h typical (≤ 24 h worst case) + QC time |
 | Expected review rate | ~5–10% of invoices (reconciliation mismatches) |
 | Mandatory QC | 5% line-by-line eyeball sample, no exceptions |

@@ -1,0 +1,508 @@
+{
+ "source_file": "2026-01-20-Singapore Life Ltd-HONDA-144.PDF",
+ "bill": "B44",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:19:26.811Z",
+ "usage": {
+  "input_tokens": 7676,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 7676,
+    "output_tokens": 5255,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 5255,
+  "output_tokens_details": {
+   "thinking_tokens": 2015
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "HLI9083472",
+  "bill_date": "20/12/2025",
+  "parts_subtotal": 14751,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "H60120-T7A-000ZZ",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "H60170-T7A-000ZZ",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "H74120-T7A-003",
+    "unit_price": 85,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "H74141-T7Y-T00",
+    "unit_price": 125,
+    "confidence": "medium",
+    "note": "Page 1 is scanned at a slant and rows are offset; 'T7Y' segment slightly uncertain"
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "H74146-T7A-900",
+    "unit_price": 30,
+    "confidence": "medium",
+    "note": "Page 1 rows are skewed; the 125.00 amount printed beside this row belongs to the row above. Matched by row order."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "H71121-T7A-J01",
+    "unit_price": 255,
+    "confidence": "high",
+    "note": "Row alignment on page 1 is skewed; matched by row order"
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "H71122-T7A-J11",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "H75700-T5A-000",
+    "unit_price": 30,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "H71101-T8N-T10ZZ",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "H71102-T7A-J20",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "H71130-T7A-J00ZZ",
+    "unit_price": 255,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "H71104-T7A-J00ZE",
+    "unit_price": 25,
+    "confidence": "medium",
+    "note": "Part number print is faded/blurred; last character 'E' uncertain"
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "H71105-T7A-J10",
+    "unit_price": 38,
+    "confidence": "medium",
+    "note": "Part number print is faded"
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "H33100-T7A-J51",
+    "unit_price": 1150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "H33150-T7A-J51",
+    "unit_price": 1150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "H60400-T7A-911ZZ",
+    "unit_price": 450,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "H71129-T7B-Z00",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "H74111-T7A-000",
+    "unit_price": 125,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 19,
+    "found": true,
+    "part_number": "H71110-T7A-J00",
+    "unit_price": 105,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 20,
+    "found": true,
+    "part_number": "H71103-T7A-J00",
+    "unit_price": 145,
+    "confidence": "high",
+    "note": "Under D/O HDO9007216"
+   },
+   {
+    "line": 21,
+    "found": true,
+    "part_number": "H77810-T9A-T80ZA",
+    "unit_price": 980,
+    "confidence": "medium",
+    "note": "Description says T82ZA but part number appears to read T80ZA; middle segment 'T9A' also slightly uncertain"
+   },
+   {
+    "line": 22,
+    "found": true,
+    "part_number": "H77820-T7A-J80",
+    "unit_price": 1250,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 23,
+    "found": true,
+    "part_number": "H81450-T8N-T01ZA",
+    "unit_price": 480,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 24,
+    "found": true,
+    "part_number": "H81850-T8N-T01ZA",
+    "unit_price": 480,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 25,
+    "found": true,
+    "part_number": "H77960-T7A-J81",
+    "unit_price": 650,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 26,
+    "found": true,
+    "part_number": "H77100-T7A-N00ZA",
+    "unit_price": 680,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 27,
+    "found": true,
+    "part_number": "H60100-T8N-T00ZZ",
+    "unit_price": 490,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 28,
+    "found": true,
+    "part_number": "H80110-T7A-J01",
+    "unit_price": 490,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 29,
+    "found": true,
+    "part_number": "H60210-T8N-T00ZZ",
+    "unit_price": 220,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 30,
+    "found": true,
+    "part_number": "H60260-T8N-T00ZZ",
+    "unit_price": 220,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 31,
+    "found": true,
+    "part_number": "H74107-T7B-003",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 32,
+    "found": true,
+    "part_number": "H71150-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 33,
+    "found": true,
+    "part_number": "H71125-T7A-J01",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 34,
+    "found": true,
+    "part_number": "H71151-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 35,
+    "found": true,
+    "part_number": "H71152-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 36,
+    "found": true,
+    "part_number": "H71140-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 37,
+    "found": true,
+    "part_number": "H71190-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 38,
+    "found": true,
+    "part_number": "H19010-51E-J01",
+    "unit_price": 950,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 39,
+    "found": true,
+    "part_number": "H19015-50T-901",
+    "unit_price": 115,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 40,
+    "found": true,
+    "part_number": "H19020-55A-Z01",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 41,
+    "found": true,
+    "part_number": "H38615-R1A-A02",
+    "unit_price": 105,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 42,
+    "found": true,
+    "part_number": "H38616-R1A-A01",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 43,
+    "found": true,
+    "part_number": "H38611-R1A-A02",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 44,
+    "found": true,
+    "part_number": "H19101-R1A-A00",
+    "unit_price": 55,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 45,
+    "found": true,
+    "part_number": "H71111-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 46,
+    "found": true,
+    "part_number": "H71116-T7A-J00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 47,
+    "found": true,
+    "part_number": "H76841-T5A-003",
+    "unit_price": 95,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 48,
+    "found": true,
+    "part_number": "H31521-T5A-900",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 49,
+    "found": true,
+    "part_number": "H38150-T7A-J01",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 50,
+    "found": true,
+    "part_number": "H17230-50T-003",
+    "unit_price": 80,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 51,
+    "found": true,
+    "part_number": "H74157-T7B-003",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 52,
+    "found": true,
+    "part_number": "H19030-R1A-A02",
+    "unit_price": 260,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 53,
+    "found": true,
+    "part_number": "H91501-STK-003",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 54,
+    "found": true,
+    "part_number": "H91503-SZ3-003",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 55,
+    "found": true,
+    "part_number": "H91503-SZ3-003",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Same part number printed as CLIP BUMPER and CLIP TOP GARNISH"
+   },
+   {
+    "line": 56,
+    "found": true,
+    "part_number": "H77930-T5A-J01",
+    "unit_price": 150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 57,
+    "found": true,
+    "part_number": "H77900-T5A-J21",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 58,
+    "found": true,
+    "part_number": "H91503-SZ3-003",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Sum of all line amounts as read is 14,731.00, which is 20.00 less than the printed total of 14,751.00. One amount may be misread or misprinted; no specific line could be identified."
+   }
+  ],
+  "missed_lines": []
+ }
+}

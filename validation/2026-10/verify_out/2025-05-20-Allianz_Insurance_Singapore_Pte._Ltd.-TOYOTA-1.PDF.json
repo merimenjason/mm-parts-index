@@ -1,0 +1,196 @@
+{
+ "source_file": "2025-05-20-Allianz Insurance Singapore Pte. Ltd.-TOYOTA-1.PDF",
+ "bill": "B41",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:44.565Z",
+ "usage": {
+  "input_tokens": 4905,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4905,
+    "output_tokens": 998,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 998,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "DLI9281439",
+  "bill_date": "26/04/2025",
+  "parts_subtotal": 4212,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T53111-26410",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T52119-26800",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T52128-26180",
+    "unit_price": 30,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T53112-26050",
+    "unit_price": 120,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T52131-26030",
+    "unit_price": 195,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T53113-26030",
+    "unit_price": 40,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T81170-26580",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T81130-26581",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T53201-26100",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "T53209-26110",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "T57053-26020",
+    "unit_price": 110,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "T16711-30081",
+    "unit_price": 185,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "T17700-30282",
+    "unit_price": 320,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "T88450-26120-K",
+    "unit_price": 600,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "T16400-30172-R",
+    "unit_price": 680,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "T16470-75124",
+    "unit_price": 210,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "T90467-09185",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Same part number also used for BUMPER CLIP line on D/O DDO9032222"
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "T53152-26020",
+    "unit_price": 280,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 19,
+    "found": true,
+    "part_number": "T90467-09185",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Same part number as GRILLE CLIP line on D/O DDO9032216"
+   }
+  ],
+  "missed_lines": []
+ }
+}

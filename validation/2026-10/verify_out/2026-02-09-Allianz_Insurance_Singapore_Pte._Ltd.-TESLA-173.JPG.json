@@ -1,0 +1,164 @@
+{
+ "source_file": "2026-02-09-Allianz Insurance Singapore Pte. Ltd.-TESLA-173.JPG",
+ "bill": "B32",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:13.266Z",
+ "usage": {
+  "input_tokens": 2933,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2933,
+    "output_tokens": 1467,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1467,
+  "output_tokens_details": {
+   "thinking_tokens": 424
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Tesla",
+  "bill_no": "",
+  "bill_date": "",
+  "parts_subtotal": null,
+  "lines": [
+   {
+    "line": 1,
+    "found": false,
+    "part_number": "",
+    "unit_price": null,
+    "confidence": "low",
+    "note": "Not visible in this screenshot. The order list is scrolled and earlier rows are cut off above, so this row may be on another screenshot."
+   },
+   {
+    "line": 2,
+    "found": false,
+    "part_number": "",
+    "unit_price": null,
+    "confidence": "low",
+    "note": "Not visible in this screenshot. The order list is scrolled and earlier rows are cut off above."
+   },
+   {
+    "line": 3,
+    "found": false,
+    "part_number": "",
+    "unit_price": null,
+    "confidence": "low",
+    "note": "Not visible in this screenshot. The order list is scrolled and earlier rows are cut off above."
+   },
+   {
+    "line": 4,
+    "found": false,
+    "part_number": "",
+    "unit_price": null,
+    "confidence": "low",
+    "note": "Not visible in this screenshot. The order list is scrolled and earlier rows are cut off above."
+   },
+   {
+    "line": 5,
+    "found": false,
+    "part_number": "",
+    "unit_price": null,
+    "confidence": "low",
+    "note": "Only the fragment 'LEFT HAND' is visible at the top edge, possibly the end of this description. The part number and price are cut off and cannot be verified."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1694553-00-E",
+    "unit_price": 106.73,
+    "confidence": "high",
+    "note": "Status Processing, 0/1 received."
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1714884-EC-D",
+    "unit_price": 436.29,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": false,
+    "part_number": "1694553-00-E",
+    "unit_price": 106.73,
+    "confidence": "high",
+    "note": "Duplicate of line 6. Only one such row appears on the document, likely double-counted from overlapping screenshots."
+   },
+   {
+    "line": 10,
+    "found": false,
+    "part_number": "1714884-EC-D",
+    "unit_price": 436.29,
+    "confidence": "high",
+    "note": "Duplicate of line 7. Only one such row appears on the document, likely double-counted from overlapping screenshots."
+   },
+   {
+    "line": 11,
+    "found": false,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": "Duplicate of line 8. Only one such row appears on the document, likely double-counted from overlapping screenshots."
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "1694313-00-L",
+    "unit_price": 182.04,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "1734299-00-H",
+    "unit_price": 11.28,
+    "confidence": "high",
+    "note": "Status Processing, 0/1 received."
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "1774268-00-G",
+    "unit_price": 7.1,
+    "confidence": "high",
+    "note": "Status Processing, 0/1 received."
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "1694314-SC-G",
+    "unit_price": 695.04,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "source_file": "2026-02-25-ECICS Limited-HYUNDAI-193.PDF",
+ "bill": "B09",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:03.790Z",
+ "usage": {
+  "input_tokens": 2987,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2987,
+    "output_tokens": 256,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 256,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202512-04887",
+  "bill_date": "10/12/2025",
+  "parts_subtotal": 223,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "HY87758-G2000",
+    "unit_price": 3,
+    "confidence": "high",
+    "note": "Stock ID continues on next line as 'IONIQ 16-' (model reference, not part of the part number). Qty 16 is circled by hand in pen."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "HY52960-G2000",
+    "unit_price": 175,
+    "confidence": "high",
+    "note": "Stock ID continues on next line as 'IONIQ' (model reference, not part of the part number)."
+   }
+  ],
+  "missed_lines": []
+ }
+}

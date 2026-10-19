@@ -1,0 +1,100 @@
+{
+ "source_file": "2025-11-22-AIG Asia Pacific Insurance Pte. Ltd.-LEXUS-80.PDF",
+ "bill": "B06",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:00.287Z",
+ "usage": {
+  "input_tokens": 4702,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4702,
+    "output_tokens": 945,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 945,
+  "output_tokens_details": {
+   "thinking_tokens": 377
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "DLI9285054",
+  "bill_date": "25/10/2025",
+  "parts_subtotal": 2675,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T81145-78170",
+    "unit_price": 1600,
+    "confidence": "high",
+    "note": "The PDF's page 2 is a separate Lion's Auto Trading invoice (A 12687, 3/11/2025, CLIP qty 10 @ 3.50 = 35.00). It was not treated as part of this bill."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "52119-78943",
+    "unit_price": 400,
+    "confidence": "medium",
+    "note": "A leading character, likely 'T', may be hidden by the hole-punch/scan mark at the left. As printed, no prefix is legible."
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T52535-78010",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T53811-78010",
+    "unit_price": 380,
+    "confidence": "medium",
+    "note": "The '11' digits are slightly blurred by scan noise."
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T75601-78010",
+    "unit_price": 100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T52447-78010",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T53803-78010",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": "The description is printed as 'BRACE,FR,FENDER TO APRON RH'."
+   }
+  ],
+  "missed_lines": []
+ }
+}

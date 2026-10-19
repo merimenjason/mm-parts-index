@@ -1,0 +1,52 @@
+{
+ "source_file": "2025-09-27-AIG Asia Pacific Insurance Pte. Ltd.-SUZUKI-32.PDF",
+ "bill": "B13",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:13.758Z",
+ "usage": {
+  "input_tokens": 2963,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2963,
+    "output_tokens": 528,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 528,
+  "output_tokens_details": {
+   "thinking_tokens": 308
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Lion's Auto Trading Pte Ltd",
+  "bill_no": "A 12656",
+  "bill_date": "4/9/2025",
+  "parts_subtotal": 70,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "",
+    "unit_price": 70,
+    "confidence": "medium",
+    "note": "No part number is printed. Unit price is printed as $70.00, which is the same as the line amount ($70.00) even though quantity is 20. Qty × unit price does not reconcile; if the $70.00 amount is correct, the effective unit price would be $3.50. Reviewer should confirm with the supplier."
+   }
+  ],
+  "missed_lines": []
+ }
+}

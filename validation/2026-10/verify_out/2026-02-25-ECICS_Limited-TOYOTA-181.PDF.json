@@ -1,0 +1,172 @@
+{
+ "source_file": "2026-02-25-ECICS Limited-TOYOTA-181.PDF",
+ "bill": "B36",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:25.662Z",
+ "usage": {
+  "input_tokens": 4910,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4910,
+    "output_tokens": 1360,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1360,
+  "output_tokens_details": {
+   "thinking_tokens": 448
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202601-05752",
+  "bill_date": "14/01/2026",
+  "parts_subtotal": 3913,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T53410-48140",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": "Model codes 'ZSU60 AVU65' printed below the stock ID are not part of the part number."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T53510-48230",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T75770-48030",
+    "unit_price": 110,
+    "confidence": "medium",
+    "note": "Handwritten tick mark overlaps the leading 'T'."
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T53101-48B30/720",
+    "unit_price": 230,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "52119-4A914",
+    "unit_price": 240,
+    "confidence": "high",
+    "note": "No 'T' prefix on this stock ID."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T52535-48040",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T53112-48150",
+    "unit_price": 120,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "52411-48020",
+    "unit_price": 140,
+    "confidence": "high",
+    "note": "No 'T' prefix on this stock ID."
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T81070-48890",
+    "unit_price": 1100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "T81140-48440",
+    "unit_price": 1100,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "T52021-48040",
+    "unit_price": 180,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "53208-48090",
+    "unit_price": 100,
+    "confidence": "high",
+    "note": "No 'T' prefix on this stock ID."
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "T16712-36030",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "T53811-48210",
+    "unit_price": 330,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "T52614-48041",
+    "unit_price": 55,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "T52611-48170",
+    "unit_price": 28,
+    "confidence": "high",
+    "note": "Printed on page 2."
+   }
+  ],
+  "missed_lines": []
+ }
+}

@@ -222,6 +222,42 @@ read into the bumper's row.
 
 Both are prompt/QA work, not matcher work.
 
+### Update, October 2026 — second reading of a sample
+
+A sample of **45 bills** (474 lines) was read a second time by Claude Opus 5.5
+(effort medium, US$1.74) and compared line by line with the reference: 30 bills
+chosen at random and 15 targeted at known suspect lines. Five of them (34
+lines) are set aside for a person to check blind. Files and scripts:
+[`validation/2026-10/`](validation/2026-10/README.md).
+
+| | |
+| --- | --- |
+| Lines where both readings agree (random bills) | **209 / 216 (96.8%)** |
+| Lines where both readings agree (all bills) | 453 / 474 |
+| Price differences | **0** |
+| Part-number differences | 13 (7 on random bills) |
+| Bill-number differences | 2 (`LL10325981` vs `LI10325981`; `EPC-5199563-1` vs `5199563`) |
+| Lines the second reading could not find on the bill | 8, all on B32, a cropped screenshot |
+| Lines the second reading thinks were missed | 1 (B11; it says the line is a separate invoice on page 2) |
+
+Every part-number difference that could be checked was then looked up in the
+maker's parts catalogue (Amayama for Kia, Mercedes-Benz, Honda and Toyota; web
+search for Tesla and Mazda). A real number exists and matches the item; a
+misread usually does not. Of 15 checkable rows: **second reading right 9**,
+first reading right 1, both wrong 1, can't tell 4. New misread types:
+
+```
+1771986-SC-C           both readings; real part is 1771936-SC-C  ← 9 / 3 again
+1 A205 620 34 01       quantity column read into the part number
+A253 880 02 28         RH hinge number on a line that says "HINGE BONNET LH"
+1044341-00-E           lateral-link number on a "TIE ROD OUTER" line (should be 1044841)
+```
+
+**Provisional reading:** about **3 wrong part numbers per 100 lines and no
+price errors.** Not final — a person still has to confirm the 25 flagged rows
+and do the 34-line blind check. A wrong part number does not change a price,
+but it can stop a line joining its benchmark (or join the wrong one).
+
 ---
 
 ## 8. Bugs found and fixed during this exercise
@@ -269,6 +305,62 @@ absurd.
 **Recommendation:** treat public-price checking as a spot sanity test only.
 Comparing against the separately-extracted internal dataset offered on the call
 is a far stronger validation and should replace this.
+
+### Update, October 2026 — part-number lookups
+
+The weakness above was searching by part *name*. Looking up each **part
+number** in a genuine-parts catalogue works much better: it says exactly what
+the part is and which vehicles it fits. 106 lines from 16 benchmarks were
+checked (the widest price ranges, the headlamp example from the call, and 5
+tight-range controls) — **86 distinct part numbers**. Toyota and Mercedes-Benz
+went through Amayama (**74 of 75 found**); Tesla and Audi through web search.
+
+| Suggested reason for the line's price | Lines |
+| --- | --- |
+| Same part, price just varies | 47 |
+| Same part name, **different car** | **42** |
+| Smaller piece of the part (bracket, clip, cover) | 10 |
+| Different position (front/rear, upper/lower) | 6 |
+| Reading mistake | 1 |
+
+- **The ranges are mostly real, but mostly not one part.** The S$85–3,600
+  headlamp range from the call is **10 different vehicles**; the S$3,600 lamp is
+  a Lexus RX. This backs the §10 finding: the fix is matching (part number
+  first, or same model), not the statistics.
+- Bill prices sit at a median **1.19×** the online genuine-part price (Amayama
+  ships from Japan and excludes shipping and GST), so the levels are plausible.
+- Errors found: `MBA003 990 94 97` (the "COVER BUMPER" line in §7) is confirmed
+  a blind rivet; Tesla `1771986` is a misread of `1771936`; **Lexus parts are
+  recorded with make Toyota**, so they can join Toyota benchmarks.
+
+Still provisional: a reviewer has to confirm the suggested reason on each of
+the 106 lines. Workbook, lookups and scripts:
+[`validation/2026-10/`](validation/2026-10/README.md).
+
+### Which average to use
+
+Asked during the review: should the benchmark be the mean, median, trimmed
+mean or something else? Each was tested by leaving one quote out and measuring
+how far it lands from the benchmark built from the rest of its group (77
+groups with 3+ quotes, 367 quotes; percentage gaps, so cheap and dear parts
+count equally):
+
+| Method | Typical gap | Within ±25% |
+| --- | --- | --- |
+| **Median** | **22%** | **55%** |
+| Hodges–Lehmann | 25% | 52% |
+| Trimmed mean (20%) | 26% | 49% |
+| Geometric mean | 27% | 48% |
+| Mean | 29% | 49% |
+
+**Keep the median.** With 4–9 quotes per group a 20% trim drops 0–1 quotes per
+end, so it barely differs from the mean. Splitting the same test by matching
+shows what really matters: where every quote shares one part number the gap is
+**0%** for every method; where quotes were grouped by name only it is 25–33%.
+Better matching, a recency window (bills go back to 2016) and showing the
+Q1–Q3 band beside the median will help more than another statistic.
+Reproduce with `node validation/2026-10/bench_compare.mjs`; the write-up for
+stakeholders is `validation/2026-10/Benchmark_statistic_recommendation_2026-10-16.docx`.
 
 ---
 
@@ -360,8 +452,11 @@ this document describes the spread of clusters whose correctness is assumed.
 | `*_SUPPORT` component rule | Recommended, not implemented |
 | Pair-vs-single detection | **Open — no signal in the data** |
 | Model capture | Low priority for benchmarks; useful for filtering |
-| OCR part-number misreads | Open — prompt/QA track |
+| OCR part-number misreads | Open — prompt/QA track; ≈3 per 100 lines, 0 price errors (§7 update, provisional) |
 | OCR field bleed between rows | Open — prompt/QA track |
+| OCR sample review by a person (25 flagged rows + 34-line blind check) | **Pending** (§7 update) |
+| Price-range review by a person (106 lines, suggested reasons filled in) | **Pending** (§9 update) |
+| Lexus parts recorded with make Toyota | Open — found in part-number lookups (§9 update) |
 | Validation vs internal extracted dataset | Not started |
 | **Matcher precision/recall** | **Open — live gold set regenerated 23 Sep (203 pairs); Claude first pass done, adjuster labels 0/203 (§10)** |
 | Threshold 0.65 calibration | Open — blocked on the above; provisionally, no threshold reaches 95% precision |

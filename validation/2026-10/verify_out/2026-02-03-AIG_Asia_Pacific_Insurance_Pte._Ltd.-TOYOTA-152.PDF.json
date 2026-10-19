@@ -1,0 +1,212 @@
+{
+ "source_file": "2026-02-03-AIG Asia Pacific Insurance Pte. Ltd.-TOYOTA-152.PDF",
+ "bill": "B34",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:34.156Z",
+ "usage": {
+  "input_tokens": 17709,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 17709,
+    "output_tokens": 2266,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 2266,
+  "output_tokens_details": {
+   "thinking_tokens": 922
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "JAE AUTO PTE LTD",
+  "bill_no": "AR202601-08997",
+  "bill_date": "21/01/2026",
+  "parts_subtotal": 1940,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T53410-26041",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": "Second line 'KDH200' is the vehicle model, not part of the stock ID."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T53420-26041",
+    "unit_price": 35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T53510-26060",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "90975-02086",
+    "unit_price": 40,
+    "confidence": "high",
+    "note": "Second line 'NSP170 ZGE20 KDH200' is the vehicle model, not part of the stock ID."
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T53112-26070",
+    "unit_price": 110,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T52115-26210/170",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T52116-26210/170",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T52131-26020/1",
+    "unit_price": 170,
+    "confidence": "medium",
+    "note": "Whole row has a handwritten strike-through line across it, obscuring characters, but it is still included in the printed sub-total of 1,940.00. Reviewer should confirm whether this item was actually supplied."
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T58127-26050",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "T53036-26020/10",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "T57109-26021",
+    "unit_price": 190,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "T53802-26021",
+    "unit_price": 90,
+    "confidence": "high",
+    "note": "Description 'FRT FENDER LH' has a handwritten strike-through, but the amount is still included in the printed sub-total."
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "T53201-26082",
+    "unit_price": 190,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "T53209-26130/00",
+    "unit_price": 45,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "T16711-30082",
+    "unit_price": 150,
+    "confidence": "medium",
+    "note": "A handwritten tick mark overlaps the first character. It reads like 'I6711' and is taken as 'T' to be consistent with the other T-prefixed stock IDs. Verify."
+   },
+   {
+    "line": 16,
+    "found": true,
+    "part_number": "T16712-75122",
+    "unit_price": 150,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 17,
+    "found": true,
+    "part_number": "T17311-30050",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 18,
+    "found": true,
+    "part_number": "T17312-30021",
+    "unit_price": 75,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 19,
+    "found": true,
+    "part_number": "85315-26100",
+    "unit_price": 40,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 20,
+    "found": true,
+    "part_number": "T16470-75124",
+    "unit_price": 160,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 21,
+    "found": true,
+    "part_number": "T82666-26322",
+    "unit_price": 50,
+    "confidence": "high",
+    "note": "The PDF also contains separate invoices (AR202601-09079, -09075, -09319, -09396, -09394, -09403, -10532, -10970) with their own lines. These are not part of this bill, so they are not listed as missed lines."
+   }
+  ],
+  "missed_lines": []
+ }
+}

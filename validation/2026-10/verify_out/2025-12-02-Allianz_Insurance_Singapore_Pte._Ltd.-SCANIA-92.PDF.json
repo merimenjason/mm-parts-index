@@ -1,0 +1,148 @@
+{
+ "source_file": "2025-12-02-Allianz Insurance Singapore Pte. Ltd.-SCANIA-92.PDF",
+ "bill": "B04",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:16:51.863Z",
+ "usage": {
+  "input_tokens": 6576,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 6576,
+    "output_tokens": 1403,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1403,
+  "output_tokens_details": {
+   "thinking_tokens": 591
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Scania Singapore Pte Ltd",
+  "bill_no": "151248",
+  "bill_date": "30/7/2025",
+  "parts_subtotal": null,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "1769999",
+    "unit_price": 3853,
+    "confidence": "high",
+    "note": "Header check: the rendered page shows 'Tax Invoice 151248' dated 30/7/2025, but the text layer reads 'Quotation 151248' dated 11/11/2025, and page 2 asks to 'APPROVE THE QUOTATION'. Please verify the document type and date. No parts-only subtotal is printed. The printed Net/Intermediate Job Sum of 23,561.68 includes 1,500.00 repair labour; the parts lines sum to 22,061.68."
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "2121771",
+    "unit_price": 2825,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "1871265",
+    "unit_price": 4670,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "2004491",
+    "unit_price": 1358,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "2064249",
+    "unit_price": 224,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1363634",
+    "unit_price": 128.5,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "2188551",
+    "unit_price": 3395,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "0812516",
+    "unit_price": 3,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "2379981",
+    "unit_price": 1240,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "0812519",
+    "unit_price": 1.32,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "2051971",
+    "unit_price": 115,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "0394714",
+    "unit_price": 4.6,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "2030534",
+    "unit_price": 3808,
+    "confidence": "high",
+    "note": "Description printed as 'CROSSMEMBE' (truncated)."
+   }
+  ],
+  "missed_lines": []
+ }
+}

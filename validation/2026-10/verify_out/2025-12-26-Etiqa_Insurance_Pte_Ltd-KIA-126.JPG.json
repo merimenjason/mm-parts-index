@@ -1,0 +1,92 @@
+{
+ "source_file": "2025-12-26-Etiqa Insurance Pte Ltd-KIA-126.JPG",
+ "bill": "B20",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:17:31.058Z",
+ "usage": {
+  "input_tokens": 2774,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 2774,
+    "output_tokens": 403,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 403,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "YEW HENG AUTO PARTS PTE LTD",
+  "bill_no": "YLI1322004",
+  "bill_date": "12/12/2025",
+  "parts_subtotal": 171.3,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "A28212-H8000",
+    "unit_price": 42,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "A98610-H8000",
+    "unit_price": 70,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "A64587-H8400",
+    "unit_price": 18,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "A92173-0U000",
+    "unit_price": 2.3,
+    "confidence": "medium",
+    "note": "The character after the dash looks like zero (0) but could be the letter O; '0U000' is a typical code pattern."
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "A52960-H8200",
+    "unit_price": 21,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "A64577-H8400",
+    "unit_price": 18,
+    "confidence": "high",
+    "note": "Handwritten tick mark next to this row."
+   }
+  ],
+  "missed_lines": []
+ }
+}

@@ -1,0 +1,164 @@
+{
+ "source_file": "2026-02-09-Allianz Insurance Singapore Pte. Ltd.-TESLA-155.PDF",
+ "bill": "B31",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:14.222Z",
+ "usage": {
+  "input_tokens": 3464,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 3464,
+    "output_tokens": 1640,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 1640,
+  "output_tokens_details": {
+   "thinking_tokens": 587
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "Tesla Motors Singapore Private Limited",
+  "bill_no": "2040R0000004181",
+  "bill_date": "2025/07/31",
+  "parts_subtotal": 4478.38,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "1044841-00-E",
+    "unit_price": 121.49,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "1344341-00-B",
+    "unit_price": 212.65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "1344354-00-A",
+    "unit_price": 212.65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "1344221-00-B",
+    "unit_price": 455.09,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "1694511-00-C",
+    "unit_price": 41.38,
+    "confidence": "high",
+    "note": "Some speckle noise near the prices, but the values are readable."
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "1100382-S0-A",
+    "unit_price": 23.36,
+    "confidence": "medium",
+    "note": "Scan noise over the part number. The 4th-5th digits ('03' / '38') and 'S0' versus 'SO' are uncertain. The description reads 'LAMP SPRT LH', not 'CPRT'."
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "1771986-SC-C",
+    "unit_price": 24.82,
+    "confidence": "low",
+    "note": "The part number is heavily obscured by scan noise. Several digits and the final letter are guesses, roughly '17?19?6-SC-?'. The unit price is also obscured; it was taken from the clear line total of 24.82 at qty 1."
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "1504553-00-E",
+    "unit_price": 106.73,
+    "confidence": "low",
+    "note": "The first digits of the part number are obscured by noise; the second and third characters ('50') are a guess. The rest, '4553-00-E', is legible."
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "1714884-EC-D",
+    "unit_price": 436.29,
+    "confidence": "medium",
+    "note": "The middle segment appears printed as 'EC'. It may be 'E0', so it should be verified."
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "1760888-00-F",
+    "unit_price": 1741,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "1711755-00-D",
+    "unit_price": 7.09,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "1741047-00-F",
+    "unit_price": 372.34,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "1741046-00-G",
+    "unit_price": 21.35,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "1774268-00-G",
+    "unit_price": 7.1,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 15,
+    "found": true,
+    "part_number": "1694314-SC-G",
+    "unit_price": 695.04,
+    "confidence": "medium",
+    "note": "The second digit could be '6' or '0'. 'SC' is as printed."
+   }
+  ],
+  "missed_lines": []
+ }
+}

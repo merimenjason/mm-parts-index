@@ -11,8 +11,23 @@ Docs and layout only — no change to the app's numbers.
   sortable column headers may wrap when a table is short of room. In Simple
   mode every table now fits without side-scrolling at window widths of
   1,100px and up.
-- **Tables centred.** A table narrower than its box (for example a saved claim
-  in Claim history) now sits in the middle instead of leaving a gap on the right.
+- **QA.md: October 2026 validation results.** §7 adds the Opus 5.5 second
+  reading of 45 bills (96.8% agreement on random lines, no price differences,
+  provisionally ≈3 wrong part numbers per 100 lines); §9 adds part-number
+  lookups of 106 wide-range lines (42 are the same part name on a different
+  car) and the mean/median/trimmed-mean comparison (keep the median); §11 adds
+  the pending human reviews and "Lexus recorded as Toyota".
+- **`validation/2026-10/`** holds the workbooks, lookups, Opus 5.5 readings,
+  live-data snapshot and scripts behind those QA.md figures, with a README that
+  gives the order to re-run them. Paths are repo-relative (`INVOICES_DIR` /
+  `OCR_OUT_DIR` override the bill folders); it has its own `package.json`, so
+  the app's dependencies are unchanged.
+- **Expired Sonnet 5 intro pricing removed** from `Cost-Estimation.md` and
+  `OCR_PROMPT.md` (it ended 31 Aug 2026; Sonnet 5 now costs the same as
+  Sonnet 4.6). MANUAL §9's duplicate item 4 renumbered to 6.
+- **Tables fill their box.** A table narrower than its box (for example a saved
+  claim in Claim history) now stretches to the full width instead of leaving a
+  gap on the right.
 - **Docs brought in line with 1.18.0 and the live gold set.** `QA.md` §10 gains
   a dated update (gold set regenerated, Claude first pass, provisional reading,
   side findings) and §11 new open items; `README.md`, `MANUAL.md` §9,

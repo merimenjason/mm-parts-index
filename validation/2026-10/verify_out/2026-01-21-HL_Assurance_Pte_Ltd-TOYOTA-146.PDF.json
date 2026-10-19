@@ -1,0 +1,156 @@
+{
+ "source_file": "2026-01-21-HL Assurance Pte Ltd-TOYOTA-146.PDF",
+ "bill": "B33",
+ "served_by": "claude-opus-5-5",
+ "at": "2026-10-15T10:18:11.690Z",
+ "usage": {
+  "input_tokens": 4798,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "iterations": [
+   {
+    "input_tokens": 4798,
+    "output_tokens": 784,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 0
+    },
+    "type": "message",
+    "model": null
+   }
+  ],
+  "output_tokens": 784,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global"
+ },
+ "result": {
+  "supplier_name": "HE XING AUTO PARTS PTE LTD",
+  "bill_no": "DLI9285374",
+  "bill_date": "10/11/2025",
+  "parts_subtotal": 3790,
+  "lines": [
+   {
+    "line": 1,
+    "found": true,
+    "part_number": "T53301-28160",
+    "unit_price": 350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 2,
+    "found": true,
+    "part_number": "T53410-28100",
+    "unit_price": 48,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 3,
+    "found": true,
+    "part_number": "T53101-28600-B0",
+    "unit_price": 420,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 4,
+    "found": true,
+    "part_number": "T52119-2R906",
+    "unit_price": 295,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 5,
+    "found": true,
+    "part_number": "T52115-28270",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 6,
+    "found": true,
+    "part_number": "T81130-28G40",
+    "unit_price": 1350,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 7,
+    "found": true,
+    "part_number": "T53205-28200",
+    "unit_price": 600,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 8,
+    "found": true,
+    "part_number": "T53811-28180",
+    "unit_price": 380,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 9,
+    "found": true,
+    "part_number": "T53805-28090",
+    "unit_price": 105,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 10,
+    "found": true,
+    "part_number": "T53181-28130-A0",
+    "unit_price": 60,
+    "confidence": "high",
+    "note": ""
+   },
+   {
+    "line": 11,
+    "found": true,
+    "part_number": "T53877-28060",
+    "unit_price": 65,
+    "confidence": "high",
+    "note": "Under D/O DDO9032931"
+   },
+   {
+    "line": 12,
+    "found": true,
+    "part_number": "T52161-16010",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Row number obscured by punch-hole mark; same part number as CLIP BUMPER line"
+   },
+   {
+    "line": 13,
+    "found": true,
+    "part_number": "T52161-16010",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": "Same part number printed as CLIP GRILLE line"
+   },
+   {
+    "line": 14,
+    "found": true,
+    "part_number": "T90467-07166",
+    "unit_price": 2,
+    "confidence": "high",
+    "note": ""
+   }
+  ],
+  "missed_lines": []
+ }
+}
