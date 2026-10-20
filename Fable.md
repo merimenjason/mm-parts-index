@@ -1,6 +1,6 @@
 # Fable.md — PartsIndex feature roadmap (v1.8.0 analysis)
 
-*Written against PartsIndex v1.8.0, July 2026. Codebase analysed: `src/pipeline.js`
+*Written against PartsIndex v1.8.0, July 2026 (status lines updated to v1.18.0). Codebase analysed: `src/pipeline.js`
 (489 lines, pure), `src/PartsIndex.jsx` (~1,230 lines, UI + glue),
 `tools/batch-ocr.mjs`, `eval/`, `api/ocr.js`, and all project docs.*
 
@@ -150,6 +150,8 @@ displayed as a decoded model name. The design above respects that line.
 
 ## F3 — Recency-aware benchmarks: date window + time-decay weighting
 
+**Status: HALF SHIPPED. The date window (`cfg.maxAgeYears`) shipped in v1.17.0;
+time-decay weighting is still open.**
 **When: post-run (needs the multi-year spread the 200 invoices bring).
 Depends on: P5's `parseDate` hardening (dot/dash/ISO formats). Effort: M.
 Risk: medium — every number changes when enabled, so snapshot discipline is

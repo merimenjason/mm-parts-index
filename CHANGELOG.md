@@ -28,6 +28,15 @@ Docs and layout only — no change to the app's numbers.
 - **Tables fill their box.** A table narrower than its box (for example a saved
   claim in Claim history) now stretches to the full width instead of leaving a
   gap on the right.
+- **Handover refresh (20 Oct 2026).** HANDOVER §7 summarises the October checks
+  and updates the open gaps and recommendations; README and HANDOVER no longer
+  claim a GitHub Pages deploy workflow (it was never committed — deploy Pages
+  with `npm run deploy`); the README file tree gains `QA.md`, `validation/`,
+  `tools/backfill-make.mjs` and `ci.yml`; OPUS_PROMPTS' status block is brought
+  up to v1.18.0 (P8 done; P5, P7, P10 and P15 partly done). README and
+  HANDOVER now say Simple mode shows three tabs (Dashboard, Benchmark, Assess
+  a Claim), not six, and the README screenshot is retaken from the current
+  build on the live shared reference (1,536 lines) instead of the demo data.
 - **Docs brought in line with 1.18.0 and the live gold set.** `QA.md` §10 gains
   a dated update (gold set regenerated, Claude first pass, provisional reading,
   side findings) and §11 new open items; `README.md`, `MANUAL.md` §9,

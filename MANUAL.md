@@ -699,7 +699,8 @@ which to close that gap. Findings on the live data are in [`QA.md`](./QA.md).
    --dry-run`, then `--limit 5` checked against the source PDFs, then the full
    folder with `--mode batch`; keep the 5% eyeball sample, since the
    reconciliation gate catches amount misreads but not part-number misreads
-   (`QA.md` §7 found 14 in the live data). On the localStorage build, export
+   (`QA.md` §7 found 14 in the live data, and the October 2026 second reading
+   puts it at about 3 per 100 lines). On the localStorage build, export
    the dataset to Excel straight after import as a storage-quota safety net.
 
 ---

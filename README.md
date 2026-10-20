@@ -13,11 +13,12 @@ Repository: <https://github.com/merimenjason/mm-parts-index> — also linked
 (text + GitHub icon) from the top-right of the app masthead, under
 *fuzzy-matched median benchmark*.
 
-![tabs: Dashboard · Benchmark · Add Bills · Parts Ledger · Configuration · Assess a Claim · Analytics · Coverage · Method Notes](public/screenshot.png)
+![PartsIndex Dashboard in Simple mode on the live shared reference (1,536 part lines): tabs Dashboard · Benchmark · Assess a Claim](public/screenshot.png)
 
-The app opens in **Simple mode** — a Simple/Detailed toggle in the tab bar
-hides Analytics, Coverage and Method Notes until a **Detailed** click is
-needed, so a first-time reviewer isn't handed the full statistical toolkit
+The app opens in **Simple mode**, which shows only the three tabs an assessor
+works in — Dashboard, Benchmark and Assess a Claim. The Simple/Detailed toggle
+in the tab bar brings back Add Bills, Parts Ledger, Configuration, Analytics,
+Coverage and Method Notes when a **Detailed** click is needed, so a first-time reviewer isn't handed the full statistical toolkit
 up front.
 
 ---
@@ -209,11 +210,8 @@ works the same way — move `api/ocr.js` to `netlify/functions/ocr.js`.
 Pages can't run the serverless function, so the OCR button won't work there — the
 Excel-upload path still does. Two ways:
 
-**Automatic (CI):** the included workflow `.github/workflows/deploy-pages.yml`
-builds on every push to `main` and sets the base path to your repo name. In the
-repo → **Settings → Pages**, set **Source: GitHub Actions**. Done.
-
-**Manual:**
+There is no Pages deploy workflow in the repo (the only workflow,
+`.github/workflows/ci.yml`, runs the self-tests and a build), so deploy by hand:
 
 ```bash
 npm run deploy     # builds with VITE_BASE=/partsindex/ and pushes to gh-pages
@@ -230,16 +228,16 @@ Then **Settings → Pages → Source: `gh-pages` branch**. If your repo isn't na
 |---|---|
 | **Dashboard** | KPI tiles (click any tile to drill into it), make-coverage bars, top fuzzy-matched benchmarks — **click a part to expand its quotes** |
 | **Benchmark** | Stakeholder-facing benchmark lookup: filter by make/model, part name or number (normalisation-aware), or global search → **median & mean** per part; a **Min quotes for reliable spread** slider (1–30, shared with Configuration) tunes the `*` floor here too; click a row for every source quote (supplier · bill · date · grade · price · OCR/Excel). Add parts to a **Worklist** with the `+` in the **leftmost column** (each worklist row expands to its source quotes) and export it — with evidence — to **Excel** or **PDF**. The worklist is not saved: leaving the tab, reloading or switching Simple/Detailed clears it |
-| **Add Bills** | Excel upload, live OCR (with a "Test mode" toggle to preview an OCR read without saving it), reload-demo, export, clear, a held-for-review queue with a reason breakdown (totals mismatch / duplicate line), and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
-| **Parts Ledger** | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
-| **Configuration** | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
+| **Add Bills** *(Detailed mode)* | Excel upload, live OCR (with a "Test mode" toggle to preview an OCR read without saving it), reload-demo, export, clear, a held-for-review queue with a reason breakdown (totals mismatch / duplicate line), and a **persistent, drill-downable activity log** (timestamped events, click to expand detail, filter by kind) |
+| **Parts Ledger** *(Detailed mode)* | Every enriched line with Make/Model columns; **sortable** columns; search + filter by make / line-type |
+| **Configuration** *(Detailed mode)* | Hybrid matching configuration (part-number-first, optional name bridging) + the median table with Make, Model, Basis and **IQR band** columns and a **Min quotes for reliable spread** floor slider (1–30, default 4); click a row to see the grouped quotes |
 | **Assess a Claim** | Paste a repairer estimate, or **upload** the estimate PDF/image for Claude OCR → line-by-line variance vs the benchmark, total potential over-claim, % flags, and an **ABOVE BOUND** flag for lines past the Tukey outlier fence; **Export Detailed Report** produces the attachable audit trail; **Save to claim history** keeps the assessment (plus any workshop/plate/make/model OCR found) for later, reopened via the **Claim history** modal |
 | **Analytics** *(Detailed mode)* | All 8 methods, selectable — the median-benchmark view is also click-to-expand |
 | **Coverage** *(Detailed mode)* | Make & category coverage vs the success criteria; a **Grade mix by make** chart |
 | **Method Notes** *(Detailed mode)* | What each analytic computes and why |
 
 A **Simple / Detailed** toggle in the tab bar (top right) switches between a
-lean six-tab view (default) and all nine tabs; the choice persists per browser.
+lean three-tab view (default) and all nine tabs; the choice persists per browser.
 
 In the browser-only build the **18-bill demo loads automatically on the first
 visit only**. A `partsindex_seeded_v1` marker is written the first time this
@@ -487,6 +485,7 @@ partsindex/
 ├─ HANDOVER.md                    ← onboarding handover for a new developer
 ├─ Fable.md                       ← feature roadmap (F1–F7, elaborated)
 ├─ OPUS_PROMPTS.md                ← ready-to-run implementation prompts (P1–P15) + status
+├─ QA.md                          ← data-validity findings on the live reference (read before quoting figures)
 ├─ OCR_PROMPT.md                  ← tuned prompt for OCR-ing the 200 invoices
 ├─ Cost-Estimation.md             ← cost model + step-by-step instructions for the 200-invoice ingestion
 ├─ index.html
@@ -500,7 +499,7 @@ partsindex/
 │  ├─ claims.js                   ← serverless Claim History endpoint (GET/POST/DELETE → shared DB)
 │  └─ _db.js                      ← libSQL/Turso client + schema (parts + activity + claims) + upsert (server-only, holds the token)
 ├─ .github/workflows/
-│  └─ deploy-pages.yml            ← CI deploy to GitHub Pages
+│  └─ ci.yml                      ← self-tests + production build on every push to main/new and every PR
 ├─ public/
 │  ├─ favicon.ico / favicon-32.png / favicon-128.png   ← Merimen "f" browser icon
 │  ├─ apple-touch-icon.png
@@ -517,10 +516,13 @@ partsindex/
 │  ├─ results.csv                 ← sweep output from the worked example — do not cite
 │  └─ results.provisional.csv     ← sweep over Claude's first-pass labels — provisional, do not cite
 ├─ tools/
+│  ├─ backfill-make.mjs           ← one-off: recover the vehicle make from bill filenames for rows already stored
 │  ├─ batch-ocr.mjs               ← bulk OCR runner for the 200-invoice run (resumable, validating)
 │  ├─ db-init.mjs                 ← npm run db:init / db:seed — create the libSQL schema, optionally seed the demo
 │  ├─ mock-server.mjs             ← local fake of the API for offline testing
 │  └─ selftest.mjs                ← npm run test:tools — validation/dedup/manifest/dispute-pack tests
+├─ validation/
+│  └─ 2026-10/                    ← October 2026 OCR + price-range checks: reviewer workbooks, data snapshots, scripts (own README)
 └─ src/
    ├─ main.jsx
    ├─ index.css
@@ -535,12 +537,13 @@ partsindex/
 
 ## Limitations
 
-- **Sample size.** Benchmarks firm up only as the same part recurs across bills; the demo's 18 bills are illustrative, the incoming **200** are what make it real.
+- **Sample size.** Benchmarks firm up only as the same part recurs across bills. The demo's 18 bills are illustrative; on the live reference (1,536 lines from 252 invoices) only 45 of 949 clusters reach the 4-quote floor — see QA.md §1.
 - **Accuracy (POC#2).** Quantifying TP inflation in dollars needs **matched triples** per claim (supplier-bill cost + repairer estimate + insurer final offer). The app ships the framework; feed it matched claim data to get hard numbers.
 - **Live OCR** requires the serverless proxy; never embed an API key in the static bundle. Large multi-page bills may need chunking due to output token limits.
 - **The proxy has no per-user auth.** `api/ocr.js` hides the API key, allowlists models and caps tokens (v1.12.0), and can require a shared secret — but that secret ships in the client bundle, so it deters drive-by abuse only. Add per-user auth or Vercel password protection before the URL circulates.
 - **`localStorage` is bounded (~5 MB).** A failed write raises a visible error event in the activity log (v1.12.0), but there is no proactive quota meter. Export to Excel regularly during large ingests.
-- **Matcher calibration is pending.** The gold set was regenerated from the live reference (203 pairs + 22 auto) and has a Claude first pass, but no adjuster labels yet, so the shipped 0.65 threshold is uncalibrated. Provisionally, name-only matching looks unreliable at any threshold — see QA.md §10 and the opt-in *Flag name-matched benchmarks* setting (v1.18.0). MANUAL.md §9 has the calibration checklist.
+- **Matcher calibration is pending.** The gold set was regenerated from the live reference (203 pairs + 22 auto) and has a Claude first pass, but no adjuster labels yet, so the shipped 0.65 threshold is uncalibrated. Provisionally, name-only matching looks unreliable at any threshold — see QA.md §10 and the opt-in *Flag name-matched benchmarks* setting (v1.18.0). MANUAL.md §9 has the calibration checklist. The October 2026 part-number lookups (QA.md §9) agree: the widest price ranges are mostly the same part name on different cars.
+- **OCR part-number misreads.** A second reading of 45 bills found no price errors but about 3 wrong part numbers per 100 lines (QA.md §7, provisional until a reviewer checks the workbook in `validation/2026-10/`).
 
 See **[`MANUAL.md`](./MANUAL.md)** for the full manual and the step-by-step
 project history, and **[`CHANGELOG.md`](./CHANGELOG.md)** for the version

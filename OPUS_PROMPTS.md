@@ -1,4 +1,4 @@
-# PartsIndex — Opus implementation prompts (status as of v1.13.0)
+# PartsIndex — Opus implementation prompts (status as of v1.18.0)
 
 Paste each prompt into Opus (Claude Opus 5 as of 24 July 2026) **run from the
 repo root** so it can read the real
@@ -23,6 +23,27 @@ pre-run blocker is **P2**.
 `decideInit` in `src/pipeline.js`) closed a related failure mode of P4 — a lost
 dataset key silently reseeding the demo over real data. This is distinct from the
 open proactive quota **meter**, which P4 still tracks.
+
+**Status update at v1.18.0 (October 2026).** Read each prompt's own text as
+written at its version; where later releases did part of the work, adapt it:
+
+- **P2** — still open and still the top priority. The gold set was regenerated
+  from the live reference (23 September 2026) and has a Claude first pass, but
+  no adjuster labels. Do not calibrate on Claude's labels.
+- **P5** — half done. The recency window (`cfg.maxAgeYears`, v1.17.0) covers the
+  date side; GST normalisation is still open.
+- **P7** — partly covered by Claim History (v1.16.0), which keeps the result and
+  config snapshot of any assessment someone saves. Arbitrary past snapshots
+  still can't be regenerated.
+- **P8 (F1)** — **done** in v1.14.0 (estimate OCR on Assess a Claim).
+- **P10 (F3)** — the hard date window shipped in v1.17.0; time-decay weighting
+  is still open. Skip the window half of the prompt.
+- **P15** — partly done in v1.17.3/1.17.4: `POST /api/parts` defaults to
+  append, `replace` needs the `PARTS_WRITE_TOKEN` operator token (fails closed)
+  and snapshots the old rows first. Optimistic concurrency (409), server-side
+  shape checks, the migration runner and `db:dump` are still open. The prompt's
+  `PARTSINDEX_WRITE_KEY` name is superseded by `PARTS_WRITE_TOKEN`.
+- P6, P9, P11–P14 unchanged.
 
 P8–P14 implement the **new features** elaborated in [`Fable.md`](./Fable.md)
 (F1–F7 — read the matching Fable.md section before running each prompt; it

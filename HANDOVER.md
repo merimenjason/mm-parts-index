@@ -1,6 +1,7 @@
 # HANDOVER.md — PartsIndex for a new developer
 
-*Written at v1.8.0, July 2026; §7 refreshed at v1.18.0, 29 September 2026.
+*Written at v1.8.0, July 2026; §7 refreshed at v1.18.0, 29 September 2026,
+and again on 20 October 2026 for the October data-validity checks.
 Assumes you know JavaScript and some React, but nothing about this project or
 the insurance domain. Read this top to bottom once; after that,
 [`MANUAL.md`](./MANUAL.md) is the full reference and [`QA.md`](./QA.md) is what
@@ -47,7 +48,8 @@ persists in your browser's `localStorage` (or a shared Turso/libSQL DB when
 cleared — it won't re-seed). The Add Bills tab's **activity log** persists the same
 way (see §4) and every data table is **click-to-sort** on any column. A
 **Simple/Detailed** toggle (top right, persisted per browser) opens in Simple
-by default, hiding Analytics, Coverage and Method Notes; Demo/Benchmark/Ingest
+by default, showing only Dashboard, Benchmark and Assess a Claim (the matching
+settings stay reachable from the top of Benchmark); Demo/Benchmark/Ingest
 were renamed Benchmark/Configuration/Add Bills in v1.15.0 — see §7.
 
 The **"OCR invoices"** button will *not* work locally with plain `vite`,
@@ -65,7 +67,7 @@ src/pipeline.js     ← THE most important file. All pure logic: enrichment,
                        No browser APIs. Imported by the app, the eval
                        harness AND the batch runner — change it and you
                        change all three.
-src/PartsIndex.jsx  ← The entire React UI (~1,330 lines): all tabs, state,
+src/PartsIndex.jsx  ← The entire React UI (~2,000 lines): all tabs, state,
                        persistence glue, Excel parsing, OCR fetch. Also the
                        shared useSort/SortTh table-sort layer and the persistent
                        activity log (logEvent + ActivityLog/ActivityDetail).
@@ -94,10 +96,13 @@ eval/               ← Matcher evaluation harness: generate candidate part
 ```
 
 Docs: `README.md` (deploy + feature overview), `MANUAL.md` (everything,
-including the project history and current limitations in §9),
-`OCR_PROMPT.md` (the extraction prompt explained), `CHANGELOG.md`,
-`OPUS_PROMPTS.md` (ready-to-run implementation prompts for planned work),
-`Fable.md` (the feature roadmap those prompts implement).
+including the project history and current limitations in §9), `QA.md` (what
+the live data actually looks like — read before quoting any figure),
+`OCR_PROMPT.md` (the extraction prompt explained), `Cost-Estimation.md` (OCR
+run costs), `CHANGELOG.md`, `OPUS_PROMPTS.md` (ready-to-run implementation
+prompts for planned work), `Fable.md` (the feature roadmap those prompts
+implement). `validation/2026-10/` holds the workbooks, data snapshots and
+scripts behind QA.md's October 2026 updates (its own `README.md` explains them).
 
 ## 4. The six concepts you must understand
 
@@ -253,8 +258,10 @@ import into Vercel, set `ANTHROPIC_API_KEY` and — on the shared backend —
 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and `PARTS_WRITE_TOKEN` in
 project settings. **Without `PARTS_WRITE_TOKEN` set, every `mode:"replace"`
 write is refused** (the guard fails closed by design), so a CLI re-import will
-401 until it exists. Generate one with `openssl rand -hex 32`. GitHub Pages also works (CI workflow included) but the OCR
-button won't function there. Full steps in `README.md`.
+401 until it exists. Generate one with `openssl rand -hex 32`. GitHub Pages also works
+via `npm run deploy` (there is no Pages workflow in the repo; the only workflow,
+`ci.yml`, tests and builds), but the OCR button won't function there. Full
+steps in `README.md`.
 
 ## 7. Current state and what's next
 
@@ -262,7 +269,7 @@ button won't function there. Full steps in `README.md`.
 a Test-mode toggle and a duplicate-line detection gate alongside the
 totals-reconciliation gate), hybrid matcher with grade / basis / model /
 **positional** guards, nine tabs — a Simple/Detailed toggle (Simple by
-default) shows six and hides Analytics/Coverage/Method Notes — including the
+default) shows only Dashboard, Benchmark and Assess a Claim — including the
 stakeholder Benchmark lookup (shared *Min quotes* floor slider, leftmost `+`
 add control) with Worklist and Excel/PDF export, eight analytics views,
 Coverage with a make-vs-grade mix chart against 20 common SG makes, Assess a
@@ -276,8 +283,31 @@ Claude first pass done, adjuster labels still missing — see "Open gaps" below)
 and an opt-in, provisional *Flag name-matched benchmarks* setting.
 
 **The live shared reference** holds 1,536 part lines from 252 invoices (the
-bulk-OCR run has happened). `QA.md` (17 September 2026) is the data-validity
-exercise on it; read it before quoting any figure from the reference.
+bulk-OCR run has happened). `QA.md` (17 September 2026, updated October 2026)
+is the data-validity exercise on it; read it before quoting any figure from
+the reference.
+
+**October 2026 checks (docs and data only, no app release).** Two questions
+from the review call, answered provisionally in `QA.md` §7 and §9 with the
+files in `validation/2026-10/`:
+
+- *Is the OCR reading the bills correctly?* A second reading of 45 bills (474
+  lines) by Claude Opus 5.5 agreed on 96.8% of lines on the random bills, with
+  **0 price differences**; part-number lookups suggest about **3 wrong part
+  numbers per 100 lines**.
+- *Are the wide price ranges real?* Catalogue lookups of 106 lines from 16
+  benchmarks: the prices are plausible (median 1.19× the online genuine-part
+  price), but **42 of the 106 lines are the same part name on a different
+  car** — the S$85–3,600 headlamp range is 10 vehicles. Same conclusion as the
+  gold-set first pass: the fix is matching, not statistics.
+- *Which average?* Mean, median, trimmed mean, geometric mean and
+  Hodges–Lehmann were compared leave-one-out; **the median wins** and stays.
+  Stakeholder write-up: `validation/2026-10/Benchmark_statistic_recommendation_2026-10-16.docx`.
+
+Both answers wait on a person filling in the two `_with_lookups` reviewer
+workbooks in that folder. Unreleased UI changes since 1.18.0 (see CHANGELOG
+"Unreleased"): text columns wrap so the main tables fit without side-scrolling
+in Simple mode, tables fill their card, and the Claim history modal is wider.
 
 **1.18.0** added the **Flag name-matched benchmarks** setting (`cfg.flagNameJoined`),
 labelled PROVISIONAL and off by default. It sits in `MatchConfig`, so it shows on
@@ -375,7 +405,8 @@ missed in 1.12.2 is back in lockstep with package.json, and 3 new self-tests
 `PartsIndex.jsx`, `pipeline.js`, etc. that nothing imported but that invited
 edits which silently changed nothing — `src/` is now the single source of
 truth), added `.gitignore` / `.env.example` / the Pages deploy workflow the
-README already documented, corrected the batch runner's `--max-tokens`
+README already documented (neither the `.gitignore` nor the workflow actually
+reached the repo — see 1.17.3), corrected the batch runner's `--max-tokens`
 header (8192, matching the code and the app), and added
 **`Cost-Estimation.md`** — the cost model and step-by-step procedure for the
 200-invoice ingestion. See CHANGELOG 1.12.2.
@@ -392,7 +423,7 @@ calibration; in the event the data went in first. Every median in the live
 reference therefore rests on merges nobody has checked, and the check now has
 to happen after the fact (gap 1 below).
 
-### Open gaps — as of v1.18.0 (29 September 2026)
+### Open gaps — as of v1.18.0 (refreshed 20 October 2026)
 
 Sources: `QA.md` §10–11 and the v1.12.0 review list this replaces (its fixes —
 the multi-file stale closure, invisible save failures, the P1 positional false
@@ -413,6 +444,9 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
    evidence? v1.18.0's opt-in flag is the stopgap until this is settled. Settle the LH/RH convention against the `sepSide`
    default in the same session (`QA.md` §5 argues pooling is safe). Everything
    in `QA.md` describes the spread of clusters whose correctness is assumed.
+   The October part-number lookups point the same way (42 of 106 lines were the
+   same part name on a different car; `QA.md` §9 update); a reviewer still has
+   to confirm them in `validation/2026-10/Price_range_check_2026-10-15_plain_with_lookups.xlsx`.
 2. **Thin coverage, overstated reliability.** Only 45 of 949 clusters meet the
    4-quote floor (271 lines, 17.6%). `n` counts lines, not independent
    observations — 8 of those 45 are one price re-quoted. `QA.md` §8 recommends
@@ -421,8 +455,14 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
    benchmark output, so it belongs in `cfg`.
 3. **OCR errors already in the live data.** 14 part-number pairs differ by one
    misread character (`I`/`1`, `B`/`S`, `9`/`3`), each splitting a cluster; and
-   field bleed between rows (a rivet's part number on a bumper line). Prompt/QA
-   track, not matcher work (`QA.md` §7).
+   field bleed between rows (a rivet's part number on a bumper line). The
+   October second reading puts it at about 3 wrong part numbers per 100 lines,
+   with no price errors — provisional until a person checks the 25 flagged rows
+   and the 34-line blind sample in
+   `validation/2026-10/OCR_accuracy_check_2026-10-15_plain_with_lookups.xlsx`.
+   Prompt/QA track, not matcher work (`QA.md` §7). Related: Lexus parts are
+   stored with make Toyota, so they can join Toyota benchmarks (`QA.md` §9
+   update).
 4. **No operator-side delete.** Since 1.17.3 the UI writes append-only, so bad
    rows cannot be removed — including the 14 stray "Run Log" rows in the live
    reference. `tools/prune-parts.mjs` (token-guarded, snapshot-first like
@@ -449,8 +489,10 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
      live lines (MANUAL §9, matcher issue 5); parked as too complex for now.
    - The Benchmark-tab worklist is not saved: leaving the tab, reloading or
      toggling Simple/Detailed silently empties it (MANUAL §9).
+   - Side-scrolling: in Simple mode every main table fits from a 1,100 px
+     window; at 1,024 px the Benchmark table is still slightly too wide.
 
-### Recommendations (refreshed September 2026)
+### Recommendations (refreshed October 2026)
 
 - **Label the gold set next**, from live pairs, before any new statistical
   display or presentation of the reference — the review call asked "at 0.65,
@@ -458,6 +500,11 @@ merge, masked OCR failures, the open proxy, the repo hazards — are recorded in
 - **Lead any presentation with the coverage figure** (17.6% of lines can
   price anything at `minQuotes: 4`) — it frames every other number and must
   not be discovered by the audience.
+- **Keep the median as the benchmark** and show the Q1–Q3 band beside it;
+  the October comparison (`QA.md` §9) found no average that does better, and
+  that matching, not the statistic, drives the error.
+- **Get the two October reviewer workbooks filled in** (`validation/2026-10/`)
+  before quoting the OCR error rate or the price-range breakdown as final.
 - **Implement the independence-based `reliable` flag** once the matcher is
   calibrated; both change which clusters are shown as authoritative.
 - **For further OCR runs**, keep `--mode batch` with Sonnet for the first
