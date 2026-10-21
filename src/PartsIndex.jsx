@@ -1238,7 +1238,7 @@ function MatchConfig({ cfg, setCfg, detailed }) {
             <input type="checkbox" checked={cfg.mode === "fuzzy-name" ? true : cfg.bridge} disabled={cfg.mode === "fuzzy-name"} onChange={(e) => set("bridge", e.target.checked)} /> Bridge by name across part numbers</label>
           <label style={{ fontSize: 12.5 }}>Similarity: <b style={{ color: LIME }}>{cfg.threshold.toFixed(2)}</b><br />
             <input type="range" min="0.4" max="0.95" step="0.05" value={cfg.threshold} onChange={(e) => set("threshold", +e.target.value)} style={{ width: 150 }} /></label>
-          <label style={{ fontSize: 12.5 }}>Token/spelling: <b style={{ color: LIME }}>{cfg.tokenWeight.toFixed(1)}</b><br />
+          <label style={{ fontSize: 12.5 }}>Spelling tolerance: <b style={{ color: LIME }}>{cfg.tokenWeight.toFixed(1)}</b><br />
             <input type="range" min="0" max="1" step="0.1" value={cfg.tokenWeight} onChange={(e) => set("tokenWeight", +e.target.value)} style={{ width: 130 }} /></label>
         </>}
         <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>

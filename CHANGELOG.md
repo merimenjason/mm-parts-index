@@ -6,6 +6,9 @@ Versions reconstructed from the development history (dates approximate).
 
 Docs and layout only — no change to the app's numbers.
 
+- **"Token/spelling" slider renamed "Spelling tolerance"** on the matching
+  configuration panel. Label only: the setting (`cfg.tokenWeight`), its range
+  and the benchmark numbers are unchanged.
 - **Less side-scrolling.** The Claim history window is wider (980 → 1400px),
   and text columns (part name, description, part number, model, category) and
   sortable column headers may wrap when a table is short of room. In Simple
